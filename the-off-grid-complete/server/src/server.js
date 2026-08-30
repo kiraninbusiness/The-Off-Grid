@@ -6,6 +6,7 @@ import auth from './routes/auth.js';
 import products from './routes/products.js';
 import orders from './routes/orders.js';
 import reviews from './routes/reviews.js';
+import coupons from './routes/coupons.js';
 
 const app=express();
 app.use(cors({origin:process.env.CLIENT_URL||'http://localhost:5173'}));
@@ -15,6 +16,7 @@ app.use('/api/auth',auth);
 app.use('/api/products',products);
 app.use('/api/orders',orders);
 app.use('/api/reviews',reviews);
+app.use('/api/coupons',coupons);
 
 const port=process.env.PORT||5000;
 initDb().then(()=>app.listen(port,()=>console.log(`API running on http://localhost:${port}`)))

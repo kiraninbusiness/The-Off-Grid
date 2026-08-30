@@ -72,6 +72,19 @@ export default function Checkout({
     useState(false);
 
 
+  const [couponInput, setCouponInput] =
+    useState("");
+
+  const [coupon, setCoupon] =
+    useState(null); // { code, discount }
+
+  const [couponBusy, setCouponBusy] =
+    useState(false);
+
+  const [couponError, setCouponError] =
+    useState("");
+
+
   React.useEffect(() => {
 
     if (!user) return;
@@ -114,19 +127,64 @@ export default function Checkout({
       : 79;
 
 
+  const couponDiscount =
+    coupon ? coupon.discount : 0;
+
+
   /*
     LOYALTY POINTS DISCOUNT
-    1 point = ₹1. Can't discount more
-    than the subtotal itself.
+    1 point = ₹1. Can't discount more than
+    what's left of the subtotal after any
+    coupon has already been applied.
   */
   const pointsToRedeem =
     redeemPoints
-      ? Math.min(points, subtotal)
+      ? Math.min(points, Math.max(0, subtotal - couponDiscount))
       : 0;
 
 
   const total =
-    subtotal + shipping - pointsToRedeem;
+    subtotal + shipping - couponDiscount - pointsToRedeem;
+
+
+  /*
+    APPLY / REMOVE COUPON
+  */
+  async function applyCoupon() {
+
+    if (!couponInput.trim()) return;
+
+    setCouponBusy(true);
+    setCouponError("");
+
+    try {
+
+      const d = await api("/coupons/validate", {
+        method: "POST",
+        body: JSON.stringify({
+          code: couponInput.trim(),
+          subtotal
+        })
+      });
+
+      setCoupon(d);
+      setCouponInput(d.code);
+
+    } catch (e) {
+
+      setCoupon(null);
+      setCouponError(e.message || "Invalid coupon");
+
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function removeCoupon() {
+    setCoupon(null);
+    setCouponInput("");
+    setCouponError("");
+  }
 
 
   /*
@@ -244,7 +302,10 @@ export default function Checkout({
                 "cod",
 
               redeem_points:
-                pointsToRedeem
+                pointsToRedeem,
+
+              coupon_code:
+                coupon ? coupon.code : ""
             })
         }
       );
@@ -381,7 +442,10 @@ export default function Checkout({
                 "online",
 
               redeem_points:
-                pointsToRedeem
+                pointsToRedeem,
+
+              coupon_code:
+                coupon ? coupon.code : ""
             })
         }
       );
@@ -1297,6 +1361,75 @@ export default function Checkout({
             </div>
 
 
+            {/* COUPON CODE */}
+
+            <div className="coupon-box">
+
+              {!coupon ? (
+
+                <div className="coupon-input-row">
+
+                  <input
+                    type="text"
+                    placeholder="Coupon code"
+                    value={couponInput}
+                    onChange={(e) =>
+                      setCouponInput(
+                        e.target.value.toUpperCase()
+                      )
+                    }
+                  />
+
+                  <button
+                    type="button"
+                    disabled={couponBusy || !couponInput.trim()}
+                    onClick={applyCoupon}
+                  >
+                    {couponBusy ? "Checking…" : "Apply"}
+                  </button>
+
+                </div>
+
+              ) : (
+
+                <div className="coupon-applied">
+
+                  <span>
+                    "{coupon.code}" applied
+                  </span>
+
+                  <button type="button" onClick={removeCoupon}>
+                    Remove
+                  </button>
+
+                </div>
+
+              )}
+
+              {couponError && (
+                <p className="coupon-error">{couponError}</p>
+              )}
+
+            </div>
+
+
+            {couponDiscount > 0 && (
+
+              <div>
+
+                <span>
+                  Coupon discount
+                </span>
+
+                <b>
+                  −{money(couponDiscount)}
+                </b>
+
+              </div>
+
+            )}
+
+
             {user && points > 0 && (
 
               <div className="rewards-redeem">
@@ -1314,7 +1447,7 @@ export default function Checkout({
                   />
 
                   Use {points} reward points
-                  ({money(Math.min(points, subtotal))} off)
+                  ({money(Math.min(points, Math.max(0, subtotal - couponDiscount)))} off)
 
                 </label>
 

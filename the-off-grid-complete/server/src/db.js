@@ -81,6 +81,26 @@ created_at TIMESTAMPTZ DEFAULT NOW()
   ADD COLUMN IF NOT EXISTS points_awarded BOOLEAN NOT NULL DEFAULT FALSE
 `);
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS coupons(
+      id SERIAL PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      type TEXT NOT NULL DEFAULT 'percent',
+      value INTEGER NOT NULL,
+      min_order INTEGER NOT NULL DEFAULT 0,
+      max_discount INTEGER,
+      usage_limit INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+  ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS coupon_code TEXT,
+  ADD COLUMN IF NOT EXISTS coupon_discount INTEGER NOT NULL DEFAULT 0
+`);
+  await pool.query(`
     UPDATE users
     SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6))
     WHERE referral_code IS NULL

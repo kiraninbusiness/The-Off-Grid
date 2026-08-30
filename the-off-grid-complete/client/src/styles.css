@@ -2517,6 +2517,31 @@ footer p{font-size:11px;color:#aaa;}
 .rewards-redeem input{width:16px;height:16px;accent-color:var(--ink);cursor:pointer;}
 
 /* =========================================================
+   COUPON CODE (checkout)
+========================================================= */
+
+.coupon-box{padding:12px 0;border-top:1px dashed var(--line);}
+.coupon-input-row{display:flex;gap:8px;}
+.coupon-input-row input{flex:1;padding:11px 12px;border:1px solid var(--line);font-size:11px;letter-spacing:.5px;text-transform:uppercase;background:#fff;}
+.coupon-input-row button{padding:11px 18px;background:var(--ink);color:#fff;border:none;font-size:10px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;white-space:nowrap;}
+.coupon-input-row button:disabled{opacity:.5;cursor:not-allowed;}
+.coupon-applied{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f3f1ec;font-size:11px;letter-spacing:.3px;}
+.coupon-applied button{background:none;border:none;text-decoration:underline;font-size:10px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;color:#777;}
+.coupon-error{margin:8px 0 0;font-size:11px;color:#b3261e;}
+.admin-form-error{margin:0;padding:10px 14px;background:#fff2f2;border:1px solid #edcccc;color:#a33;border-radius:8px;font-size:12px;}
+
+/* =========================================================
+   RELATED / RECENTLY VIEWED PRODUCTS (product detail page)
+========================================================= */
+
+.pdp-more-section{padding:60px 7vw 20px;border-top:1px solid var(--line);}
+.pdp-more-section h2{font-family:"Playfair Display",serif;font-weight:500;font-size:22px;margin:0 0 22px;}
+.pdp-more-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px 16px;}
+
+/* Coupon rows reuse .admin-product-card but have no image column */
+.admin-product-card:has(.admin-product-details:only-child){grid-template-columns:1fr;}
+
+/* =========================================================
    REWARDS CARD (account page)
 ========================================================= */
 

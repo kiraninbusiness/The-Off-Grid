@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import Card from "../components/ProductCard";
 import {
   ArrowLeft,
   ArrowRight,
@@ -344,6 +345,32 @@ export default function ProductDetails({
     setActiveImage(0);
   }, [id]);
 
+  /*
+    RECENTLY VIEWED
+    Track this product in localStorage so we can
+    show a "Recently Viewed" strip. Most recent first,
+    capped at 8 ids, current product excluded from the list.
+  */
+  useEffect(() => {
+    if (!product) return;
+
+    try {
+      const key = "thrift_recently_viewed";
+      const stored = JSON.parse(
+        localStorage.getItem(key) || "[]"
+      );
+
+      const next = [
+        product.id,
+        ...stored.filter((pid) => pid !== product.id)
+      ].slice(0, 8);
+
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [product?.id]);
+
   if (!product) {
     return (
       <main className="product-not-found">
@@ -377,6 +404,40 @@ export default function ProductDetails({
   const currentPhoto = photos[activeImage] || photos[0];
 
   const isWishlisted = wishlist.includes(product.id);
+
+  /*
+    RELATED PRODUCTS
+    Same category, excluding the current piece,
+    in-stock first, capped at 4.
+  */
+  const relatedProducts = products
+    .filter(
+      (p) =>
+        p.id !== product.id &&
+        p.category === product.category
+    )
+    .sort((a, b) => (Number(b.stock) > 0) - (Number(a.stock) > 0))
+    .slice(0, 4);
+
+  /*
+    RECENTLY VIEWED
+    Pulled from localStorage ids, resolved
+    against the products already loaded.
+  */
+  let recentlyViewed = [];
+  try {
+    const ids = JSON.parse(
+      localStorage.getItem("thrift_recently_viewed") || "[]"
+    );
+
+    recentlyViewed = ids
+      .filter((pid) => pid !== product.id)
+      .map((pid) => products.find((p) => p.id === pid))
+      .filter(Boolean)
+      .slice(0, 4);
+  } catch {
+    recentlyViewed = [];
+  }
 
   const discount =
     oldPrice > price
@@ -859,6 +920,60 @@ export default function ProductDetails({
       ========================================= */}
 
       <ReviewsSection productId={product.id} user={user} />
+
+
+      {/* =========================================
+          RELATED PRODUCTS
+      ========================================= */}
+
+      {relatedProducts.length > 0 && (
+
+        <section className="pdp-more-section">
+
+          <h2>You Might Also Like</h2>
+
+          <div className="pdp-more-grid">
+            {relatedProducts.map((p) => (
+              <Card
+                key={p.id}
+                p={p}
+                add={add}
+                wish={wishlist}
+                toggle={toggle}
+              />
+            ))}
+          </div>
+
+        </section>
+
+      )}
+
+
+      {/* =========================================
+          RECENTLY VIEWED
+      ========================================= */}
+
+      {recentlyViewed.length > 0 && (
+
+        <section className="pdp-more-section">
+
+          <h2>Recently Viewed</h2>
+
+          <div className="pdp-more-grid">
+            {recentlyViewed.map((p) => (
+              <Card
+                key={p.id}
+                p={p}
+                add={add}
+                wish={wishlist}
+                toggle={toggle}
+              />
+            ))}
+          </div>
+
+        </section>
+
+      )}
 
 
       {/* =========================================

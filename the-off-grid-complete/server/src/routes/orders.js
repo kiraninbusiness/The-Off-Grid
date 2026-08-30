@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
+import { checkCoupon } from './coupons.js';
 
 const router = Router();
 
@@ -102,7 +103,8 @@ router.post('/create', auth, async (req, res) => {
     items = [],
     shipping = {},
     payment_method = 'cod',
-    redeem_points = 0
+    redeem_points = 0,
+    coupon_code = ''
   } = req.body;
 
   if (!['cod', 'online'].includes(payment_method)) {
@@ -203,10 +205,42 @@ router.post('/create', auth, async (req, res) => {
 
 
     /*
+      COUPON CODE
+      Locked so two simultaneous orders can't both
+      squeeze past the same usage_limit.
+    */
+    let couponRow = null;
+    let couponDiscount = 0;
+    const normalizedCode =
+      String(coupon_code || '').trim().toUpperCase();
+
+    if (normalizedCode) {
+      const couponResult = await client.query(
+        'SELECT * FROM coupons WHERE code=$1 FOR UPDATE',
+        [normalizedCode]
+      );
+      couponRow = couponResult.rows[0] || null;
+
+      const check = await checkCoupon(
+        { query: (...args) => client.query(...args) },
+        normalizedCode,
+        subtotal
+      );
+
+      if (!check.ok) {
+        throw new Error(check.message);
+      }
+
+      couponDiscount = check.discount;
+    }
+
+
+    /*
       LOYALTY POINTS REDEMPTION
       1 point = ₹1. Can't redeem more points
       than the user has, and can't discount
-      more than the subtotal itself.
+      more than what's left of the subtotal
+      after the coupon is applied.
     */
     const userResult = await client.query(
       `SELECT loyalty_points
@@ -224,14 +258,21 @@ router.post('/create', auth, async (req, res) => {
       Math.min(
         Math.floor(Number(redeem_points) || 0),
         userPoints,
-        subtotal
+        Math.max(0, subtotal - couponDiscount)
       )
     );
 
     const discount = pointsToRedeem;
 
     const total =
-      subtotal + shippingCharge - discount;
+      subtotal + shippingCharge - couponDiscount - discount;
+
+    if (couponRow) {
+      await client.query(
+        'UPDATE coupons SET used_count = used_count + 1 WHERE id = $1',
+        [couponRow.id]
+      );
+    }
 
     if (pointsToRedeem > 0) {
       await client.query(
@@ -256,9 +297,11 @@ router.post('/create', auth, async (req, res) => {
           shipping_address,
           payment_method,
           discount,
-          points_redeemed
+          points_redeemed,
+          coupon_code,
+          coupon_discount
         )
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
         RETURNING *`,
         [
           req.user.id,
@@ -268,7 +311,9 @@ router.post('/create', auth, async (req, res) => {
           shipping.address || '',
           payment_method,
           discount,
-          pointsToRedeem
+          pointsToRedeem,
+          couponRow ? couponRow.code : null,
+          couponDiscount
         ]
       )
     ).rows[0];

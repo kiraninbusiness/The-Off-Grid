@@ -151,6 +151,7 @@ function OrderProgress({ status }) {
 export default function Admin({ user }) {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [coupons, setCoupons] = useState([]);
 
   const [productSearch, setProductSearch] =
     useState("");
@@ -185,6 +186,29 @@ export default function Admin({ user }) {
     useState(false);
 
   /* ================================
+     COUPON FORM STATE
+  ================================ */
+
+  const emptyCoupon = {
+    code: "",
+    type: "percent",
+    value: "",
+    min_order: "0",
+    max_discount: "",
+    usage_limit: "",
+    expires_at: ""
+  };
+
+  const [couponForm, setCouponForm] =
+    useState(emptyCoupon);
+
+  const [couponBusy, setCouponBusy] =
+    useState(false);
+
+  const [couponErr, setCouponErr] =
+    useState("");
+
+  /* ================================
      LOAD DATA
   ================================ */
 
@@ -195,10 +219,12 @@ export default function Admin({ user }) {
 
       const [
         productData,
-        orderData
+        orderData,
+        couponData
       ] = await Promise.all([
         api("/products"),
-        api("/orders")
+        api("/orders"),
+        api("/coupons")
       ]);
 
       setProducts(
@@ -210,6 +236,12 @@ export default function Admin({ user }) {
       setOrders(
         Array.isArray(orderData)
           ? orderData
+          : []
+      );
+
+      setCoupons(
+        Array.isArray(couponData)
+          ? couponData
           : []
       );
     } catch (e) {
@@ -438,6 +470,94 @@ export default function Admin({ user }) {
       setErr(
         e?.message ||
           "Unable to delete product."
+      );
+    }
+  }
+
+  /* ================================
+     COUPONS — CREATE
+  ================================ */
+
+  async function saveCoupon(e) {
+    e.preventDefault();
+
+    if (!couponForm.code.trim() || !couponForm.value) {
+      setCouponErr("Code and value are required.");
+      return;
+    }
+
+    try {
+      setCouponBusy(true);
+      setCouponErr("");
+
+      await api("/coupons", {
+        method: "POST",
+        body: JSON.stringify({
+          code: couponForm.code.trim(),
+          type: couponForm.type,
+          value: Number(couponForm.value),
+          min_order: Number(couponForm.min_order) || 0,
+          max_discount:
+            couponForm.max_discount === ""
+              ? null
+              : Number(couponForm.max_discount),
+          usage_limit:
+            couponForm.usage_limit === ""
+              ? null
+              : Number(couponForm.usage_limit),
+          expires_at: couponForm.expires_at || null
+        })
+      });
+
+      setCouponForm(emptyCoupon);
+      await load();
+    } catch (e) {
+      setCouponErr(
+        e?.message || "Unable to create coupon."
+      );
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  /* ================================
+     COUPONS — TOGGLE ACTIVE
+  ================================ */
+
+  async function toggleCoupon(coupon) {
+    try {
+      await api(`/coupons/${coupon.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          active: !coupon.active
+        })
+      });
+      await load();
+    } catch (e) {
+      setCouponErr(
+        e?.message || "Unable to update coupon."
+      );
+    }
+  }
+
+  /* ================================
+     COUPONS — DELETE
+  ================================ */
+
+  async function removeCoupon(coupon) {
+    const confirmed = window.confirm(
+      `Delete coupon "${coupon.code}"?`
+    );
+    if (!confirmed) return;
+
+    try {
+      await api(`/coupons/${coupon.id}`, {
+        method: "DELETE"
+      });
+      await load();
+    } catch (e) {
+      setCouponErr(
+        e?.message || "Unable to delete coupon."
       );
     }
   }
@@ -1941,6 +2061,256 @@ export default function Admin({ user }) {
             )
 
           )}
+
+        </div>
+
+      </section>
+
+
+      {/* =================================
+          COUPON MANAGEMENT
+      ================================= */}
+
+      <section className="admin-content">
+
+        <div className="admin-form-panel">
+
+          <div className="admin-panel-header">
+            <div>
+              <p className="eyebrow">
+                PROMOTIONS
+              </p>
+
+              <h2>
+                Add Coupon
+              </h2>
+            </div>
+          </div>
+
+          <form
+            className="admin-product-form"
+            onSubmit={saveCoupon}
+          >
+
+            <label>
+              COUPON CODE
+              <input
+                type="text"
+                placeholder="e.g. OFFGRID20"
+                value={couponForm.code}
+                onChange={(e) =>
+                  setCouponForm((c) => ({
+                    ...c,
+                    code: e.target.value.toUpperCase()
+                  }))
+                }
+              />
+            </label>
+
+            <div className="admin-two">
+
+              <label>
+                DISCOUNT TYPE
+                <select
+                  value={couponForm.type}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      type: e.target.value
+                    }))
+                  }
+                >
+                  <option value="percent">Percent off</option>
+                  <option value="flat">Flat amount off</option>
+                </select>
+              </label>
+
+              <label>
+                {couponForm.type === "percent"
+                  ? "VALUE (%)"
+                  : "VALUE (₹)"}
+                <input
+                  type="number"
+                  min="1"
+                  value={couponForm.value}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      value: e.target.value
+                    }))
+                  }
+                />
+              </label>
+
+            </div>
+
+            <div className="admin-two">
+
+              <label>
+                MIN. ORDER VALUE (₹)
+                <input
+                  type="number"
+                  min="0"
+                  value={couponForm.min_order}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      min_order: e.target.value
+                    }))
+                  }
+                />
+              </label>
+
+              <label>
+                MAX DISCOUNT (₹, optional)
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="No cap"
+                  value={couponForm.max_discount}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      max_discount: e.target.value
+                    }))
+                  }
+                />
+              </label>
+
+            </div>
+
+            <div className="admin-two">
+
+              <label>
+                USAGE LIMIT (optional)
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Unlimited"
+                  value={couponForm.usage_limit}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      usage_limit: e.target.value
+                    }))
+                  }
+                />
+              </label>
+
+              <label>
+                EXPIRES ON (optional)
+                <input
+                  type="date"
+                  value={couponForm.expires_at}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({
+                      ...c,
+                      expires_at: e.target.value
+                    }))
+                  }
+                />
+              </label>
+
+            </div>
+
+            {couponErr && (
+              <p className="admin-form-error">
+                {couponErr}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              className="admin-save-button"
+              disabled={couponBusy}
+            >
+              <Plus size={15} />
+              {couponBusy ? "Creating…" : "Create Coupon"}
+            </button>
+
+          </form>
+
+        </div>
+
+
+        <div className="admin-products-panel">
+
+          <div className="admin-panel-header">
+            <div>
+              <p className="eyebrow">
+                {coupons.length} COUPON
+                {coupons.length === 1 ? "" : "S"}
+              </p>
+
+              <h2>
+                All Coupons
+              </h2>
+            </div>
+          </div>
+
+          <div className="admin-product-list">
+
+          {!coupons.length && (
+            <div className="admin-empty">
+              <p>
+                No coupons yet. Create your first one on the left.
+              </p>
+            </div>
+          )}
+
+          {coupons.map((c) => (
+
+            <article
+              key={c.id}
+              className={`admin-product-card ${!c.active ? "admin-product-sold" : ""}`}
+            >
+
+              <div className="admin-product-details">
+                <div className="admin-product-title">
+                  <strong>{c.code}</strong>
+                </div>
+                <p className="muted">
+                  {c.type === "percent"
+                    ? `${c.value}% off`
+                    : `₹${c.value} off`}
+                  {c.min_order > 0 &&
+                    ` · min ₹${c.min_order}`}
+                  {c.max_discount &&
+                    ` · capped ₹${c.max_discount}`}
+                  {c.usage_limit &&
+                    ` · ${c.used_count}/${c.usage_limit} used`}
+                  {!c.usage_limit &&
+                    ` · used ${c.used_count}×`}
+                  {c.expires_at &&
+                    ` · expires ${new Date(c.expires_at).toLocaleDateString("en-IN")}`}
+                </p>
+
+                <div className="admin-product-actions">
+
+                  <button
+                    type="button"
+                    onClick={() => toggleCoupon(c)}
+                  >
+                    {c.active ? "Deactivate" : "Activate"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="delete"
+                    onClick={() => removeCoupon(c)}
+                  >
+                    <Trash2 size={15} />
+                    Delete
+                  </button>
+
+                </div>
+              </div>
+
+            </article>
+
+          ))}
+
+          </div>
 
         </div>
 
