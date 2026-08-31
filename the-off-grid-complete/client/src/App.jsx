@@ -996,6 +996,12 @@ function Shop({
   const [size, setSize] =
     useState("All");
 
+  const [color, setColor] =
+    useState("All");
+
+  const [fit, setFit] =
+    useState("All");
+
   const [price, setPrice] =
     useState("All");
 
@@ -1061,6 +1067,26 @@ function Shop({
   ];
 
 
+  const colors = [
+    "All",
+    ...new Set(
+      products
+        .map((p) => p.color)
+        .filter(Boolean)
+    )
+  ];
+
+
+  const fits = [
+    "All",
+    ...new Set(
+      products
+        .map((p) => p.fit)
+        .filter(Boolean)
+    )
+  ];
+
+
   /* FILTER */
 
   const filtered =
@@ -1079,6 +1105,16 @@ function Shop({
       const matchesSize =
         size === "All" ||
         p.size === size;
+
+
+      const matchesColor =
+        color === "All" ||
+        p.color === color;
+
+
+      const matchesFit =
+        fit === "All" ||
+        p.fit === fit;
 
 
       const stock =
@@ -1139,6 +1175,8 @@ function Shop({
         ${p.category || ""}
         ${p.gender || ""}
         ${p.size || ""}
+        ${p.color || ""}
+        ${p.fit || ""}
         ${p.condition || ""}
         ${p.description || ""}
       `.toLowerCase();
@@ -1154,6 +1192,8 @@ function Shop({
         matchesCategory &&
         matchesGender &&
         matchesSize &&
+        matchesColor &&
+        matchesFit &&
         matchesAvailability &&
         matchesPrice &&
         matchesSearch
@@ -1245,6 +1285,8 @@ function Shop({
     setCat("All");
     setGender("All");
     setSize("All");
+    setColor("All");
+    setFit("All");
     setPrice("All");
     setAvailability("All");
     setQ("");
@@ -1263,6 +1305,8 @@ function Shop({
     cat !== "All" ||
     gender !== "All" ||
     size !== "All" ||
+    color !== "All" ||
+    fit !== "All" ||
     price !== "All" ||
     availability !== "All" ||
     q !== "" ||
@@ -1429,6 +1473,82 @@ function Shop({
           </div>
 
         </div>
+
+
+        {/* COLOR */}
+
+        {colors.length > 1 && (
+
+          <div className="shop-filter-group">
+
+            <span className="filter-label">
+              COLOR
+            </span>
+
+            <div className="filters">
+
+              {colors.map((c) => (
+
+                <button
+                  type="button"
+                  key={c}
+                  className={
+                    color === c
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() =>
+                    setColor(c)
+                  }
+                >
+                  {c}
+                </button>
+
+              ))}
+
+            </div>
+
+          </div>
+
+        )}
+
+
+        {/* FIT */}
+
+        {fits.length > 1 && (
+
+          <div className="shop-filter-group">
+
+            <span className="filter-label">
+              FIT
+            </span>
+
+            <div className="filters">
+
+              {fits.map((ft) => (
+
+                <button
+                  type="button"
+                  key={ft}
+                  className={
+                    fit === ft
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() =>
+                    setFit(ft)
+                  }
+                >
+                  {ft}
+                </button>
+
+              ))}
+
+            </div>
+
+          </div>
+
+        )}
 
 
         {/* PRICE */}

@@ -371,6 +371,69 @@ export default function ProductDetails({
     }
   }, [product?.id]);
 
+  /*
+    JSON-LD STRUCTURED DATA
+    Lets Google show price, availability and rating
+    directly in search results. Injected manually since
+    the project has no head-management library installed.
+  */
+  useEffect(() => {
+    if (!product) return;
+
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+
+    const inStock = Number(product.stock) > 0;
+
+    script.text = JSON.stringify({
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      name: product.name,
+      description: product.description || undefined,
+      image: [
+        product.image,
+        ...(Array.isArray(product.images) ? product.images : [])
+      ].filter(Boolean),
+      sku: String(product.id),
+      brand: {
+        "@type": "Brand",
+        name: "THE OFF GRID"
+      },
+      offers: {
+        "@type": "Offer",
+        url: window.location.href,
+        priceCurrency: "INR",
+        price: Number(product.price) || 0,
+        availability: inStock
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+        itemCondition: "https://schema.org/NewCondition"
+      }
+    });
+
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, [product?.id]);
+
+  /*
+    PAGE TITLE
+    Reset to the site default on unmount so navigating
+    away (e.g. to /shop) doesn't leave a stale title.
+  */
+  useEffect(() => {
+    if (!product) return;
+
+    const previousTitle = document.title;
+    document.title = `${product.name} | THE OFF GRID`;
+
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [product?.id]);
+
   if (!product) {
     return (
       <main className="product-not-found">
@@ -651,6 +714,28 @@ export default function ProductDetails({
                 {product.size || "ONE SIZE"}
               </strong>
             </div>
+
+
+            {product.color && (
+              <div>
+                <span>COLOR</span>
+
+                <strong>
+                  {product.color}
+                </strong>
+              </div>
+            )}
+
+
+            {product.fit && (
+              <div>
+                <span>FIT</span>
+
+                <strong>
+                  {product.fit}
+                </strong>
+              </div>
+            )}
 
 
             <div>

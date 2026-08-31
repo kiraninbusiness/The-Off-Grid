@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight, Heart, Eye, X } from "lucide-react";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -14,6 +14,9 @@ function Card({
 }) {
 
   const [added, setAdded] =
+    useState(false);
+
+  const [quickView, setQuickView] =
     useState(false);
 
   const stock =
@@ -161,6 +164,28 @@ function Card({
         </button>
 
 
+        {/* QUICK VIEW */}
+
+        <button
+          type="button"
+          className="product-quickview"
+          aria-label="Quick view"
+          onClick={(e) => {
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            setQuickView(true);
+
+          }}
+        >
+
+          <Eye size={17} strokeWidth={1.5} />
+          <span>Quick View</span>
+
+        </button>
+
+
         {/* TAG */}
 
         <span className="product-condition">
@@ -189,8 +214,8 @@ function Card({
               ? ` · ${p.gender}`
               : ""}
 
-            {p.size
-              ? ` · ${p.size}`
+            {p.color
+              ? ` · ${p.color}`
               : ""}
 
           </small>
@@ -277,6 +302,126 @@ function Card({
         )}
 
       </button>
+
+
+      {/* QUICK VIEW MODAL */}
+
+      {quickView && (
+
+        <div
+          className="quickview-overlay"
+          onClick={() => setQuickView(false)}
+        >
+
+          <div
+            className="quickview-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <button
+              type="button"
+              className="quickview-close"
+              aria-label="Close quick view"
+              onClick={() => setQuickView(false)}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="quickview-image">
+              <img src={p.image} alt={p.name} />
+            </div>
+
+            <div className="quickview-info">
+
+              <small>
+
+                {p.category}
+
+                {p.gender ? ` · ${p.gender}` : ""}
+
+                {p.color ? ` · ${p.color}` : ""}
+
+              </small>
+
+              <h3>{p.name}</h3>
+
+              <strong className="product-price">
+
+                {money(price)}
+
+                {oldPrice > price && (
+                  <del>{money(oldPrice)}</del>
+                )}
+
+              </strong>
+
+              {p.description && (
+                <p className="quickview-description">
+                  {p.description}
+                </p>
+              )}
+
+              <div className="quickview-meta">
+
+                <div>
+                  <span>SIZE</span>
+                  <strong>{p.size || "ONE SIZE"}</strong>
+                </div>
+
+                {p.fit && (
+                  <div>
+                    <span>FIT</span>
+                    <strong>{p.fit}</strong>
+                  </div>
+                )}
+
+                <div>
+                  <span>AVAILABILITY</span>
+                  <strong className={stock > 0 ? "in-stock" : "sold-stock"}>
+                    {stock > 0 ? `${stock} AVAILABLE` : "SOLD OUT"}
+                  </strong>
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                className={`add premium-add ${added ? "added-to-bag" : ""}`}
+                onClick={handleAdd}
+                disabled={stock < 1}
+              >
+
+                {stock < 1 ? (
+                  "SOLD OUT"
+                ) : added ? (
+                  <>
+                    ADDED TO BAG
+                    <span>✓</span>
+                  </>
+                ) : (
+                  <>
+                    ADD TO BAG
+                    <ArrowRight size={15} />
+                  </>
+                )}
+
+              </button>
+
+              <Link
+                to={`/product/${p.id}`}
+                className="quickview-full-link"
+                onClick={() => setQuickView(false)}
+              >
+                View Full Details
+              </Link>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
     </article>
   );

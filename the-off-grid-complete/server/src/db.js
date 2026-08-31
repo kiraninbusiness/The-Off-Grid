@@ -101,6 +101,11 @@ created_at TIMESTAMPTZ DEFAULT NOW()
   ADD COLUMN IF NOT EXISTS coupon_discount INTEGER NOT NULL DEFAULT 0
 `);
   await pool.query(`
+  ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS color TEXT,
+  ADD COLUMN IF NOT EXISTS fit TEXT
+`);
+  await pool.query(`
     UPDATE users
     SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6))
     WHERE referral_code IS NULL

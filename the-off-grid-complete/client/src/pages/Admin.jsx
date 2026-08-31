@@ -33,7 +33,9 @@ const empty = {
   old_price: "",
   image: "",
   extraImages: "",
-  stock: 1
+  stock: 1,
+  color: "",
+  fit: ""
 };
 
 const money = (n) =>
@@ -591,7 +593,11 @@ export default function Admin({ user }) {
         ? product.images.join("\n")
         : "",
       stock:
-        product.stock ?? 0
+        product.stock ?? 0,
+      color:
+        product.color || "",
+      fit:
+        product.fit || ""
     });
 
     setErr("");
@@ -1322,6 +1328,47 @@ export default function Admin({ user }) {
                       </option>
                     )
                   )}
+                </select>
+              </label>
+
+            </div>
+
+
+            <div className="admin-two">
+
+              <label>
+                COLOR
+
+                <input
+                  placeholder="e.g. Olive, Black, Rust"
+                  value={f.color}
+                  onChange={(e) =>
+                    change(
+                      "color",
+                      e.target.value
+                    )
+                  }
+                />
+              </label>
+
+
+              <label>
+                FIT
+
+                <select
+                  value={f.fit}
+                  onChange={(e) =>
+                    change(
+                      "fit",
+                      e.target.value
+                    )
+                  }
+                >
+                  <option value="">Not specified</option>
+                  <option value="Slim">Slim</option>
+                  <option value="Regular">Regular</option>
+                  <option value="Relaxed">Relaxed</option>
+                  <option value="Oversized">Oversized</option>
                 </select>
               </label>
 
