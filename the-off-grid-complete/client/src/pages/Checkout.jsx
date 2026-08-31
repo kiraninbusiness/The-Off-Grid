@@ -500,7 +500,7 @@ export default function Checkout({
 
 
       description:
-        "Pre-loved fashion order",
+        "THE OFF GRID order",
 
 
       order_id:

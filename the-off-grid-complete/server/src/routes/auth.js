@@ -217,7 +217,7 @@ router.post('/forgot-password', async (req, res) => {
     /*
       Your frontend URL.
       Example:
-      https://thrift-store-neon.vercel.app
+      https://theoffgrid.vercel.app
     */
 
     const frontendUrl =
