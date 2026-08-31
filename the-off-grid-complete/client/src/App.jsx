@@ -12,7 +12,7 @@ import {
   Youtube,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import ProductCard from "./ProductCard";
+import ProductCard from "./components/ProductCard";
 import "./styles.css";
 
 /* =========================================================
