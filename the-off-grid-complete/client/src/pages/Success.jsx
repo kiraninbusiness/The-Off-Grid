@@ -1,89 +1,95 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
-  CheckCircle,
-  Package,
+  Check,
   ArrowRight,
-  ShoppingBag
+  Package
 } from "lucide-react";
 
 export default function Success() {
-  const { state } = useLocation();
+  const location = useLocation();
 
-  const orderId = state?.order?.id;
+  const order = location.state?.order;
 
   return (
-    <main className="success-page">
+    <main className="page success-page">
 
-      <div className="success-circle">
-        <CheckCircle size={42} strokeWidth={1.5} />
-      </div>
+      <div className="success-container">
 
-      <p className="eyebrow">
-        ORDER CONFIRMED
-      </p>
-
-      <h1>
-        Thank you for
-        <br />
-        <em>going off grid.</em>
-      </h1>
-
-      <p className="success-intro">
-        Your order{" "}
-        {orderId ? (
-          <strong>#{orderId}</strong>
-        ) : (
-          ""
-        )}{" "}
-        has been created successfully.
-      </p>
-
-      <div className="success-note">
-
-        <Package size={22} />
-
-        <div>
-          <strong>
-            Your pieces are on their way.
-          </strong>
-
-          <span>
-            We'll carefully prepare your order
-            and update its status from your account.
-          </span>
+        <div className="success-icon">
+          <Check size={34} />
         </div>
 
-      </div>
+        <span className="eyebrow">
+          THE OFF GRID
+        </span>
 
-      <div className="success-actions">
+        <h1>
+          ORDER<br />
+          CONFIRMED.
+        </h1>
 
-        <Link
-          className="success-primary-button"
-          to="/account"
-        >
-          VIEW MY ORDERS
-          <ArrowRight size={16} />
-        </Link>
-
-        <Link
-          className="success-secondary-button"
-          to="/shop"
-        >
-          <ShoppingBag size={15} />
-          CONTINUE SHOPPING
-        </Link>
-
-      </div>
-
-      <div className="success-message">
-
-        <span>01</span>
-
-        <p>
-          Thank you for giving a beautiful piece
-          another story.
+        <p className="success-message">
+          Thank you for shopping with The Off Grid.
+          Your order has been successfully placed.
         </p>
+
+        {order?.id && (
+
+          <div className="success-order-number">
+
+            <span>
+              ORDER NUMBER
+            </span>
+
+            <strong>
+              #{order.id}
+            </strong>
+
+          </div>
+
+        )}
+
+        <div className="success-actions">
+
+          {order && (
+
+            <Link
+              to="/order"
+              state={{ order }}
+              className="primary-button"
+            >
+              VIEW ORDER
+              <ArrowRight size={17} />
+            </Link>
+
+          )}
+
+          <Link
+            to="/"
+            className="secondary-button"
+          >
+            CONTINUE SHOPPING
+          </Link>
+
+        </div>
+
+        <div className="success-note">
+
+          <Package size={20} />
+
+          <div>
+            <strong>
+              WHAT'S NEXT?
+            </strong>
+
+            <p>
+              We'll prepare your order and keep you
+              updated about its delivery.
+            </p>
+          </div>
+
+        </div>
 
       </div>
 
