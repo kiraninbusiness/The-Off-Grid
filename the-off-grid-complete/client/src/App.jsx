@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Link,
   Route,
   Routes,
-  useNavigate
+  useNavigate,
 } from "react-router-dom";
 
 import {
@@ -14,7 +14,10 @@ import {
   User,
   Heart,
   ArrowRight,
-  Instagram
+  Instagram,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 
 import { api } from "./api";
@@ -33,6 +36,9 @@ import TrackOrder from "./pages/TrackOrder";
    HELPERS
 ========================================================= */
 
+const money = (n) =>
+  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
 const getStored = (key, fallback) => {
   try {
     const value = localStorage.getItem(key);
@@ -41,9 +47,6 @@ const getStored = (key, fallback) => {
     return fallback;
   }
 };
-
-const money = (n) =>
-  `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 
 /* =========================================================
@@ -56,174 +59,123 @@ function Header({
   user,
   openMenu,
   setOpenMenu,
-  setCartOpen
+  setCartOpen,
 }) {
   const navigate = useNavigate();
-
   const [search, setSearch] = useState("");
 
   const cartCount = cart.reduce(
-    (sum, item) => sum + Number(item.qty || 0),
+    (total, item) => total + Number(item.qty || 0),
     0
   );
 
   const submitSearch = (e) => {
-    e.preventDefault();
+    if (e.key !== "Enter") return;
 
     const value = search.trim();
 
     if (!value) {
       navigate("/shop");
-      return;
+    } else {
+      navigate(`/shop?search=${encodeURIComponent(value)}`);
     }
 
     setOpenMenu(false);
-
-    navigate(
-      `/shop?search=${encodeURIComponent(value)}`
-    );
   };
 
   return (
     <>
-
-      {/* TOP BAR */}
-
       <div className="topbar">
-        <span>THE OFF GRID</span>
-        <span>CONSCIOUSLY SELECTED · INDIA</span>
+        <span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span>
+        <span>THE OFF GRID / EST. 2026</span>
       </div>
 
-
-      {/* NAV */}
-
-      <header className="nav">
-
-        {/* MOBILE */}
-
+      <header className="site-header">
         <button
-          className="icon mobile"
-          type="button"
-          onClick={() => setOpenMenu(v => !v)}
+          className="mobile-menu-button"
+          onClick={() => setOpenMenu((v) => !v)}
           aria-label="Menu"
         >
           {openMenu ? <X /> : <Menu />}
         </button>
 
-
-        {/* LOGO */}
-
         <Link
           to="/"
-          className="logo"
+          className="brand-logo"
           onClick={() => setOpenMenu(false)}
         >
           THE OFF GRID
         </Link>
 
-
-        {/* LINKS */}
-
-        <nav className={openMenu ? "links open" : "links"}>
-
-          <Link
-            to="/"
-            onClick={() => setOpenMenu(false)}
-          >
-            Home
+        <nav className={`main-nav ${openMenu ? "open" : ""}`}>
+          <Link to="/" onClick={() => setOpenMenu(false)}>
+            HOME
           </Link>
 
-          <Link
-            to="/shop"
-            onClick={() => setOpenMenu(false)}
-          >
-            Shop
+          <Link to="/shop" onClick={() => setOpenMenu(false)}>
+            SHOP
           </Link>
 
-          <Link
-            to="/our-story"
-            onClick={() => setOpenMenu(false)}
-          >
-            About
+          <Link to="/our-story" onClick={() => setOpenMenu(false)}>
+            STORY
           </Link>
 
-          <a
-            href="/#contact"
-            onClick={() => setOpenMenu(false)}
-          >
-            Contact
+          <a href="/#contact" onClick={() => setOpenMenu(false)}>
+            CONTACT
           </a>
 
           {user?.role === "admin" && (
-            <Link
-              to="/admin"
-              onClick={() => setOpenMenu(false)}
-            >
-              Admin
+            <Link to="/admin" onClick={() => setOpenMenu(false)}>
+              ADMIN
             </Link>
           )}
-
         </nav>
 
-
-        {/* ACTIONS */}
-
-        <div className="actions">
-
-          <form
-            className="search"
-            onSubmit={submitSearch}
-          >
+        <div className="header-actions">
+          <label className="header-search">
             <Search size={17} />
 
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={submitSearch}
               placeholder="Search"
-              aria-label="Search"
             />
-          </form>
-
+          </label>
 
           <Link
-            className="icon"
             to="/wishlist"
+            className="header-icon"
             aria-label="Wishlist"
           >
             <Heart />
 
             {wish.length > 0 && (
-              <b>{wish.length}</b>
+              <span className="icon-count">{wish.length}</span>
             )}
           </Link>
 
-
           <Link
-            className="icon"
             to="/account"
+            className="header-icon desktop-account"
             aria-label="Account"
           >
             <User />
           </Link>
 
-
           <button
-            className="icon"
-            type="button"
+            className="header-icon"
             onClick={() => setCartOpen(true)}
             aria-label="Shopping bag"
           >
             <ShoppingBag />
 
             {cartCount > 0 && (
-              <b>{cartCount}</b>
+              <span className="icon-count">{cartCount}</span>
             )}
           </button>
-
         </div>
-
       </header>
-
     </>
   );
 }
@@ -237,20 +189,18 @@ function Home({
   products,
   add,
   wish,
-  toggle
+  toggle,
 }) {
-
   const featured = products.slice(0, 4);
 
   return (
     <main>
 
-
       {/* HERO */}
 
-      <section className="home-hero">
+      <section className="new-hero">
 
-        <div className="home-hero-content">
+        <div className="hero-content">
 
           <p className="hero-label">
             THE OFF GRID / 2026
@@ -259,33 +209,43 @@ function Home({
           <h1>
             WEAR
             <br />
-            <em>DIFFERENT.</em>
+            <span>YOUR</span>
+            <br />
+            WAY.
           </h1>
 
           <p className="hero-description">
-            Clothing for people who don't
-            dress for the crowd.
+            Independent clothing for independent minds.
+            Discover pieces designed to move differently,
+            look different and feel completely yours.
           </p>
 
-          <Link
-            to="/shop"
-            className="button dark"
-          >
-            EXPLORE COLLECTION
-            <ArrowRight size={17} />
-          </Link>
+          <div className="hero-actions">
+            <Link to="/shop" className="primary-button">
+              SHOP COLLECTION
+              <ArrowRight size={18} />
+            </Link>
+
+            <Link to="/our-story" className="text-button">
+              OUR STORY
+            </Link>
+          </div>
 
         </div>
 
-
-        <div className="home-hero-visual">
+        <div className="hero-visual">
 
           <div className="hero-image-placeholder">
-            <span>THE OFF GRID</span>
-          </div>
+            <span>01</span>
 
-          <div className="hero-index">
-            01 / 01
+            <div>
+              <strong>OFF</strong>
+              <strong>GRID</strong>
+            </div>
+
+            <small>
+              NEW COLLECTION
+            </small>
           </div>
 
         </div>
@@ -302,23 +262,48 @@ function Home({
         </p>
 
         <h2>
-          For those who
+          NOT MADE FOR
           <br />
-          <em>choose their own way.</em>
+          EVERYONE.
         </h2>
 
         <p>
-          We believe clothing should feel personal.
-          Not dictated by trends. Not designed to
-          make everyone look the same.
+          A modern clothing label built around individuality,
+          clean silhouettes and pieces that don't need
+          permission to stand out.
         </p>
+
+      </section>
+
+
+      {/* FEATURE STRIP */}
+
+      <section className="feature-strip">
+
+        <div>
+          <Truck />
+          <strong>FAST SHIPPING</strong>
+          <span>Across India</span>
+        </div>
+
+        <div>
+          <ShieldCheck />
+          <strong>QUALITY FIRST</strong>
+          <span>Every piece checked</span>
+        </div>
+
+        <div>
+          <RotateCcw />
+          <strong>EASY RETURNS</strong>
+          <span>Simple & transparent</span>
+        </div>
 
       </section>
 
 
       {/* CATEGORIES */}
 
-      <section className="category-section">
+      <section className="home-section">
 
         <div className="section-title-row">
 
@@ -328,13 +313,14 @@ function Home({
             </p>
 
             <h2>
-              Shop by category
+              FIND YOUR
+              <br />
+              CATEGORY.
             </h2>
           </div>
 
-          <Link to="/shop">
-            VIEW ALL
-            <ArrowRight size={16} />
+          <Link to="/shop" className="section-link">
+            VIEW ALL <ArrowRight size={16} />
           </Link>
 
         </div>
@@ -342,50 +328,35 @@ function Home({
 
         <div className="category-grid">
 
-          <Link
-            to="/shop"
-            className="category-card category-one"
-          >
+          <Link to="/shop" className="category-card category-one">
+            <span>01</span>
             <div>
-              <small>01</small>
-              <h3>STREETWEAR</h3>
-              <span>EXPLORE</span>
-            </div>
-          </Link>
-
-
-          <Link
-            to="/shop"
-            className="category-card category-two"
-          >
-            <div>
-              <small>02</small>
+              <small>EVERYDAY</small>
               <h3>ESSENTIALS</h3>
-              <span>EXPLORE</span>
             </div>
           </Link>
 
-
-          <Link
-            to="/shop"
-            className="category-card category-three"
-          >
+          <Link to="/shop" className="category-card category-two">
+            <span>02</span>
             <div>
-              <small>03</small>
-              <h3>OUTERWEAR</h3>
-              <span>EXPLORE</span>
+              <small>URBAN</small>
+              <h3>STREETWEAR</h3>
             </div>
           </Link>
 
-
-          <Link
-            to="/shop"
-            className="category-card category-four"
-          >
+          <Link to="/shop" className="category-card category-three">
+            <span>03</span>
             <div>
-              <small>04</small>
+              <small>OUTER</small>
+              <h3>JACKETS</h3>
+            </div>
+          </Link>
+
+          <Link to="/shop" className="category-card category-four">
+            <span>04</span>
+            <div>
+              <small>RELAXED</small>
               <h3>CASUAL</h3>
-              <span>EXPLORE</span>
             </div>
           </Link>
 
@@ -396,25 +367,24 @@ function Home({
 
       {/* PRODUCTS */}
 
-      <section className="products-section">
+      <section className="home-section product-section">
 
         <div className="section-title-row">
 
           <div>
-
             <p className="section-kicker">
-              THE COLLECTION
+              LATEST DROP
             </p>
 
             <h2>
-              New pieces
+              NEW
+              <br />
+              ARRIVALS.
             </h2>
-
           </div>
 
-          <Link to="/shop">
-            SHOP ALL
-            <ArrowRight size={16} />
+          <Link to="/shop" className="section-link">
+            SHOP ALL <ArrowRight size={16} />
           </Link>
 
         </div>
@@ -422,10 +392,9 @@ function Home({
 
         {featured.length > 0 ? (
 
-          <div className="grid">
+          <div className="product-grid">
 
-            {featured.map(product => (
-
+            {featured.map((product) => (
               <Card
                 key={product.id}
                 p={product}
@@ -433,7 +402,6 @@ function Home({
                 wish={wish}
                 toggle={toggle}
               />
-
             ))}
 
           </div>
@@ -442,7 +410,7 @@ function Home({
 
           <div className="empty-products">
             <p>
-              Collection coming soon.
+              New pieces are arriving soon.
             </p>
           </div>
 
@@ -455,71 +423,33 @@ function Home({
 
       <section className="statement-section">
 
+        <div className="statement-number">
+          02
+        </div>
+
         <div>
 
           <p className="section-kicker">
-            OUR APPROACH
+            THE PHILOSOPHY
           </p>
 
           <h2>
-            LESS NOISE.
+            STAY
             <br />
-            <em>MORE CHARACTER.</em>
-          </h2>
-
-        </div>
-
-        <p>
-          We select pieces that have their own
-          identity. Strong silhouettes, everyday
-          comfort and details that don't need
-          to shout.
-        </p>
-
-      </section>
-
-
-      {/* STORY */}
-
-      <section className="home-story">
-
-        <div className="story-visual">
-          <span>02 / STORY</span>
-        </div>
-
-
-        <div className="story-content">
-
-          <p className="section-kicker">
-            OUR STORY
-          </p>
-
-          <h2>
-            Built outside
-            <br />
-            <em>the ordinary.</em>
+            <em>DIFFERENT.</em>
           </h2>
 
           <p>
-            THE OFF GRID is a clothing brand
-            built around individuality. We
-            believe your clothes should reflect
-            where you are going, not where
-            everyone else is going.
-          </p>
-
-          <p>
-            Every piece is selected with
-            attention to fit, quality and
-            character.
+            Trends change.
+            Your identity shouldn't have to.
           </p>
 
           <Link
             to="/our-story"
-            className="text-link"
+            className="primary-button"
           >
             READ OUR STORY
-            <ArrowRight size={16} />
+            <ArrowRight size={18} />
           </Link>
 
         </div>
@@ -530,32 +460,31 @@ function Home({
       {/* NEWSLETTER */}
 
       <section
-        className="newsletter"
+        className="newsletter-section"
         id="contact"
       >
 
         <div>
 
           <p className="section-kicker">
-            STAY CONNECTED
+            JOIN THE OFF GRID
           </p>
 
           <h2>
-            Be the first
+            BE FIRST
             <br />
-            <em>to know.</em>
+            <em>TO KNOW.</em>
           </h2>
 
           <p>
-            New drops, selected pieces and
-            updates from THE OFF GRID.
+            New drops, exclusive releases and
+            everything happening off the grid.
           </p>
 
         </div>
 
-
         <form
-          onSubmit={e => {
+          onSubmit={(e) => {
             e.preventDefault();
 
             const email =
@@ -564,7 +493,7 @@ function Home({
             if (!email) return;
 
             alert(
-              `You're on the list. ${email}`
+              `You're on the list. Welcome to THE OFF GRID.`
             );
 
             e.target.reset();
@@ -574,13 +503,13 @@ function Home({
           <input
             name="email"
             type="email"
-            placeholder="Email address"
+            placeholder="YOUR EMAIL ADDRESS"
             required
           />
 
           <button type="submit">
             JOIN
-            <ArrowRight size={16} />
+            <ArrowRight size={17} />
           </button>
 
         </form>
@@ -599,142 +528,135 @@ function Home({
 function OurStory({ products = [] }) {
 
   const available = products.filter(
-    p => Number(p.stock) > 0
+    (p) => Number(p.stock) > 0
   ).length;
 
   return (
     <main className="story-page">
 
-
-      {/* HERO */}
-
       <section className="story-hero">
 
         <p className="section-kicker">
-          THE OFF GRID
+          OUR STORY
         </p>
 
         <h1>
-          NOT MADE
+          BUILT
           <br />
-          <em>TO BLEND IN.</em>
+          <em>OUTSIDE</em>
+          <br />
+          THE LINES.
         </h1>
 
         <p>
-          THE OFF GRID exists for people who
-          want their clothing to feel like their
-          own.
+          THE OFF GRID exists for people who don't
+          believe clothing should tell them who to be.
+          We create modern pieces for people who
+          create their own direction.
         </p>
 
       </section>
 
 
-      {/* NUMBERS */}
-
-      <section className="story-numbers">
+      <section className="story-introduction">
 
         <div>
+          <span>01</span>
+          <h2>
+            WHY
+            <br />
+            OFF GRID?
+          </h2>
+        </div>
+
+        <div>
+          <p>
+            Fashion moves quickly. We don't think
+            your personal style needs to.
+          </p>
+
+          <p>
+            THE OFF GRID is about finding pieces
+            that feel natural to you rather than
+            simply following what's popular.
+          </p>
+
+          <p>
+            Clean design. Strong silhouettes.
+            Carefully selected clothing.
+            No unnecessary noise.
+          </p>
+        </div>
+
+      </section>
+
+
+      <section className="story-values">
+
+        <div>
+          <span>01</span>
+          <h3>INDIVIDUALITY</h3>
+          <p>
+            Your style is yours. We simply give
+            you more ways to express it.
+          </p>
+        </div>
+
+        <div>
+          <span>02</span>
+          <h3>QUALITY</h3>
+          <p>
+            Every piece is selected with attention
+            to construction, feel and everyday wear.
+          </p>
+        </div>
+
+        <div>
+          <span>03</span>
+          <h3>SIMPLICITY</h3>
+          <p>
+            Less noise. Better pieces.
+            Clothing that speaks without shouting.
+          </p>
+        </div>
+
+      </section>
+
+
+      {available > 0 && (
+        <section className="story-collection-count">
+
           <strong>
             {available}
           </strong>
 
           <span>
             pieces currently available
+            in the collection
           </span>
-        </div>
+
+        </section>
+      )}
 
 
-        <div>
-          <strong>
-            100%
-          </strong>
-
-          <span>
-            quality checked
-          </span>
-        </div>
-
-
-        <div>
-          <strong>
-            01
-          </strong>
-
-          <span>
-            independent direction
-          </span>
-        </div>
-
-      </section>
-
-
-      {/* PHILOSOPHY */}
-
-      <section className="philosophy">
+      <section className="story-final">
 
         <p className="section-kicker">
-          OUR PHILOSOPHY
+          YOUR STYLE. YOUR RULES.
         </p>
 
         <h2>
-          Clothing should
+          FIND YOUR
           <br />
-          <em>have character.</em>
-        </h2>
-
-
-        <div className="philosophy-grid">
-
-          <div>
-            <span>01</span>
-            <h3>INDIVIDUALITY</h3>
-            <p>
-              We choose pieces that feel
-              different without trying too hard.
-            </p>
-          </div>
-
-
-          <div>
-            <span>02</span>
-            <h3>QUALITY</h3>
-            <p>
-              Good construction and thoughtful
-              materials come before noise.
-            </p>
-          </div>
-
-
-          <div>
-            <span>03</span>
-            <h3>SIMPLICITY</h3>
-            <p>
-              A strong piece does not need
-              unnecessary decoration.
-            </p>
-          </div>
-
-        </div>
-
-      </section>
-
-
-      {/* CTA */}
-
-      <section className="story-bottom">
-
-        <h2>
-          Find something
-          <br />
-          <em>that feels like you.</em>
+          <em>OWN PATH.</em>
         </h2>
 
         <Link
           to="/shop"
-          className="button dark"
+          className="primary-button"
         >
-          SHOP COLLECTION
-          <ArrowRight size={17} />
+          EXPLORE COLLECTION
+          <ArrowRight size={18} />
         </Link>
 
       </section>
@@ -752,20 +674,16 @@ function Shop({
   products,
   add,
   wish,
-  toggle
+  toggle,
 }) {
 
-  const [category, setCategory] =
-    useState("All");
-
-  const [gender, setGender] =
-    useState("All");
-
-  const [sort, setSort] =
-    useState("featured");
-
-  const [search, setSearch] =
-    useState("");
+  const [category, setCategory] = useState("All");
+  const [gender, setGender] = useState("All");
+  const [size, setSize] = useState("All");
+  const [price, setPrice] = useState("All");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("featured");
+  const [filterOpen, setFilterOpen] = useState(false);
 
 
   useEffect(() => {
@@ -782,131 +700,187 @@ function Shop({
   }, []);
 
 
-  const categories = [
-    "All",
-    ...new Set(
-      products
-        .map(p => p.category)
-        .filter(Boolean)
-    )
-  ];
+  const categories = useMemo(
+    () => [
+      "All",
+      ...new Set(
+        products
+          .map((p) => p.category)
+          .filter(Boolean)
+      ),
+    ],
+    [products]
+  );
 
 
-  const genders = [
-    "All",
-    ...new Set(
-      products
-        .map(p => p.gender)
-        .filter(Boolean)
-    )
-  ];
+  const genders = useMemo(
+    () => [
+      "All",
+      ...new Set(
+        products
+          .map((p) => p.gender)
+          .filter(Boolean)
+      ),
+    ],
+    [products]
+  );
 
 
-  const filtered = products.filter(product => {
+  const sizes = useMemo(
+    () => [
+      "All",
+      ...new Set(
+        products
+          .map((p) => p.size)
+          .filter(Boolean)
+      ),
+    ],
+    [products]
+  );
 
-    const matchesCategory =
-      category === "All" ||
-      product.category === category;
 
-    const matchesGender =
-      gender === "All" ||
-      product.gender === gender;
+  const filtered = products.filter((p) => {
 
     const text = `
-      ${product.name || ""}
-      ${product.category || ""}
-      ${product.gender || ""}
-      ${product.size || ""}
-      ${product.color || ""}
-      ${product.fit || ""}
-      ${product.description || ""}
+      ${p.name || ""}
+      ${p.description || ""}
+      ${p.category || ""}
+      ${p.gender || ""}
+      ${p.size || ""}
+      ${p.color || ""}
+      ${p.fit || ""}
     `.toLowerCase();
 
     const matchesSearch =
       text.includes(
-        search.toLowerCase().trim()
+        search.trim().toLowerCase()
       );
 
+    const matchesCategory =
+      category === "All" ||
+      p.category === category;
+
+    const matchesGender =
+      gender === "All" ||
+      p.gender === gender;
+
+    const matchesSize =
+      size === "All" ||
+      p.size === size;
+
+    let matchesPrice = true;
+
+    if (price === "under") {
+      matchesPrice =
+        Number(p.price) < 1000;
+    }
+
+    if (price === "mid") {
+      matchesPrice =
+        Number(p.price) >= 1000 &&
+        Number(p.price) <= 1500;
+    }
+
+    if (price === "premium") {
+      matchesPrice =
+        Number(p.price) > 1500;
+    }
+
     return (
+      matchesSearch &&
       matchesCategory &&
       matchesGender &&
-      matchesSearch
+      matchesSize &&
+      matchesPrice
     );
   });
 
 
-  const list = [...filtered].sort(
-    (a, b) => {
+  const list = [...filtered].sort((a, b) => {
 
-      if (sort === "price-low") {
-        return (
-          Number(a.price) -
-          Number(b.price)
-        );
-      }
-
-      if (sort === "price-high") {
-        return (
-          Number(b.price) -
-          Number(a.price)
-        );
-      }
-
-      if (sort === "newest") {
-        return (
-          Number(b.id) -
-          Number(a.id)
-        );
-      }
-
-      return 0;
+    if (sort === "low") {
+      return Number(a.price) - Number(b.price);
     }
-  );
+
+    if (sort === "high") {
+      return Number(b.price) - Number(a.price);
+    }
+
+    if (sort === "new") {
+      return Number(b.id) - Number(a.id);
+    }
+
+    return 0;
+  });
+
+
+  const clear = () => {
+    setCategory("All");
+    setGender("All");
+    setSize("All");
+    setPrice("All");
+    setSearch("");
+    setSort("featured");
+
+    window.history.replaceState(
+      {},
+      "",
+      "/shop"
+    );
+  };
 
 
   return (
     <main className="shop-page">
 
-
-      {/* HEADER */}
-
       <section className="shop-intro">
 
         <p className="section-kicker">
-          COLLECTION
+          THE COLLECTION
         </p>
 
         <h1>
-          Shop
+          SHOP
           <br />
-          <em>the collection.</em>
+          <em>OFF GRID.</em>
         </h1>
 
         <p>
-          {list.length}{" "}
-          {list.length === 1
-            ? "piece"
-            : "pieces"}
+          Find pieces that fit your style,
+          not the other way around.
         </p>
 
       </section>
 
 
-      {/* CONTROLS */}
+      <button
+        className="mobile-filter-toggle"
+        onClick={() =>
+          setFilterOpen((v) => !v)
+        }
+      >
+        {filterOpen
+          ? "CLOSE FILTERS"
+          : "FILTER & SORT"}
+      </button>
 
-      <section className="shop-controls">
+
+      <section
+        className={
+          `shop-toolbar ${
+            filterOpen ? "open" : ""
+          }`
+        }
+      >
 
         <div className="filter-block">
 
           <span>CATEGORY</span>
 
           <div>
-
-            {categories.map(item => (
-
+            {categories.map((item) => (
               <button
                 key={item}
-                type="button"
                 className={
                   category === item
                     ? "active"
@@ -918,9 +892,7 @@ function Shop({
               >
                 {item}
               </button>
-
             ))}
-
           </div>
 
         </div>
@@ -931,12 +903,9 @@ function Shop({
           <span>SHOP FOR</span>
 
           <div>
-
-            {genders.map(item => (
-
+            {genders.map((item) => (
               <button
                 key={item}
-                type="button"
                 className={
                   gender === item
                     ? "active"
@@ -948,44 +917,135 @@ function Shop({
               >
                 {item}
               </button>
-
             ))}
+          </div>
+
+        </div>
+
+
+        <div className="filter-block">
+
+          <span>SIZE</span>
+
+          <div>
+            {sizes.map((item) => (
+              <button
+                key={item}
+                className={
+                  size === item
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  setSize(item)
+                }
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+
+        </div>
+
+
+        <div className="filter-block">
+
+          <span>PRICE</span>
+
+          <div>
+
+            <button
+              className={
+                price === "All"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setPrice("All")
+              }
+            >
+              ALL
+            </button>
+
+            <button
+              className={
+                price === "under"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setPrice("under")
+              }
+            >
+              UNDER ₹1,000
+            </button>
+
+            <button
+              className={
+                price === "mid"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setPrice("mid")
+              }
+            >
+              ₹1,000–₹1,500
+            </button>
+
+            <button
+              className={
+                price === "premium"
+                  ? "active"
+                  : ""
+              }
+              onClick={() =>
+                setPrice("premium")
+              }
+            >
+              ABOVE ₹1,500
+            </button>
 
           </div>
 
         </div>
 
 
-        <div className="shop-sort">
+        <div className="shop-search-row">
 
-          <input
-            value={search}
-            onChange={e =>
-              setSearch(e.target.value)
-            }
-            placeholder="Search"
-          />
+          <label>
+            <Search size={16} />
+
+            <input
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              placeholder="SEARCH PRODUCTS"
+            />
+          </label>
+
 
           <select
             value={sort}
-            onChange={e =>
+            onChange={(e) =>
               setSort(e.target.value)
             }
           >
             <option value="featured">
-              Featured
+              FEATURED
             </option>
 
-            <option value="newest">
-              Newest
+            <option value="new">
+              NEWEST
             </option>
 
-            <option value="price-low">
-              Price: Low to High
+            <option value="low">
+              PRICE LOW → HIGH
             </option>
 
-            <option value="price-high">
-              Price: High to Low
+            <option value="high">
+              PRICE HIGH → LOW
             </option>
           </select>
 
@@ -994,14 +1054,33 @@ function Shop({
       </section>
 
 
-      {/* PRODUCTS */}
+      <div className="shop-result-bar">
+
+        <span>
+          {list.length}{" "}
+          {list.length === 1
+            ? "PIECE"
+            : "PIECES"}
+        </span>
+
+        {(category !== "All" ||
+          gender !== "All" ||
+          size !== "All" ||
+          price !== "All" ||
+          search) && (
+          <button onClick={clear}>
+            CLEAR FILTERS
+          </button>
+        )}
+
+      </div>
+
 
       {list.length > 0 ? (
 
-        <div className="grid">
+        <div className="product-grid shop-products">
 
-          {list.map(product => (
-
+          {list.map((product) => (
             <Card
               key={product.id}
               p={product}
@@ -1009,38 +1088,33 @@ function Shop({
               wish={wish}
               toggle={toggle}
             />
-
           ))}
 
         </div>
 
       ) : (
 
-        <div className="shop-empty">
+        <section className="shop-empty">
 
           <p className="section-kicker">
             NOTHING FOUND
           </p>
 
           <h2>
-            Try another
+            TRY A
             <br />
-            <em>search.</em>
+            <em>DIFFERENT PATH.</em>
           </h2>
 
           <button
-            className="button dark"
-            onClick={() => {
-              setSearch("");
-              setCategory("All");
-              setGender("All");
-            }}
+            className="primary-button"
+            onClick={clear}
           >
-            VIEW ALL
-            <ArrowRight size={16} />
+            VIEW ALL PRODUCTS
+            <ArrowRight size={17} />
           </button>
 
-        </div>
+        </section>
 
       )}
 
@@ -1056,7 +1130,7 @@ function Shop({
 function Cart({
   cart,
   setCart,
-  close
+  close,
 }) {
 
   const navigate = useNavigate();
@@ -1069,34 +1143,44 @@ function Cart({
     0
   );
 
+  const shippingLimit = 1499;
+
+  const remaining =
+    Math.max(
+      shippingLimit - total,
+      0
+    );
+
+  const progress =
+    Math.min(
+      (total / shippingLimit) * 100,
+      100
+    );
+
 
   return (
     <div
-      className="overlay"
+      className="cart-overlay"
       onClick={close}
     >
 
       <aside
-        className="cart"
-        onClick={e =>
+        className="cart-drawer"
+        onClick={(e) =>
           e.stopPropagation()
         }
       >
 
-        <div className="cart-head">
+        <div className="cart-header">
 
           <div>
-            <span>YOUR BAG</span>
-
-            <h2>
-              Shopping bag
-            </h2>
+            <span>THE OFF GRID</span>
+            <h2>YOUR BAG</h2>
           </div>
 
           <button
-            className="icon"
             onClick={close}
-            type="button"
+            className="cart-close"
           >
             <X />
           </button>
@@ -1108,19 +1192,25 @@ function Cart({
 
           <div className="cart-empty">
 
-            <ShoppingBag size={38} />
+            <ShoppingBag size={40} />
+
+            <p>
+              YOUR BAG IS EMPTY
+            </p>
 
             <h3>
-              Your bag is empty.
+              Nothing here
+              <br />
+              <em>yet.</em>
             </h3>
 
             <Link
               to="/shop"
-              className="button dark"
+              className="primary-button"
               onClick={close}
             >
               SHOP COLLECTION
-              <ArrowRight size={16} />
+              <ArrowRight size={17} />
             </Link>
 
           </div>
@@ -1129,9 +1219,36 @@ function Cart({
 
           <>
 
-            <div className="cart-items">
+            <div className="shipping-message">
 
-              {cart.map(item => {
+              {remaining > 0 ? (
+                <>
+                  ADD{" "}
+                  <strong>
+                    {money(remaining)}
+                  </strong>{" "}
+                  FOR FREE SHIPPING
+                </>
+              ) : (
+                <strong>
+                  FREE SHIPPING UNLOCKED
+                </strong>
+              )}
+
+              <div className="shipping-track">
+                <div
+                  style={{
+                    width: `${progress}%`,
+                  }}
+                />
+              </div>
+
+            </div>
+
+
+            <div className="cart-products">
+
+              {cart.map((item) => {
 
                 const qty =
                   Number(item.qty) || 1;
@@ -1140,9 +1257,8 @@ function Cart({
                   Number(item.stock) || 0;
 
                 return (
-
                   <div
-                    className="cart-item"
+                    className="cart-product"
                     key={item.id}
                   >
 
@@ -1155,7 +1271,6 @@ function Cart({
                         alt={item.name}
                       />
                     </Link>
-
 
                     <div>
 
@@ -1171,23 +1286,23 @@ function Cart({
                         {money(item.price)}
                       </span>
 
+                      <div className="cart-product-actions">
 
-                      <div className="cart-item-bottom">
-
-                        <div className="qty">
+                        <div className="quantity">
 
                           <button
-                            type="button"
                             onClick={() =>
-                              setCart(current =>
-                                current.map(x =>
+                              setCart((current) =>
+                                current.map((x) =>
                                   x.id === item.id
                                     ? {
                                         ...x,
-                                        qty: Math.max(
-                                          1,
-                                          Number(x.qty) - 1
-                                        )
+                                        qty:
+                                          Math.max(
+                                            1,
+                                            Number(x.qty) -
+                                              1
+                                          ),
                                       }
                                     : x
                                 )
@@ -1200,20 +1315,21 @@ function Cart({
                           <span>{qty}</span>
 
                           <button
-                            type="button"
                             disabled={
                               qty >= stock
                             }
                             onClick={() =>
-                              setCart(current =>
-                                current.map(x =>
+                              setCart((current) =>
+                                current.map((x) =>
                                   x.id === item.id
                                     ? {
                                         ...x,
-                                        qty: Math.min(
-                                          stock,
-                                          Number(x.qty) + 1
-                                        )
+                                        qty:
+                                          Math.min(
+                                            stock,
+                                            Number(x.qty) +
+                                              1
+                                          ),
                                       }
                                     : x
                                 )
@@ -1225,14 +1341,12 @@ function Cart({
 
                         </div>
 
-
                         <button
-                          className="remove-item"
-                          type="button"
+                          className="remove-button"
                           onClick={() =>
-                            setCart(current =>
+                            setCart((current) =>
                               current.filter(
-                                x =>
+                                (x) =>
                                   x.id !== item.id
                               )
                             )
@@ -1246,20 +1360,17 @@ function Cart({
                     </div>
 
                   </div>
-
                 );
               })}
 
             </div>
 
 
-            <div className="cart-bottom">
+            <div className="cart-footer">
 
               <div className="cart-total">
 
-                <span>
-                  SUBTOTAL
-                </span>
+                <span>SUBTOTAL</span>
 
                 <strong>
                   {money(total)}
@@ -1267,26 +1378,31 @@ function Cart({
 
               </div>
 
-              <p>
+              <small>
                 Shipping calculated at checkout.
-              </p>
+              </small>
 
               <button
-                className="button dark"
-                type="button"
+                className="primary-button full-button"
                 onClick={() => {
                   close();
                   navigate("/checkout");
                 }}
               >
                 CHECKOUT
-                <ArrowRight size={17} />
+                <ArrowRight size={18} />
+              </button>
+
+              <button
+                className="continue-button"
+                onClick={close}
+              >
+                CONTINUE SHOPPING
               </button>
 
             </div>
 
           </>
-
         )}
 
       </aside>
@@ -1303,27 +1419,19 @@ function Cart({
 function Footer() {
 
   return (
-    <footer
-      className="footer"
-      id="footer"
-    >
+    <footer className="site-footer">
 
-      <div className="footer-main">
-
+      <div className="footer-top">
 
         <div className="footer-brand">
 
-          <Link
-            to="/"
-            className="footer-logo"
-          >
+          <Link to="/">
             THE OFF GRID
           </Link>
 
           <p>
-            Clothing outside
-            <br />
-            the ordinary.
+            Clothing for people
+            who choose their own direction.
           </p>
 
           <a
@@ -1331,7 +1439,7 @@ function Footer() {
             target="_blank"
             rel="noreferrer"
           >
-            <Instagram size={17} />
+            <Instagram size={18} />
             INSTAGRAM
           </a>
 
@@ -1343,15 +1451,19 @@ function Footer() {
           <h4>SHOP</h4>
 
           <Link to="/shop">
-            Collection
+            All Products
           </Link>
 
           <Link to="/shop">
             New Arrivals
           </Link>
 
-          <Link to="/wishlist">
-            Wishlist
+          <Link to="/shop">
+            Streetwear
+          </Link>
+
+          <Link to="/shop">
+            Essentials
           </Link>
 
         </div>
@@ -1363,6 +1475,10 @@ function Footer() {
 
           <Link to="/our-story">
             Our Story
+          </Link>
+
+          <Link to="/our-story">
+            Philosophy
           </Link>
 
           <a href="/#contact">
@@ -1380,9 +1496,17 @@ function Footer() {
             My Account
           </Link>
 
-          <Link to="/checkout">
-            Checkout
+          <Link to="/wishlist">
+            Wishlist
           </Link>
+
+          <a href="/#contact">
+            Shipping
+          </a>
+
+          <a href="/#contact">
+            Returns
+          </a>
 
         </div>
 
@@ -1396,7 +1520,7 @@ function Footer() {
         </span>
 
         <span>
-          MADE OUTSIDE THE ORDINARY
+          MADE OUTSIDE THE LINES.
         </span>
 
       </div>
@@ -1412,23 +1536,19 @@ function Footer() {
 
 export default function App() {
 
-  const [products, setProducts] =
-    useState([]);
+  const [products, setProducts] = useState([]);
 
-  const [cart, setCart] =
-    useState(() =>
-      getStored("thrift_cart", [])
-    );
+  const [cart, setCart] = useState(() =>
+    getStored("thrift_cart", [])
+  );
 
-  const [wish, setWish] =
-    useState(() =>
-      getStored("thrift_wish", [])
-    );
+  const [wish, setWish] = useState(() =>
+    getStored("thrift_wish", [])
+  );
 
-  const [user, setUser] =
-    useState(() =>
-      getStored("thrift_user", null)
-    );
+  const [user, setUser] = useState(() =>
+    getStored("thrift_user", null)
+  );
 
   const [cartOpen, setCartOpen] =
     useState(false);
@@ -1442,7 +1562,7 @@ export default function App() {
   useEffect(() => {
 
     api("/products")
-      .then(data => {
+      .then((data) => {
 
         const latest =
           Array.isArray(data)
@@ -1451,15 +1571,13 @@ export default function App() {
 
         setProducts(latest);
 
-
-        setCart(currentCart => {
-
-          return currentCart
-            .map(item => {
+        setCart((current) =>
+          current
+            .map((item) => {
 
               const latestProduct =
                 latest.find(
-                  p =>
+                  (p) =>
                     String(p.id) ===
                     String(item.id)
                 );
@@ -1483,16 +1601,14 @@ export default function App() {
                 qty: Math.min(
                   Number(item.qty) || 1,
                   stock
-                )
+                ),
               };
-
             })
-            .filter(Boolean);
-
-        });
+            .filter(Boolean)
+        );
 
       })
-      .catch(error => {
+      .catch((error) => {
         console.error(
           "Unable to load products:",
           error
@@ -1531,18 +1647,14 @@ export default function App() {
   useEffect(() => {
 
     if (user) {
-
       localStorage.setItem(
         "thrift_user",
         JSON.stringify(user)
       );
-
     } else {
-
       localStorage.removeItem(
         "thrift_user"
       );
-
     }
 
   }, [user]);
@@ -1550,25 +1662,21 @@ export default function App() {
 
   /* ADD TO CART */
 
-  const add = product => {
+  const add = (product) => {
 
     const stock =
       Number(product.stock) || 0;
 
-    if (stock < 1) {
-      return;
-    }
+    if (stock < 1) return;
 
-
-    setCart(currentCart => {
+    setCart((current) => {
 
       const existing =
-        currentCart.find(
-          item =>
+        current.find(
+          (item) =>
             String(item.id) ===
             String(product.id)
         );
-
 
       if (existing) {
 
@@ -1576,33 +1684,28 @@ export default function App() {
           Number(existing.qty) || 0;
 
         if (qty >= stock) {
-          return currentCart;
+          return current;
         }
 
-        return currentCart.map(item =>
+        return current.map((item) =>
           String(item.id) ===
           String(product.id)
             ? {
                 ...item,
                 ...product,
-                qty: Math.min(
-                  stock,
-                  qty + 1
-                )
+                qty: qty + 1,
               }
             : item
         );
       }
 
-
       return [
-        ...currentCart,
+        ...current,
         {
           ...product,
-          qty: 1
-        }
+          qty: 1,
+        },
       ];
-
     });
 
   };
@@ -1610,32 +1713,21 @@ export default function App() {
 
   /* WISHLIST */
 
-  const toggle = id => {
+  const toggle = (id) => {
 
-    setWish(current => {
-
-      if (current.includes(id)) {
-
-        return current.filter(
-          item => item !== id
-        );
-
-      }
-
-      return [
-        ...current,
-        id
-      ];
-
-    });
+    setWish((current) =>
+      current.includes(id)
+        ? current.filter(
+            (item) => item !== id
+          )
+        : [...current, id]
+    );
 
   };
 
 
   return (
-
     <div className="site">
-
 
       <Header
         cart={cart}
@@ -1716,9 +1808,7 @@ export default function App() {
 
         <Route
           path="/success"
-          element={
-            <Success />
-          }
+          element={<Success />}
         />
 
 
@@ -1772,7 +1862,6 @@ export default function App() {
 
 
       {cartOpen && (
-
         <Cart
           cart={cart}
           setCart={setCart}
@@ -1780,7 +1869,6 @@ export default function App() {
             setCartOpen(false)
           }
         />
-
       )}
 
     </div>
