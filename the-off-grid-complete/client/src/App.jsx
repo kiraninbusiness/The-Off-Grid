@@ -13,7 +13,8 @@ import {
   ShoppingBag,
   User,
   Heart,
-  ArrowRight
+  ArrowRight,
+  Instagram
 } from "lucide-react";
 
 import { api } from "./api";
@@ -41,6 +42,9 @@ const getStored = (key, fallback) => {
   }
 };
 
+const money = (n) =>
+  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
 
 /* =========================================================
    HEADER
@@ -63,8 +67,8 @@ function Header({
     0
   );
 
-  const searchProducts = (e) => {
-    if (e.key !== "Enter") return;
+  const submitSearch = (e) => {
+    e.preventDefault();
 
     const value = search.trim();
 
@@ -82,23 +86,26 @@ function Header({
 
   return (
     <>
+
       {/* TOP BAR */}
 
-      <div className="top-bar">
-        FREE SHIPPING ON ORDERS OVER ₹1,499
+      <div className="topbar">
+        <span>THE OFF GRID</span>
+        <span>CONSCIOUSLY SELECTED · INDIA</span>
       </div>
 
 
-      {/* HEADER */}
+      {/* NAV */}
 
-      <header className="main-header">
+      <header className="nav">
 
         {/* MOBILE */}
 
         <button
-          className="header-icon mobile-menu"
+          className="icon mobile"
           type="button"
           onClick={() => setOpenMenu(v => !v)}
+          aria-label="Menu"
         >
           {openMenu ? <X /> : <Menu />}
         </button>
@@ -108,43 +115,43 @@ function Header({
 
         <Link
           to="/"
-          className="brand-logo"
+          className="logo"
           onClick={() => setOpenMenu(false)}
         >
           THE OFF GRID
         </Link>
 
 
-        {/* NAVIGATION */}
+        {/* LINKS */}
 
-        <nav className={`main-nav ${openMenu ? "open" : ""}`}>
+        <nav className={openMenu ? "links open" : "links"}>
 
           <Link
             to="/"
             onClick={() => setOpenMenu(false)}
           >
-            HOME
+            Home
           </Link>
 
           <Link
             to="/shop"
             onClick={() => setOpenMenu(false)}
           >
-            SHOP
+            Shop
           </Link>
 
           <Link
             to="/our-story"
             onClick={() => setOpenMenu(false)}
           >
-            ABOUT
+            About
           </Link>
 
           <a
             href="/#contact"
             onClick={() => setOpenMenu(false)}
           >
-            CONTACT
+            Contact
           </a>
 
           {user?.role === "admin" && (
@@ -152,7 +159,7 @@ function Header({
               to="/admin"
               onClick={() => setOpenMenu(false)}
             >
-              ADMIN
+              Admin
             </Link>
           )}
 
@@ -161,41 +168,39 @@ function Header({
 
         {/* ACTIONS */}
 
-        <div className="header-actions">
+        <div className="actions">
 
-          <label className="header-search">
-
-            <Search size={18} />
+          <form
+            className="search"
+            onSubmit={submitSearch}
+          >
+            <Search size={17} />
 
             <input
-              type="text"
-              placeholder="Search"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={searchProducts}
+              placeholder="Search"
+              aria-label="Search"
             />
-
-          </label>
+          </form>
 
 
           <Link
+            className="icon"
             to="/wishlist"
-            className="header-icon"
             aria-label="Wishlist"
           >
             <Heart />
 
             {wish.length > 0 && (
-              <span className="header-count">
-                {wish.length}
-              </span>
+              <b>{wish.length}</b>
             )}
           </Link>
 
 
           <Link
+            className="icon"
             to="/account"
-            className="header-icon"
             aria-label="Account"
           >
             <User />
@@ -203,23 +208,22 @@ function Header({
 
 
           <button
+            className="icon"
             type="button"
-            className="header-icon"
             onClick={() => setCartOpen(true)}
             aria-label="Shopping bag"
           >
             <ShoppingBag />
 
             {cartCount > 0 && (
-              <span className="header-count">
-                {cartCount}
-              </span>
+              <b>{cartCount}</b>
             )}
           </button>
 
         </div>
 
       </header>
+
     </>
   );
 }
@@ -239,13 +243,14 @@ function Home({
   const featured = products.slice(0, 4);
 
   return (
-    <main className="new-home">
+    <main>
+
 
       {/* HERO */}
 
-      <section className="new-hero">
+      <section className="home-hero">
 
-        <div className="hero-content">
+        <div className="home-hero-content">
 
           <p className="hero-label">
             THE OFF GRID / 2026
@@ -254,34 +259,32 @@ function Home({
           <h1>
             WEAR
             <br />
-            <span>YOUR</span>
-            <br />
-            WAY.
+            <em>DIFFERENT.</em>
           </h1>
 
           <p className="hero-description">
-            Modern clothing for people who
-            don't follow the usual path.
+            Clothing for people who don't
+            dress for the crowd.
           </p>
 
           <Link
             to="/shop"
-            className="primary-button"
+            className="button dark"
           >
-            SHOP NOW
-            <ArrowRight size={18} />
+            EXPLORE COLLECTION
+            <ArrowRight size={17} />
           </Link>
 
         </div>
 
 
-        <div className="hero-visual">
+        <div className="home-hero-visual">
 
           <div className="hero-image-placeholder">
             <span>THE OFF GRID</span>
           </div>
 
-          <div className="hero-number">
+          <div className="hero-index">
             01 / 01
           </div>
 
@@ -292,22 +295,22 @@ function Home({
 
       {/* INTRO */}
 
-      <section className="brand-intro">
+      <section className="intro-section">
 
-        <p className="small-label">
+        <p className="section-kicker">
           THE OFF GRID
         </p>
 
         <h2>
-          NOT MADE
+          For those who
           <br />
-          TO BLEND IN.
+          <em>choose their own way.</em>
         </h2>
 
         <p>
-          A contemporary clothing brand built
-          around individuality, confidence and
-          everyday expression.
+          We believe clothing should feel personal.
+          Not dictated by trends. Not designed to
+          make everyone look the same.
         </p>
 
       </section>
@@ -320,12 +323,12 @@ function Home({
         <div className="section-title-row">
 
           <div>
-            <p className="small-label">
-              COLLECTIONS
+            <p className="section-kicker">
+              EXPLORE
             </p>
 
             <h2>
-              EXPLORE
+              Shop by category
             </h2>
           </div>
 
@@ -341,52 +344,48 @@ function Home({
 
           <Link
             to="/shop"
-            className="category-box category-one"
+            className="category-card category-one"
           >
             <div>
-              <span>01</span>
-              <h3>
-                NEW ARRIVALS
-              </h3>
+              <small>01</small>
+              <h3>STREETWEAR</h3>
+              <span>EXPLORE</span>
             </div>
           </Link>
 
 
           <Link
             to="/shop"
-            className="category-box category-two"
+            className="category-card category-two"
           >
             <div>
-              <span>02</span>
-              <h3>
-                STREETWEAR
-              </h3>
+              <small>02</small>
+              <h3>ESSENTIALS</h3>
+              <span>EXPLORE</span>
             </div>
           </Link>
 
 
           <Link
             to="/shop"
-            className="category-box category-three"
+            className="category-card category-three"
           >
             <div>
-              <span>03</span>
-              <h3>
-                ESSENTIALS
-              </h3>
+              <small>03</small>
+              <h3>OUTERWEAR</h3>
+              <span>EXPLORE</span>
             </div>
           </Link>
 
 
           <Link
             to="/shop"
-            className="category-box category-four"
+            className="category-card category-four"
           >
             <div>
-              <span>04</span>
-              <h3>
-                OUTERWEAR
-              </h3>
+              <small>04</small>
+              <h3>CASUAL</h3>
+              <span>EXPLORE</span>
             </div>
           </Link>
 
@@ -395,20 +394,22 @@ function Home({
       </section>
 
 
-      {/* FEATURED */}
+      {/* PRODUCTS */}
 
-      <section className="featured-section">
+      <section className="products-section">
 
         <div className="section-title-row">
 
           <div>
-            <p className="small-label">
-              FEATURED
+
+            <p className="section-kicker">
+              THE COLLECTION
             </p>
 
             <h2>
-              THE LATEST
+              New pieces
             </h2>
+
           </div>
 
           <Link to="/shop">
@@ -421,7 +422,7 @@ function Home({
 
         {featured.length > 0 ? (
 
-          <div className="product-grid">
+          <div className="grid">
 
             {featured.map(product => (
 
@@ -440,11 +441,9 @@ function Home({
         ) : (
 
           <div className="empty-products">
-
             <p>
-              New pieces coming soon.
+              Collection coming soon.
             </p>
-
           </div>
 
         )}
@@ -456,91 +455,72 @@ function Home({
 
       <section className="statement-section">
 
+        <div>
+
+          <p className="section-kicker">
+            OUR APPROACH
+          </p>
+
+          <h2>
+            LESS NOISE.
+            <br />
+            <em>MORE CHARACTER.</em>
+          </h2>
+
+        </div>
+
         <p>
-          OFF THE USUAL PATH.
+          We select pieces that have their own
+          identity. Strong silhouettes, everyday
+          comfort and details that don't need
+          to shout.
         </p>
-
-        <h2>
-          CLOTHES WITH
-          <br />
-          <em>CHARACTER.</em>
-        </h2>
-
-        <Link
-          to="/our-story"
-          className="text-link"
-        >
-          DISCOVER OUR STORY
-          <ArrowRight size={17} />
-        </Link>
 
       </section>
 
 
-      {/* BRAND VALUES */}
+      {/* STORY */}
 
-      <section className="values-section">
+      <section className="home-story">
 
-        <div className="value">
-
-          <span>01</span>
-
-          <h3>
-            QUALITY
-          </h3>
-
-          <p>
-            Carefully selected materials
-            and considered construction.
-          </p>
-
+        <div className="story-visual">
+          <span>02 / STORY</span>
         </div>
 
 
-        <div className="value">
+        <div className="story-content">
 
-          <span>02</span>
-
-          <h3>
-            INDIVIDUALITY
-          </h3>
-
-          <p>
-            Designed for people who
-            create their own identity.
+          <p className="section-kicker">
+            OUR STORY
           </p>
 
-        </div>
-
-
-        <div className="value">
-
-          <span>03</span>
-
-          <h3>
-            SIMPLICITY
-          </h3>
+          <h2>
+            Built outside
+            <br />
+            <em>the ordinary.</em>
+          </h2>
 
           <p>
-            Clean design without
-            unnecessary noise.
+            THE OFF GRID is a clothing brand
+            built around individuality. We
+            believe your clothes should reflect
+            where you are going, not where
+            everyone else is going.
           </p>
-
-        </div>
-
-
-        <div className="value">
-
-          <span>04</span>
-
-          <h3>
-            CONFIDENCE
-          </h3>
 
           <p>
-            Pieces made to be worn
-            your way.
+            Every piece is selected with
+            attention to fit, quality and
+            character.
           </p>
+
+          <Link
+            to="/our-story"
+            className="text-link"
+          >
+            READ OUR STORY
+            <ArrowRight size={16} />
+          </Link>
 
         </div>
 
@@ -550,28 +530,32 @@ function Home({
       {/* NEWSLETTER */}
 
       <section
-        className="newsletter-section"
+        className="newsletter"
         id="contact"
       >
 
         <div>
 
-          <p className="small-label">
-            THE OFF GRID JOURNAL
+          <p className="section-kicker">
+            STAY CONNECTED
           </p>
 
           <h2>
-            STAY
+            Be the first
             <br />
-            <em>CONNECTED.</em>
+            <em>to know.</em>
           </h2>
+
+          <p>
+            New drops, selected pieces and
+            updates from THE OFF GRID.
+          </p>
 
         </div>
 
 
         <form
           onSubmit={e => {
-
             e.preventDefault();
 
             const email =
@@ -580,24 +564,23 @@ function Home({
             if (!email) return;
 
             alert(
-              `Thank you! ${email} has been added.`
+              `You're on the list. ${email}`
             );
 
             e.target.reset();
-
           }}
         >
 
           <input
             name="email"
             type="email"
-            placeholder="YOUR EMAIL ADDRESS"
+            placeholder="Email address"
             required
           />
 
           <button type="submit">
             JOIN
-            <ArrowRight size={17} />
+            <ArrowRight size={16} />
           </button>
 
         </form>
@@ -613,96 +596,150 @@ function Home({
    OUR STORY
 ========================================================= */
 
-function OurStory() {
+function OurStory({ products = [] }) {
+
+  const available = products.filter(
+    p => Number(p.stock) > 0
+  ).length;
 
   return (
+    <main className="story-page">
 
-    <main className="story-page-new">
 
-      <section className="story-hero-new">
+      {/* HERO */}
 
-        <p className="small-label">
-          ABOUT THE BRAND
+      <section className="story-hero">
+
+        <p className="section-kicker">
+          THE OFF GRID
         </p>
 
         <h1>
-          BUILT
+          NOT MADE
           <br />
-          <em>DIFFERENT.</em>
+          <em>TO BLEND IN.</em>
         </h1>
 
         <p>
-          THE OFF GRID is an independent clothing
-          brand created for people who prefer
-          individuality over conformity.
+          THE OFF GRID exists for people who
+          want their clothing to feel like their
+          own.
         </p>
 
       </section>
 
 
-      <section className="story-content-new">
+      {/* NUMBERS */}
+
+      <section className="story-numbers">
 
         <div>
+          <strong>
+            {available}
+          </strong>
 
-          <p className="small-label">
-            OUR PHILOSOPHY
-          </p>
-
-          <h2>
-            CREATE.
-            <br />
-            DON'T FOLLOW.
-          </h2>
-
+          <span>
+            pieces currently available
+          </span>
         </div>
 
 
         <div>
+          <strong>
+            100%
+          </strong>
 
-          <p>
-            We believe clothing should feel
-            personal. It should represent the
-            person wearing it rather than
-            whatever happens to be trending.
-          </p>
+          <span>
+            quality checked
+          </span>
+        </div>
 
-          <p>
-            THE OFF GRID focuses on modern
-            silhouettes, strong details and
-            versatile pieces designed for
-            everyday life.
-          </p>
 
-          <p>
-            No unnecessary noise. No rules.
-            Just clothing with character.
-          </p>
+        <div>
+          <strong>
+            01
+          </strong>
+
+          <span>
+            independent direction
+          </span>
+        </div>
+
+      </section>
+
+
+      {/* PHILOSOPHY */}
+
+      <section className="philosophy">
+
+        <p className="section-kicker">
+          OUR PHILOSOPHY
+        </p>
+
+        <h2>
+          Clothing should
+          <br />
+          <em>have character.</em>
+        </h2>
+
+
+        <div className="philosophy-grid">
+
+          <div>
+            <span>01</span>
+            <h3>INDIVIDUALITY</h3>
+            <p>
+              We choose pieces that feel
+              different without trying too hard.
+            </p>
+          </div>
+
+
+          <div>
+            <span>02</span>
+            <h3>QUALITY</h3>
+            <p>
+              Good construction and thoughtful
+              materials come before noise.
+            </p>
+          </div>
+
+
+          <div>
+            <span>03</span>
+            <h3>SIMPLICITY</h3>
+            <p>
+              A strong piece does not need
+              unnecessary decoration.
+            </p>
+          </div>
 
         </div>
 
       </section>
 
 
-      <section className="story-cta-new">
+      {/* CTA */}
+
+      <section className="story-bottom">
 
         <h2>
-          FIND YOUR
+          Find something
           <br />
-          <em>OWN PATH.</em>
+          <em>that feels like you.</em>
         </h2>
 
         <Link
           to="/shop"
-          className="primary-button"
+          className="button dark"
         >
           SHOP COLLECTION
-          <ArrowRight size={18} />
+          <ArrowRight size={17} />
         </Link>
 
       </section>
 
     </main>
-
   );
 }
 
@@ -724,11 +761,11 @@ function Shop({
   const [gender, setGender] =
     useState("All");
 
-  const [search, setSearch] =
-    useState("");
-
   const [sort, setSort] =
     useState("featured");
+
+  const [search, setSearch] =
+    useState("");
 
 
   useEffect(() => {
@@ -779,6 +816,9 @@ function Shop({
       ${product.name || ""}
       ${product.category || ""}
       ${product.gender || ""}
+      ${product.size || ""}
+      ${product.color || ""}
+      ${product.fit || ""}
       ${product.description || ""}
     `.toLowerCase();
 
@@ -792,7 +832,6 @@ function Shop({
       matchesGender &&
       matchesSearch
     );
-
   });
 
 
@@ -800,112 +839,131 @@ function Shop({
     (a, b) => {
 
       if (sort === "price-low") {
-        return Number(a.price) - Number(b.price);
+        return (
+          Number(a.price) -
+          Number(b.price)
+        );
       }
 
       if (sort === "price-high") {
-        return Number(b.price) - Number(a.price);
+        return (
+          Number(b.price) -
+          Number(a.price)
+        );
       }
 
       if (sort === "newest") {
-        return Number(b.id) - Number(a.id);
+        return (
+          Number(b.id) -
+          Number(a.id)
+        );
       }
 
       return 0;
-
     }
   );
 
 
   return (
+    <main className="shop-page">
 
-    <main className="shop-new">
 
-      <section className="shop-hero-new">
+      {/* HEADER */}
 
-        <p className="small-label">
-          THE COLLECTION
+      <section className="shop-intro">
+
+        <p className="section-kicker">
+          COLLECTION
         </p>
 
         <h1>
-          SHOP
+          Shop
           <br />
-          <em>THE OFF GRID.</em>
+          <em>the collection.</em>
         </h1>
 
         <p>
-          Explore our latest collection.
+          {list.length}{" "}
+          {list.length === 1
+            ? "piece"
+            : "pieces"}
         </p>
 
       </section>
 
 
-      <section className="shop-controls-new">
+      {/* CONTROLS */}
 
-        <div className="shop-filters-new">
+      <section className="shop-controls">
 
-          <span>
-            CATEGORY
-          </span>
+        <div className="filter-block">
 
-          {categories.map(item => (
+          <span>CATEGORY</span>
 
-            <button
-              key={item}
-              type="button"
-              className={
-                category === item
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                setCategory(item)
-              }
-            >
-              {item}
-            </button>
+          <div>
 
-          ))}
+            {categories.map(item => (
 
-        </div>
+              <button
+                key={item}
+                type="button"
+                className={
+                  category === item
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  setCategory(item)
+                }
+              >
+                {item}
+              </button>
 
+            ))}
 
-        <div className="shop-filters-new">
-
-          <span>
-            SHOP FOR
-          </span>
-
-          {genders.map(item => (
-
-            <button
-              key={item}
-              type="button"
-              className={
-                gender === item
-                  ? "active"
-                  : ""
-              }
-              onClick={() =>
-                setGender(item)
-              }
-            >
-              {item}
-            </button>
-
-          ))}
+          </div>
 
         </div>
 
 
-        <div className="shop-sort-new">
+        <div className="filter-block">
+
+          <span>SHOP FOR</span>
+
+          <div>
+
+            {genders.map(item => (
+
+              <button
+                key={item}
+                type="button"
+                className={
+                  gender === item
+                    ? "active"
+                    : ""
+                }
+                onClick={() =>
+                  setGender(item)
+                }
+              >
+                {item}
+              </button>
+
+            ))}
+
+          </div>
+
+        </div>
+
+
+        <div className="shop-sort">
 
           <input
             value={search}
             onChange={e =>
               setSearch(e.target.value)
             }
-            placeholder="Search..."
+            placeholder="Search"
           />
 
           <select
@@ -923,13 +981,12 @@ function Shop({
             </option>
 
             <option value="price-low">
-              Price Low → High
+              Price: Low to High
             </option>
 
             <option value="price-high">
-              Price High → Low
+              Price: High to Low
             </option>
-
           </select>
 
         </div>
@@ -937,19 +994,11 @@ function Shop({
       </section>
 
 
-      <div className="shop-result">
-
-        {list.length}{" "}
-        {list.length === 1
-          ? "PIECE"
-          : "PIECES"}
-
-      </div>
-
+      {/* PRODUCTS */}
 
       {list.length > 0 ? (
 
-        <section className="product-grid shop-products">
+        <div className="grid">
 
           {list.map(product => (
 
@@ -963,43 +1012,39 @@ function Shop({
 
           ))}
 
-        </section>
+        </div>
 
       ) : (
 
-        <section className="shop-empty-new">
+        <div className="shop-empty">
 
-          <p className="small-label">
-            NO RESULTS
+          <p className="section-kicker">
+            NOTHING FOUND
           </p>
 
           <h2>
-            NOTHING
+            Try another
             <br />
-            <em>FOUND.</em>
+            <em>search.</em>
           </h2>
 
           <button
-            type="button"
-            className="primary-button"
+            className="button dark"
             onClick={() => {
-
+              setSearch("");
               setCategory("All");
               setGender("All");
-              setSearch("");
-
             }}
           >
             VIEW ALL
-            <ArrowRight size={18} />
+            <ArrowRight size={16} />
           </button>
 
-        </section>
+        </div>
 
       )}
 
     </main>
-
   );
 }
 
@@ -1016,47 +1061,42 @@ function Cart({
 
   const navigate = useNavigate();
 
-  const total =
-    cart.reduce(
-      (sum, item) =>
-        sum +
-        Number(item.price || 0) *
-        Number(item.qty || 0),
-      0
-    );
+  const total = cart.reduce(
+    (sum, item) =>
+      sum +
+      Number(item.price || 0) *
+      Number(item.qty || 0),
+    0
+  );
 
 
   return (
-
     <div
-      className="cart-overlay"
+      className="overlay"
       onClick={close}
     >
 
       <aside
-        className="cart-panel"
+        className="cart"
         onClick={e =>
           e.stopPropagation()
         }
       >
 
-        <div className="cart-header">
+        <div className="cart-head">
 
           <div>
-
-            <p className="small-label">
-              THE OFF GRID
-            </p>
+            <span>YOUR BAG</span>
 
             <h2>
-              YOUR BAG
+              Shopping bag
             </h2>
-
           </div>
 
           <button
-            className="header-icon"
+            className="icon"
             onClick={close}
+            type="button"
           >
             <X />
           </button>
@@ -1068,23 +1108,19 @@ function Cart({
 
           <div className="cart-empty">
 
-            <ShoppingBag size={42} />
+            <ShoppingBag size={38} />
 
             <h3>
-              YOUR BAG IS EMPTY
+              Your bag is empty.
             </h3>
-
-            <p>
-              Discover something new.
-            </p>
 
             <Link
               to="/shop"
-              className="primary-button"
+              className="button dark"
               onClick={close}
             >
-              SHOP NOW
-              <ArrowRight size={17} />
+              SHOP COLLECTION
+              <ArrowRight size={16} />
             </Link>
 
           </div>
@@ -1097,12 +1133,11 @@ function Cart({
 
               {cart.map(item => {
 
-                const stock =
-                  Number(item.stock) || 0;
-
                 const qty =
                   Number(item.qty) || 1;
 
+                const stock =
+                  Number(item.stock) || 0;
 
                 return (
 
@@ -1122,7 +1157,7 @@ function Cart({
                     </Link>
 
 
-                    <div className="cart-item-info">
+                    <div>
 
                       <small>
                         {item.category}
@@ -1133,28 +1168,26 @@ function Cart({
                       </strong>
 
                       <span>
-                        ₹{Number(
-                          item.price || 0
-                        ).toLocaleString("en-IN")}
+                        {money(item.price)}
                       </span>
 
 
                       <div className="cart-item-bottom">
 
-                        <div className="quantity">
+                        <div className="qty">
 
                           <button
+                            type="button"
                             onClick={() =>
                               setCart(current =>
                                 current.map(x =>
                                   x.id === item.id
                                     ? {
                                         ...x,
-                                        qty:
-                                          Math.max(
-                                            1,
-                                            Number(x.qty) - 1
-                                          )
+                                        qty: Math.max(
+                                          1,
+                                          Number(x.qty) - 1
+                                        )
                                       }
                                     : x
                                 )
@@ -1164,11 +1197,10 @@ function Cart({
                             −
                           </button>
 
-                          <span>
-                            {qty}
-                          </span>
+                          <span>{qty}</span>
 
                           <button
+                            type="button"
                             disabled={
                               qty >= stock
                             }
@@ -1178,11 +1210,10 @@ function Cart({
                                   x.id === item.id
                                     ? {
                                         ...x,
-                                        qty:
-                                          Math.min(
-                                            stock,
-                                            Number(x.qty) + 1
-                                          )
+                                        qty: Math.min(
+                                          stock,
+                                          Number(x.qty) + 1
+                                        )
                                       }
                                     : x
                                 )
@@ -1196,7 +1227,8 @@ function Cart({
 
 
                         <button
-                          className="remove-cart"
+                          className="remove-item"
+                          type="button"
                           onClick={() =>
                             setCart(current =>
                               current.filter(
@@ -1216,13 +1248,12 @@ function Cart({
                   </div>
 
                 );
-
               })}
 
             </div>
 
 
-            <div className="cart-footer">
+            <div className="cart-bottom">
 
               <div className="cart-total">
 
@@ -1231,7 +1262,7 @@ function Cart({
                 </span>
 
                 <strong>
-                  ₹{total.toLocaleString("en-IN")}
+                  {money(total)}
                 </strong>
 
               </div>
@@ -1240,25 +1271,16 @@ function Cart({
                 Shipping calculated at checkout.
               </p>
 
-
               <button
-                className="primary-button full"
+                className="button dark"
+                type="button"
                 onClick={() => {
-
                   close();
                   navigate("/checkout");
-
                 }}
               >
                 CHECKOUT
-                <ArrowRight size={18} />
-              </button>
-
-              <button
-                className="continue-button"
-                onClick={close}
-              >
-                CONTINUE SHOPPING
+                <ArrowRight size={17} />
               </button>
 
             </div>
@@ -1270,7 +1292,6 @@ function Cart({
       </aside>
 
     </div>
-
   );
 }
 
@@ -1282,10 +1303,13 @@ function Cart({
 function Footer() {
 
   return (
+    <footer
+      className="footer"
+      id="footer"
+    >
 
-    <footer className="new-footer">
+      <div className="footer-main">
 
-      <div className="footer-top">
 
         <div className="footer-brand">
 
@@ -1297,34 +1321,37 @@ function Footer() {
           </Link>
 
           <p>
-            Modern clothing.
+            Clothing outside
             <br />
-            Individual expression.
+            the ordinary.
           </p>
+
+          <a
+            href="https://instagram.com"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Instagram size={17} />
+            INSTAGRAM
+          </a>
 
         </div>
 
 
         <div className="footer-column">
 
-          <h4>
-            SHOP
-          </h4>
+          <h4>SHOP</h4>
 
           <Link to="/shop">
-            All Products
+            Collection
           </Link>
 
           <Link to="/shop">
             New Arrivals
           </Link>
 
-          <Link to="/shop">
-            Streetwear
-          </Link>
-
-          <Link to="/shop">
-            Essentials
+          <Link to="/wishlist">
+            Wishlist
           </Link>
 
         </div>
@@ -1332,16 +1359,10 @@ function Footer() {
 
         <div className="footer-column">
 
-          <h4>
-            ABOUT
-          </h4>
+          <h4>ABOUT</h4>
 
           <Link to="/our-story">
             Our Story
-          </Link>
-
-          <Link to="/our-story">
-            Philosophy
           </Link>
 
           <a href="/#contact">
@@ -1353,16 +1374,14 @@ function Footer() {
 
         <div className="footer-column">
 
-          <h4>
-            ACCOUNT
-          </h4>
+          <h4>ACCOUNT</h4>
 
           <Link to="/account">
             My Account
           </Link>
 
-          <Link to="/wishlist">
-            Wishlist
+          <Link to="/checkout">
+            Checkout
           </Link>
 
         </div>
@@ -1377,13 +1396,12 @@ function Footer() {
         </span>
 
         <span>
-          MADE OFF THE USUAL PATH
+          MADE OUTSIDE THE ORDINARY
         </span>
 
       </div>
 
     </footer>
-
   );
 }
 
@@ -1424,7 +1442,6 @@ export default function App() {
   useEffect(() => {
 
     api("/products")
-
       .then(data => {
 
         const latest =
@@ -1438,32 +1455,27 @@ export default function App() {
         setCart(currentCart => {
 
           return currentCart
-
             .map(item => {
 
               const latestProduct =
                 latest.find(
-                  product =>
-                    String(product.id) ===
+                  p =>
+                    String(p.id) ===
                     String(item.id)
                 );
-
 
               if (!latestProduct) {
                 return null;
               }
-
 
               const stock =
                 Number(
                   latestProduct.stock
                 ) || 0;
 
-
               if (stock < 1) {
                 return null;
               }
-
 
               return {
                 ...item,
@@ -1475,20 +1487,16 @@ export default function App() {
               };
 
             })
-
             .filter(Boolean);
 
         });
 
       })
-
       .catch(error => {
-
         console.error(
           "Unable to load products:",
           error
         );
-
       });
 
   }, []);
@@ -1547,13 +1555,15 @@ export default function App() {
     const stock =
       Number(product.stock) || 0;
 
-    if (stock < 1) return;
+    if (stock < 1) {
+      return;
+    }
 
 
-    setCart(current => {
+    setCart(currentCart => {
 
       const existing =
-        current.find(
+        currentCart.find(
           item =>
             String(item.id) ===
             String(product.id)
@@ -1562,15 +1572,14 @@ export default function App() {
 
       if (existing) {
 
-        const currentQty =
+        const qty =
           Number(existing.qty) || 0;
 
-        if (currentQty >= stock) {
-          return current;
+        if (qty >= stock) {
+          return currentCart;
         }
 
-
-        return current.map(item =>
+        return currentCart.map(item =>
           String(item.id) ===
           String(product.id)
             ? {
@@ -1578,17 +1587,16 @@ export default function App() {
                 ...product,
                 qty: Math.min(
                   stock,
-                  currentQty + 1
+                  qty + 1
                 )
               }
             : item
         );
-
       }
 
 
       return [
-        ...current,
+        ...currentCart,
         {
           ...product,
           qty: 1
@@ -1627,6 +1635,7 @@ export default function App() {
   return (
 
     <div className="site">
+
 
       <Header
         cart={cart}
@@ -1669,7 +1678,9 @@ export default function App() {
         <Route
           path="/our-story"
           element={
-            <OurStory />
+            <OurStory
+              products={products}
+            />
           }
         />
 
@@ -1705,7 +1716,9 @@ export default function App() {
 
         <Route
           path="/success"
-          element={<Success />}
+          element={
+            <Success />
+          }
         />
 
 
@@ -1771,6 +1784,5 @@ export default function App() {
       )}
 
     </div>
-
   );
 }
