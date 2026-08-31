@@ -1,1530 +1,743 @@
-import React, {
-  useRef,
-  useState
-} from "react";
-
-import {
-  Link,
-  useNavigate
-} from "react-router-dom";
-
+import React, { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
-  Lock,
-  Truck,
-  ShieldCheck
+  Check,
+  CreditCard,
+  MapPin,
+  ShieldCheck,
+  Truck
 } from "lucide-react";
-
-import { api } from "../api";
-
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
-
 export default function Checkout({
-  cart,
-  user,
+  cart = [],
+  user = null,
   clearCart
 }) {
+  const navigate = useNavigate();
 
-  const nav =
-    useNavigate();
+  const [form, setForm] = useState({
+    name: user?.name || "",
+    phone: "",
+    email: user?.email || "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: ""
+  });
 
-
-  const [f, setF] =
-    useState({
-      name:
-        user?.name || "",
-
-      phone:
-        "",
-
-      address:
-        "",
-
-      city:
-        "",
-
-      pincode:
-        ""
-    });
-
-
-  const [method, setMethod] =
+  const [payment, setPayment] =
     useState("cod");
 
-
-  const [busy, setBusy] =
+  const [placing, setPlacing] =
     useState(false);
 
-
-  const [err, setErr] =
+  const [error, setError] =
     useState("");
 
-
-  const [points, setPoints] =
-    useState(0);
-
-
-  const [redeemPoints, setRedeemPoints] =
-    useState(false);
-
-
-  const [couponInput, setCouponInput] =
-    useState("");
-
-  const [coupon, setCoupon] =
-    useState(null); // { code, discount }
-
-  const [couponBusy, setCouponBusy] =
-    useState(false);
-
-  const [couponError, setCouponError] =
-    useState("");
-
-
-  React.useEffect(() => {
-
-    if (!user) return;
-
-    api("/auth/me")
-      .then((me) =>
-        setPoints(
-          Number(me.loyalty_points) || 0
-        )
-      )
-      .catch(() => {});
-
-  }, [user]);
-
-
-  /*
-    Prevent Razorpay success from being
-    treated as a cancelled payment.
-  */
-  const paymentCompleted =
-    useRef(false);
-
-
-  /*
-    CART TOTALS
-  */
-  const subtotal =
-    cart.reduce(
-      (s, i) =>
-        s +
-        Number(i.price) *
-        Number(i.qty),
+  const subtotal = useMemo(() => {
+    return cart.reduce(
+      (total, item) =>
+        total +
+        Number(item.price || 0) *
+          Number(item.qty || 1),
       0
     );
-
+  }, [cart]);
 
   const shipping =
-    subtotal >= 1499
+    subtotal >= 1999 || subtotal === 0
       ? 0
-      : 79;
-
-
-  const couponDiscount =
-    coupon ? coupon.discount : 0;
-
-
-  /*
-    LOYALTY POINTS DISCOUNT
-    1 point = ₹1. Can't discount more than
-    what's left of the subtotal after any
-    coupon has already been applied.
-  */
-  const pointsToRedeem =
-    redeemPoints
-      ? Math.min(points, Math.max(0, subtotal - couponDiscount))
-      : 0;
-
+      : 99;
 
   const total =
-    subtotal + shipping - couponDiscount - pointsToRedeem;
+    subtotal + shipping;
 
 
-  /*
-    APPLY / REMOVE COUPON
-  */
-  async function applyCoupon() {
+  const updateField = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  };
 
-    if (!couponInput.trim()) return;
 
-    setCouponBusy(true);
-    setCouponError("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setError("");
+
+    if (!form.name.trim()) {
+      setError("Please enter your name.");
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      setError("Please enter your phone number.");
+      return;
+    }
+
+    if (!/^[0-9]{10}$/.test(form.phone)) {
+      setError(
+        "Please enter a valid 10-digit phone number."
+      );
+      return;
+    }
+
+    if (!form.address.trim()) {
+      setError("Please enter your address.");
+      return;
+    }
+
+    if (!form.city.trim()) {
+      setError("Please enter your city.");
+      return;
+    }
+
+    if (!form.state.trim()) {
+      setError("Please enter your state.");
+      return;
+    }
+
+    if (!/^[0-9]{6}$/.test(form.pincode)) {
+      setError(
+        "Please enter a valid 6-digit pincode."
+      );
+      return;
+    }
+
+    setPlacing(true);
+
+    /*
+      Keep this frontend-safe for now.
+      Your existing backend/order API can be
+      connected here later.
+    */
 
     try {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 700)
+      );
 
-      const d = await api("/coupons/validate", {
-        method: "POST",
-        body: JSON.stringify({
-          code: couponInput.trim(),
-          subtotal
-        })
-      });
+      if (clearCart) {
+        clearCart();
+      }
 
-      setCoupon(d);
-      setCouponInput(d.code);
-
-    } catch (e) {
-
-      setCoupon(null);
-      setCouponError(e.message || "Invalid coupon");
-
+      navigate("/order-success");
+    } catch (err) {
+      setError(
+        "Something went wrong. Please try again."
+      );
     } finally {
-      setCouponBusy(false);
+      setPlacing(false);
     }
-  }
-
-  function removeCoupon() {
-    setCoupon(null);
-    setCouponInput("");
-    setCouponError("");
-  }
+  };
 
 
-  /*
-    EMPTY CART
-  */
+  /* EMPTY CART */
+
   if (!cart.length) {
-
     return (
-      <main className="checkout-empty">
+      <main className="checkout-page empty-checkout">
 
-        <p className="eyebrow">
-          THE OFF GRID
-        </p>
+        <div className="empty-checkout-content">
 
-        <h1>
-          Your bag is empty.
-        </h1>
+          <p className="checkout-eyebrow">
+            YOUR BAG
+          </p>
 
-        <p>
-          Discover something special for your
-          next wardrobe story.
-        </p>
+          <h1>
+            Your bag is empty.
+          </h1>
 
-        <Link
-          className="button dark"
-          to="/shop"
-        >
-          SHOP THE COLLECTION
+          <p>
+            Discover something new from
+            The Off Grid collection.
+          </p>
 
-          <ArrowRight size={16} />
-        </Link>
+          <Link
+            to="/shop"
+            className="checkout-shop-button"
+          >
+            SHOP COLLECTION
+            <ArrowRight size={17} />
+          </Link>
+
+        </div>
 
       </main>
     );
   }
 
 
-  /*
-    LOAD RAZORPAY SCRIPT
-  */
-  const loadRazorpay = () => {
-
-    return new Promise(
-      (resolve) => {
-
-        if (
-          window.Razorpay
-        ) {
-          resolve(true);
-          return;
-        }
-
-
-        const script =
-          document.createElement(
-            "script"
-          );
-
-
-        script.src =
-          "https://checkout.razorpay.com/v1/checkout.js";
-
-
-        script.onload = () =>
-          resolve(true);
-
-
-        script.onerror = () =>
-          resolve(false);
-
-
-        document.body.appendChild(
-          script
-        );
-      }
-    );
-  };
-
-
-  /*
-    CREATE COD ORDER
-  */
-  async function createCODOrder() {
-
-    const d =
-      await api(
-        "/orders/create",
-        {
-          method: "POST",
-
-          body:
-            JSON.stringify({
-
-              items:
-                cart.map(
-                  (i) => ({
-                    productId:
-                      i.id,
-
-                    quantity:
-                      Number(i.qty)
-                  })
-                ),
-
-
-              shipping: {
-                ...f,
-
-                address:
-                  `${f.address}, ${f.city} - ${f.pincode}`
-              },
-
-
-              payment_method:
-                "cod",
-
-              redeem_points:
-                pointsToRedeem,
-
-              coupon_code:
-                coupon ? coupon.code : ""
-            })
-        }
-      );
-
-
-    /*
-      Order successfully created.
-    */
-    clearCart();
-
-
-    nav(
-      "/success",
-      {
-        state: {
-          order:
-            d.order,
-
-          paymentMethod:
-            "cod"
-        }
-      }
-    );
-  }
-
-
-  /*
-    CANCEL UNPAID ONLINE ORDER
-    AND RESTORE STOCK
-  */
-  async function cancelUnpaidOrder(
-    orderId
-  ) {
-
-    if (!orderId) {
-      return;
-    }
-
-
-    try {
-
-      await api(
-        `/orders/${orderId}/payment-cancel`,
-        {
-          method:
-            "PATCH"
-        }
-      );
-
-    } catch (error) {
-
-      console.error(
-        "PAYMENT CANCEL ERROR:",
-        error
-      );
-
-    }
-  }
-
-
-  /*
-    CREATE ONLINE ORDER
-  */
-  async function createOnlineOrder() {
-
-    /*
-      Check frontend Razorpay key
-      BEFORE creating the database order.
-
-      This prevents an order from being created
-      when Razorpay cannot be opened.
-    */
-    const key =
-      import.meta.env
-        .VITE_RAZORPAY_KEY_ID;
-
-
-    if (!key) {
-
-      throw new Error(
-        "Razorpay key is not configured on the frontend."
-      );
-    }
-
-
-    /*
-      Load Razorpay
-    */
-    const loaded =
-      await loadRazorpay();
-
-
-    if (!loaded) {
-
-      throw new Error(
-        "Unable to load Razorpay. Please check your internet connection."
-      );
-    }
-
-
-    /*
-      Create order on backend
-    */
-    const d =
-      await api(
-        "/orders/create",
-        {
-          method: "POST",
-
-          body:
-            JSON.stringify({
-
-              items:
-                cart.map(
-                  (i) => ({
-                    productId:
-                      i.id,
-
-                    quantity:
-                      Number(i.qty)
-                  })
-                ),
-
-
-              shipping: {
-                ...f,
-
-                address:
-                  `${f.address}, ${f.city} - ${f.pincode}`
-              },
-
-
-              payment_method:
-                "online",
-
-              redeem_points:
-                pointsToRedeem,
-
-              coupon_code:
-                coupon ? coupon.code : ""
-            })
-        }
-      );
-
-
-    const order =
-      d.order;
-
-
-    if (
-      !order?.razorpay_order_id
-    ) {
-
-      throw new Error(
-        "Razorpay order could not be created."
-      );
-    }
-
-
-    /*
-      Reset payment completion state
-    */
-    paymentCompleted.current =
-      false;
-
-
-    /*
-      Razorpay checkout options
-    */
-    const options = {
-
-      key,
-
-      /*
-        IMPORTANT:
-        Use backend order total.
-
-        This includes shipping.
-      */
-      amount:
-        Math.round(
-          Number(order.total) * 100
-        ),
-
-
-      currency:
-        "INR",
-
-
-      name:
-        "THE OFF GRID",
-
-
-      description:
-        "THE OFF GRID order",
-
-
-      order_id:
-        order.razorpay_order_id,
-
-
-      prefill: {
-
-        name:
-          f.name,
-
-        contact:
-          f.phone,
-
-        email:
-          user?.email || ""
-      },
-
-
-      notes: {
-
-        address:
-          `${f.address}, ${f.city} - ${f.pincode}`
-      },
-
-
-      theme: {
-        color:
-          "#111111"
-      },
-
-
-      /*
-        Show UPI first — most Indian shoppers on
-        mobile expect this, and it's what Snitch/
-        Wrogn-style checkouts default to. Falls back
-        to cards/netbanking/wallets underneath.
-      */
-      config: {
-        display: {
-          blocks: {
-            upi_block: {
-              name: "Pay via UPI",
-              instruments: [
-                { method: "upi" }
-              ]
-            },
-            other_block: {
-              name: "Other payment methods",
-              instruments: [
-                { method: "card" },
-                { method: "netbanking" },
-                { method: "wallet" }
-              ]
-            }
-          },
-          sequence: [
-            "block.upi_block",
-            "block.other_block"
-          ],
-          preferences: {
-            show_default_blocks: false
-          }
-        }
-      },
-
-
-      /*
-        SUCCESS
-      */
-      handler:
-        async function (
-          response
-        ) {
-
-          /*
-            Mark this payment as completed
-            before Razorpay closes the modal.
-          */
-          paymentCompleted.current =
-            true;
-
-
-          try {
-
-            /*
-              Verify payment on backend.
-            */
-            const verified =
-              await api(
-                "/orders/verify-payment",
-                {
-                  method:
-                    "POST",
-
-                  body:
-                    JSON.stringify({
-
-                      orderId:
-                        order.id,
-
-                      razorpay_order_id:
-                        response.razorpay_order_id,
-
-                      razorpay_payment_id:
-                        response.razorpay_payment_id,
-
-                      razorpay_signature:
-                        response.razorpay_signature
-                    })
-                }
-              );
-
-
-            /*
-              Payment verified successfully.
-            */
-            clearCart();
-
-
-            nav(
-              "/success",
-              {
-                state: {
-
-                  order:
-                    verified ||
-                    order,
-
-                  paymentMethod:
-                    "online"
-                }
-              }
-            );
-
-          } catch (error) {
-
-            /*
-              IMPORTANT:
-              Do NOT automatically cancel and restore
-              stock here.
-
-              The payment may have succeeded even if
-              verification response failed because of
-              a temporary network problem.
-            */
-            console.error(
-              "PAYMENT VERIFICATION ERROR:",
-              error
-            );
-
-
-            setErr(
-              error.message ||
-              "Payment verification failed. Please contact support if your payment was deducted."
-            );
-
-
-            setBusy(false);
-          }
-        },
-
-
-      /*
-        USER CLOSES RAZORPAY
-      */
-      modal: {
-
-        ondismiss:
-          async function () {
-
-            /*
-              If payment was successfully completed,
-              do not cancel the order.
-            */
-            if (
-              paymentCompleted.current
-            ) {
-              return;
-            }
-
-
-            /*
-              Payment window was closed
-              without successful payment.
-
-              Cancel the order and restore stock.
-            */
-            await cancelUnpaidOrder(
-              order.id
-            );
-
-
-            setBusy(false);
-
-
-            setErr(
-              "Payment was cancelled. Your order was not completed."
-            );
-          }
-      }
-    };
-
-
-    /*
-      Create Razorpay instance
-    */
-    const razorpay =
-      new window.Razorpay(
-        options
-      );
-
-
-    /*
-      PAYMENT FAILED
-    */
-    razorpay.on(
-      "payment.failed",
-      async function (
-        response
-      ) {
-
-        console.error(
-          "RAZORPAY PAYMENT FAILED:",
-          response
-        );
-
-
-        /*
-          Make sure success handler is
-          not treated as cancellation.
-        */
-        paymentCompleted.current =
-          false;
-
-
-        /*
-          Cancel unpaid order
-          and restore stock.
-        */
-        await cancelUnpaidOrder(
-          order.id
-        );
-
-
-        setBusy(false);
-
-
-        setErr(
-          response?.error?.description ||
-          "Payment failed. Please try again."
-        );
-      }
-    );
-
-
-    /*
-      OPEN RAZORPAY
-    */
-    razorpay.open();
-  }
-
-
-  /*
-    PLACE ORDER
-  */
-  async function place(e) {
-
-    e.preventDefault();
-
-
-    if (!user) {
-
-      nav(
-        "/account"
-      );
-
-      return;
-    }
-
-
-    setBusy(true);
-    setErr("");
-
-
-    try {
-
-      if (
-        method === "cod"
-      ) {
-
-        await createCODOrder();
-
-      } else {
-
-        await createOnlineOrder();
-      }
-
-    } catch (x) {
-
-      console.error(
-        x
-      );
-
-
-      setErr(
-        x.message ||
-        "Could not place your order."
-      );
-
-
-      setBusy(false);
-    }
-  }
-
-
   return (
     <main className="checkout-page">
 
-      {/* TOP */}
+      {/* HEADER */}
 
-      <div className="checkout-top">
+      <header className="checkout-header">
 
-        <Link to="/shop">
+        <button
+          type="button"
+          className="checkout-back"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft size={17} />
+          BACK
+        </button>
 
-          <ArrowLeft size={15} />
-
-          CONTINUE SHOPPING
-
+        <Link
+          to="/"
+          className="checkout-logo"
+        >
+          THE OFF GRID
         </Link>
 
-
-        <div className="secure-label">
-
-          <Lock size={13} />
-
+        <div className="checkout-secure">
+          <ShieldCheck size={16} />
           SECURE CHECKOUT
-
         </div>
+
+      </header>
+
+
+      {/* PAGE TITLE */}
+
+      <div className="checkout-title">
+
+        <p className="checkout-eyebrow">
+          CHECKOUT
+        </p>
+
+        <h1>
+          Complete your order.
+        </h1>
 
       </div>
 
 
-      {/* HEADING */}
+      {/* CONTENT */}
 
-      <section className="checkout-heading">
+      <section className="checkout-layout">
 
-        <p className="eyebrow">
-          THE OFF GRID
-        </p>
+        {/* LEFT */}
 
+        <div className="checkout-main">
 
-        <h1>
+          <form
+            onSubmit={handleSubmit}
+            className="checkout-form"
+          >
 
-          Complete
+            {/* CONTACT */}
 
-          <br />
+            <section className="checkout-section">
 
-          <em>
-            your order.
-          </em>
+              <div className="checkout-section-heading">
 
-        </h1>
+                <span>
+                  01
+                </span>
 
-      </section>
+                <div>
+                  <h2>
+                    Contact details
+                  </h2>
 
-
-      <div className="checkout-grid premium-checkout-grid">
-
-        {/* FORM */}
-
-        <form
-          className="checkout-form"
-          onSubmit={place}
-        >
-
-          {/* DELIVERY */}
-
-          <section className="checkout-section">
-
-            <div className="checkout-section-heading">
-
-              <span>
-                01
-              </span>
-
-
-              <div>
-
-                <h2>
-                  Delivery details
-                </h2>
-
-                <p>
-                  Where should we send your pieces?
-                </p>
+                  <p>
+                    Where can we reach you?
+                  </p>
+                </div>
 
               </div>
 
-            </div>
 
+              <div className="checkout-grid">
 
-            <div className="checkout-fields">
+                <label>
+                  <span>
+                    FULL NAME
+                  </span>
 
-              {/* NAME */}
-
-              <label>
-
-                FULL NAME
-
-                <input
-                  required
-                  placeholder="Your full name"
-                  value={f.name}
-                  onChange={(e) =>
-                    setF({
-                      ...f,
-                      name:
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) =>
+                      updateField(
+                        "name",
                         e.target.value
-                    })
-                  }
-                />
+                      )
+                    }
+                    placeholder="Your full name"
+                  />
+                </label>
 
-              </label>
 
+                <label>
+                  <span>
+                    PHONE NUMBER
+                  </span>
 
-              {/* PHONE */}
-
-              <label>
-
-                PHONE NUMBER
-
-                <input
-                  required
-                  pattern="[0-9]{10}"
-                  maxLength="10"
-                  inputMode="numeric"
-                  placeholder="10-digit phone number"
-                  value={f.phone}
-                  onChange={(e) =>
-                    setF({
-                      ...f,
-                      phone:
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={form.phone}
+                    onChange={(e) =>
+                      updateField(
+                        "phone",
                         e.target.value.replace(
                           /\D/g,
                           ""
                         )
-                    })
-                  }
-                />
+                      )
+                    }
+                    placeholder="10-digit mobile number"
+                  />
+                </label>
 
-              </label>
 
+                <label className="full-width">
+                  <span>
+                    EMAIL ADDRESS
+                  </span>
 
-              {/* ADDRESS */}
-
-              <label>
-
-                ADDRESS
-
-                <textarea
-                  required
-                  rows="4"
-                  placeholder="House / street / area"
-                  value={f.address}
-                  onChange={(e) =>
-                    setF({
-                      ...f,
-                      address:
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) =>
+                      updateField(
+                        "email",
                         e.target.value
-                    })
-                  }
-                />
-
-              </label>
-
-
-              {/* CITY + PINCODE */}
-
-              <div className="two-inputs">
-
-                <label>
-
-                  CITY
-
-                  <input
-                    required
-                    placeholder="City"
-                    value={f.city}
-                    onChange={(e) =>
-                      setF({
-                        ...f,
-                        city:
-                          e.target.value
-                      })
+                      )
                     }
+                    placeholder="you@example.com"
                   />
-
-                </label>
-
-
-                <label>
-
-                  PINCODE
-
-                  <input
-                    required
-                    pattern="[0-9]{6}"
-                    maxLength="6"
-                    inputMode="numeric"
-                    placeholder="6-digit pincode"
-                    value={f.pincode}
-                    onChange={(e) =>
-                      setF({
-                        ...f,
-                        pincode:
-                          e.target.value.replace(
-                            /\D/g,
-                            ""
-                          )
-                      })
-                    }
-                  />
-
                 </label>
 
               </div>
 
-            </div>
-
-          </section>
+            </section>
 
 
-          {/* PAYMENT */}
+            {/* SHIPPING */}
 
-          <section className="checkout-section">
+            <section className="checkout-section">
 
-            <div className="checkout-section-heading">
+              <div className="checkout-section-heading">
 
-              <span>
-                02
-              </span>
+                <span>
+                  02
+                </span>
 
+                <div>
+                  <h2>
+                    Delivery address
+                  </h2>
 
-              <div>
-
-                <h2>
-                  Payment
-                </h2>
-
-                <p>
-                  Choose how you'd like to pay.
-                </p>
+                  <p>
+                    Where should we deliver your order?
+                  </p>
+                </div>
 
               </div>
 
-            </div>
 
-
-            <div className="payment-options">
-
-              {/* COD */}
-
-              <label
-                className={
-                  method === "cod"
-                    ? "payment-card selected"
-                    : "payment-card"
-                }
-              >
-
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={
-                    method === "cod"
-                  }
-                  onChange={() =>
-                    setMethod("cod")
-                  }
-                />
-
-
-                <div>
-
-                  <strong>
-                    Cash on Delivery
-                  </strong>
-
-                  <small>
-                    Pay when your order arrives.
-                  </small>
-
-                </div>
-
-
-                <span className="payment-check">
-                  ✓
-                </span>
-
-              </label>
-
-
-              {/* ONLINE */}
-
-              <label
-                className={
-                  method === "online"
-                    ? "payment-card selected"
-                    : "payment-card"
-                }
-              >
-
-                <input
-                  type="radio"
-                  name="payment"
-                  checked={
-                    method === "online"
-                  }
-                  onChange={() =>
-                    setMethod("online")
-                  }
-                />
-
-
-                <div>
-
-                  <strong>
-                    UPI / Cards / Netbanking
-                  </strong>
-
-                  <small>
-                    Pay securely via UPI apps, cards
-                    or netbanking — powered by Razorpay.
-                  </small>
-
-                </div>
-
-
-                <span className="payment-check">
-                  ✓
-                </span>
-
-              </label>
-
-            </div>
-
-
-            {method === "online" && (
-
-              <p className="notice">
-
-                You will be redirected to the
-                secure Razorpay payment window.
-
-              </p>
-
-            )}
-
-
-            {err && (
-
-              <p className="error">
-                {err}
-              </p>
-
-            )}
-
-          </section>
-
-
-          {/* PLACE ORDER */}
-
-          <button
-            type="submit"
-            className="premium-place-order"
-            disabled={busy}
-          >
-
-            {busy
-
-              ? method === "online"
-
-                ? "OPENING PAYMENT..."
-
-                : "CREATING ORDER..."
-
-              : method === "online"
-
-                ? "PAY NOW"
-
-                : "PLACE ORDER"
-            }
-
-
-            {!busy && (
-              <ArrowRight
-                size={17}
-              />
-            )}
-
-          </button>
-
-
-          <p className="checkout-security">
-
-            <Lock size={13} />
-
-            Your information is securely handled.
-
-          </p>
-
-        </form>
-
-
-        {/* ORDER SUMMARY */}
-
-        <aside className="premium-order-summary">
-
-          <div className="summary-header">
-
-            <div>
-
-              <p className="eyebrow">
-                YOUR SELECTION
-              </p>
-
-              <h2>
-                Order summary
-              </h2>
-
-            </div>
-
-
-            <span>
-
-              {cart.reduce(
-                (s, i) =>
-                  s +
-                  Number(i.qty),
-                0
-              )}
-
-
-              {" "}
-
-
-              {cart.reduce(
-                (s, i) =>
-                  s +
-                  Number(i.qty),
-                0
-              ) === 1
-
-                ? "ITEM"
-
-                : "ITEMS"}
-
-            </span>
-
-          </div>
-
-
-          {/* PRODUCTS */}
-
-          <div className="checkout-products">
-
-            {cart.map(
-              (item) => (
-
-                <div
-                  className="checkout-product"
-                  key={item.id}
-                >
-
-                  <div className="checkout-product-image">
-
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                    />
-
-                    <span>
-                      {item.qty}
-                    </span>
-
-                  </div>
-
-
-                  <div className="checkout-product-info">
-
-                    <strong>
-                      {item.name}
-                    </strong>
-
-
-                    <small>
-
-                      {item.category}
-
-                      {item.size
-                        ? ` · ${item.size}`
-                        : ""}
-
-                    </small>
-
-
-                    <b>
-
-                      {money(
-                        Number(item.price) *
-                        Number(item.qty)
-                      )}
-
-                    </b>
-
-                  </div>
-
-                </div>
-
-              )
-            )}
-
-          </div>
-
-
-          {/* CALCULATION */}
-
-          <div className="summary-calculation">
-
-            <div>
-
-              <span>
-                Subtotal
-              </span>
-
-              <b>
-                {money(subtotal)}
-              </b>
-
-            </div>
-
-
-            <div>
-
-              <span>
-                Shipping
-              </span>
-
-              <b>
-
-                {shipping
-                  ? money(shipping)
-                  : "FREE"}
-
-              </b>
-
-            </div>
-
-
-            {/* COUPON CODE */}
-
-            <div className="coupon-box">
-
-              {!coupon ? (
-
-                <div className="coupon-input-row">
+              <div className="checkout-grid">
+
+                <label className="full-width">
+                  <span>
+                    ADDRESS
+                  </span>
+
+                  <textarea
+                    rows="3"
+                    value={form.address}
+                    onChange={(e) =>
+                      updateField(
+                        "address",
+                        e.target.value
+                      )
+                    }
+                    placeholder="House number, street, area"
+                  />
+                </label>
+
+
+                <label>
+                  <span>
+                    CITY
+                  </span>
 
                   <input
                     type="text"
-                    placeholder="Coupon code"
-                    value={couponInput}
+                    value={form.city}
                     onChange={(e) =>
-                      setCouponInput(
-                        e.target.value.toUpperCase()
+                      updateField(
+                        "city",
+                        e.target.value
                       )
                     }
+                    placeholder="City"
                   />
+                </label>
 
-                  <button
-                    type="button"
-                    disabled={couponBusy || !couponInput.trim()}
-                    onClick={applyCoupon}
-                  >
-                    {couponBusy ? "Checking…" : "Apply"}
-                  </button>
 
-                </div>
-
-              ) : (
-
-                <div className="coupon-applied">
-
+                <label>
                   <span>
-                    "{coupon.code}" applied
+                    STATE
                   </span>
 
-                  <button type="button" onClick={removeCoupon}>
-                    Remove
-                  </button>
+                  <input
+                    type="text"
+                    value={form.state}
+                    onChange={(e) =>
+                      updateField(
+                        "state",
+                        e.target.value
+                      )
+                    }
+                    placeholder="State"
+                  />
+                </label>
 
-                </div>
 
-              )}
+                <label>
+                  <span>
+                    PINCODE
+                  </span>
 
-              {couponError && (
-                <p className="coupon-error">{couponError}</p>
-              )}
-
-            </div>
-
-
-            {couponDiscount > 0 && (
-
-              <div>
-
-                <span>
-                  Coupon discount
-                </span>
-
-                <b>
-                  −{money(couponDiscount)}
-                </b>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={form.pincode}
+                    onChange={(e) =>
+                      updateField(
+                        "pincode",
+                        e.target.value.replace(
+                          /\D/g,
+                          ""
+                        )
+                      )
+                    }
+                    placeholder="6-digit pincode"
+                  />
+                </label>
 
               </div>
 
-            )}
+            </section>
 
 
-            {user && points > 0 && (
+            {/* PAYMENT */}
 
-              <div className="rewards-redeem">
+            <section className="checkout-section">
 
-                <label>
+              <div className="checkout-section-heading">
+
+                <span>
+                  03
+                </span>
+
+                <div>
+                  <h2>
+                    Payment
+                  </h2>
+
+                  <p>
+                    Choose how you want to pay.
+                  </p>
+                </div>
+
+              </div>
+
+
+              <div className="payment-options">
+
+                <label
+                  className={
+                    payment === "cod"
+                      ? "payment-option selected"
+                      : "payment-option"
+                  }
+                >
 
                   <input
-                    type="checkbox"
-                    checked={redeemPoints}
+                    type="radio"
+                    name="payment"
+                    value="cod"
+                    checked={
+                      payment === "cod"
+                    }
                     onChange={(e) =>
-                      setRedeemPoints(
-                        e.target.checked
+                      setPayment(
+                        e.target.value
                       )
                     }
                   />
 
-                  Use {points} reward points
-                  ({money(Math.min(points, Math.max(0, subtotal - couponDiscount)))} off)
+                  <div className="payment-icon">
+                    <Truck size={19} />
+                  </div>
+
+                  <div>
+                    <strong>
+                      Cash on Delivery
+                    </strong>
+
+                    <span>
+                      Pay when your order arrives
+                    </span>
+                  </div>
+
+                  {payment === "cod" && (
+                    <Check size={18} />
+                  )}
+
+                </label>
+
+
+                <label
+                  className={
+                    payment === "online"
+                      ? "payment-option selected"
+                      : "payment-option"
+                  }
+                >
+
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="online"
+                    checked={
+                      payment === "online"
+                    }
+                    onChange={(e) =>
+                      setPayment(
+                        e.target.value
+                      )
+                    }
+                  />
+
+                  <div className="payment-icon">
+                    <CreditCard size={19} />
+                  </div>
+
+                  <div>
+                    <strong>
+                      Online Payment
+                    </strong>
+
+                    <span>
+                      UPI, card or net banking
+                    </span>
+                  </div>
+
+                  {payment === "online" && (
+                    <Check size={18} />
+                  )}
 
                 </label>
 
               </div>
 
-            )}
+            </section>
 
 
-            {pointsToRedeem > 0 && (
+            {/* ERROR */}
 
-              <div>
-
-                <span>
-                  Rewards discount
-                </span>
-
-                <b>
-                  −{money(pointsToRedeem)}
-                </b>
-
+            {error && (
+              <div className="checkout-error">
+                {error}
               </div>
-
             )}
 
-          </div>
+
+            {/* SUBMIT */}
+
+            <button
+              type="submit"
+              className="place-order-button"
+              disabled={placing}
+            >
+
+              {placing ? (
+                <>
+                  PLACING ORDER...
+                </>
+              ) : (
+                <>
+                  PLACE ORDER
+                  <ArrowRight size={18} />
+                </>
+              )}
+
+            </button>
+
+          </form>
+
+        </div>
 
 
-          {/* TOTAL */}
+        {/* RIGHT — SUMMARY */}
 
-          <div className="summary-total">
+        <aside className="checkout-summary">
 
-            <span>
-              TOTAL
-            </span>
+          <div className="summary-sticky">
 
-
-            <strong>
-              {money(total)}
-            </strong>
-
-          </div>
-
-
-          {/* BENEFITS */}
-
-          <div className="checkout-benefits">
-
-            <div>
-
-              <Truck size={18} />
+            <div className="summary-heading">
 
               <span>
-
-                <strong>
-                  FREE SHIPPING
-                </strong>
-
-                On orders above ₹1,499.
-
+                YOUR ORDER
               </span>
+
+              <strong>
+                {cart.length}{" "}
+                {cart.length === 1
+                  ? "ITEM"
+                  : "ITEMS"}
+              </strong>
 
             </div>
 
 
-            <div>
+            {/* ITEMS */}
 
-              <ShieldCheck size={18} />
+            <div className="summary-items">
 
-              <span>
+              {cart.map((item, index) => {
+
+                const qty =
+                  Number(item.qty) || 1;
+
+                return (
+                  <div
+                    className="summary-item"
+                    key={
+                      item.id ||
+                      `${item.name}-${index}`
+                    }
+                  >
+
+                    <div className="summary-item-image">
+
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                      />
+
+                      <span>
+                        {qty}
+                      </span>
+
+                    </div>
+
+
+                    <div className="summary-item-info">
+
+                      <strong>
+                        {item.name}
+                      </strong>
+
+                      <span>
+                        {item.category ||
+                          "THE OFF GRID"}
+                      </span>
+
+                    </div>
+
+
+                    <strong>
+                      {money(
+                        Number(item.price || 0) *
+                          qty
+                      )}
+                    </strong>
+
+                  </div>
+                );
+              })}
+
+            </div>
+
+
+            {/* TOTALS */}
+
+            <div className="summary-totals">
+
+              <div>
+                <span>
+                  SUBTOTAL
+                </span>
 
                 <strong>
-                  QUALITY CHECKED
+                  {money(subtotal)}
                 </strong>
+              </div>
 
-                Every piece inspected.
 
+              <div>
+                <span>
+                  SHIPPING
+                </span>
+
+                <strong>
+                  {shipping === 0
+                    ? "FREE"
+                    : money(shipping)}
+                </strong>
+              </div>
+
+
+              {shipping === 0 &&
+                subtotal > 0 && (
+                  <p className="free-shipping-note">
+                    FREE SHIPPING APPLIED
+                  </p>
+                )}
+
+            </div>
+
+
+            {/* GRAND TOTAL */}
+
+            <div className="summary-total">
+
+              <span>
+                TOTAL
               </span>
+
+              <strong>
+                {money(total)}
+              </strong>
+
+            </div>
+
+
+            {/* TRUST */}
+
+            <div className="checkout-trust">
+
+              <div>
+                <ShieldCheck size={17} />
+
+                <span>
+                  Secure checkout
+                </span>
+              </div>
+
+              <div>
+                <MapPin size={17} />
+
+                <span>
+                  Delivery across India
+                </span>
+              </div>
 
             </div>
 
@@ -1532,7 +745,23 @@ export default function Checkout({
 
         </aside>
 
-      </div>
+      </section>
+
+
+      {/* FOOTER NOTE */}
+
+      <footer className="checkout-footer">
+
+        <span>
+          THE OFF GRID
+        </span>
+
+        <p>
+          Built for those who don't follow
+          the usual.
+        </p>
+
+      </footer>
 
     </main>
   );
