@@ -1,0 +1,11 @@
+import express from "express";
+import cors from "cors";
+import { PRODUCTS } from "./products.js";
+const app=express();app.use(cors());app.use(express.json());
+const reviews=new Map(),newsletters=new Set();
+app.get("/api/products",(req,res)=>res.json(PRODUCTS));
+app.post("/api/newsletter",(req,res)=>{const e=String(req.body.email||"").trim().toLowerCase();if(!/^\S+@\S+\.\S+$/.test(e))return res.status(400).json({message:"Invalid email"});newsletters.add(e);res.json({success:true})});
+app.get("/api/reviews/:id",(req,res)=>{const r=reviews.get(String(req.params.id))||[];const avg=r.length?r.reduce((a,x)=>a+x.rating,0)/r.length:0;res.json({reviews:r,summary:{average:Number(avg.toFixed(1)),count:r.length}})});
+app.post("/api/reviews/:id",(req,res)=>{const r=reviews.get(String(req.params.id))||[];const item={id:Date.now(),name:req.body.name||"Customer",rating:Math.max(1,Math.min(5,Number(req.body.rating||5))),text:String(req.body.text||"").trim(),date:new Date().toISOString()};if(!item.text)return res.status(400).json({message:"Review text required"});r.unshift(item);reviews.set(String(req.params.id),r);res.json(item)});
+app.get("/api/health",(req,res)=>res.json({ok:true,service:"The Off Grid API"}));
+app.listen(4000,()=>console.log("The Off Grid API running on http://localhost:4000"));
