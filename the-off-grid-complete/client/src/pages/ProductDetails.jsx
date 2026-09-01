@@ -3,7 +3,7 @@ import {Link,useNavigate,useParams} from "react-router-dom";
 import {ArrowLeft,Heart,ShoppingBag,Truck,ShieldCheck,RotateCcw,Minus,Plus} from "lucide-react";
 import SizeGuideModal from "../components/SizeGuideModal";
 import ProductReviews from "../components/ProductReviews";
-import {PRODUCTS} from "../data/products";
+import {PRODUCTS} from "../data/products.js";
 const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
 export default function ProductDetails({products=PRODUCTS,add,wishlist=[],toggle,user}) {
  const {id}=useParams(),nav=useNavigate(),[qty,setQty]=useState(1),[size,setSize]=useState(""),[guide,setGuide]=useState(false);
