@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
   Search,
@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Minus,
   Plus,
+  User,
 } from "lucide-react";
 
 import {
@@ -26,19 +27,28 @@ import {
 } from "react-router-dom";
 
 import ProductCard from "./components/ProductCard";
+import SizeGuideModal from "./components/SizeGuideModal";
+import ProductReviews from "./components/ProductReviews";
 
 import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
 import Success from "./pages/Success";
+import Account from "./pages/Account";
+import Wishlist from "./pages/Wishlist";
+import TrackOrder from "./pages/TrackOrder";
+
+import { api } from "./api";
 
 import "./styles.css";
 
 
 /* =========================================================
    THE OFF GRID — PRODUCTS
+   FALLBACK_PRODUCTS is shown only if the live /products API
+   can't be reached, so the shop is never fully empty.
 ========================================================= */
 
-const products = [
+const FALLBACK_PRODUCTS = [
   {
     id: 1,
     name: "ZENITH OVERSIZED TEE",
@@ -273,11 +283,49 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
 
+  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+  const [productsLoading, setProductsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api("/products")
+      .then((data) => {
+        if (!cancelled && Array.isArray(data) && data.length) {
+          setProducts(data);
+        }
+      })
+      .catch(() => {
+        // API unreachable — keep FALLBACK_PRODUCTS so the shop isn't empty
+      })
+      .finally(() => {
+        if (!cancelled) setProductsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("thrift_user")) || null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeCategory, setActiveCategory] =
     useState("ALL");
 
   const [sortBy, setSortBy] =
     useState("FEATURED");
+
+  const [newsletterEmail, setNewsletterEmail] =
+    useState("");
+
+  const [newsletterStatus, setNewsletterStatus] =
+    useState("idle"); // idle | loading | success | error
 
 
   /* =======================================================
@@ -355,6 +403,35 @@ export default function App() {
 
 
   /* =======================================================
+     NEWSLETTER
+  ======================================================= */
+
+  const handleNewsletterSubmit = async (e) => {
+
+    e.preventDefault();
+
+    if (!newsletterEmail.trim()) return;
+
+    setNewsletterStatus("loading");
+
+    try {
+
+      await api("/newsletter", {
+        method: "POST",
+        body: JSON.stringify({ email: newsletterEmail.trim() }),
+      });
+
+      setNewsletterStatus("success");
+      setNewsletterEmail("");
+
+    } catch (err) {
+
+      setNewsletterStatus("error");
+    }
+  };
+
+
+  /* =======================================================
      SCROLL
   ======================================================= */
 
@@ -405,6 +482,36 @@ export default function App() {
   ) {
 
     return <Success />;
+  }
+
+
+  if (location.pathname === "/account") {
+
+    return (
+      <Account
+        user={user}
+        setUser={setUser}
+      />
+    );
+  }
+
+
+  if (location.pathname === "/wishlist") {
+
+    return (
+      <Wishlist
+        products={products}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
+        add={addCart}
+      />
+    );
+  }
+
+
+  if (location.pathname.startsWith("/track-order/")) {
+
+    return <TrackOrder user={user} />;
   }
 
 
@@ -657,9 +764,17 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() =>
-              scroll("shop")
-            }
+            onClick={() => navigate("/account")}
+          >
+
+            <User size={19} />
+
+          </button>
+
+
+          <button
+            type="button"
+            onClick={() => navigate("/wishlist")}
           >
 
             <Heart size={19} />
@@ -1404,17 +1519,7 @@ export default function App() {
         </div>
 
 
-        <form
-          onSubmit={(e) => {
-
-            e.preventDefault();
-
-            alert(
-              "You're on The Off Grid list."
-            );
-
-          }}
-        >
+        <form onSubmit={handleNewsletterSubmit}>
 
           <label>
             EMAIL ADDRESS
@@ -1426,10 +1531,20 @@ export default function App() {
             <input
               type="email"
               placeholder="you@example.com"
+              value={newsletterEmail}
+              onChange={(e) => {
+                setNewsletterEmail(e.target.value);
+                if (newsletterStatus !== "idle") {
+                  setNewsletterStatus("idle");
+                }
+              }}
               required
             />
 
-            <button type="submit">
+            <button
+              type="submit"
+              disabled={newsletterStatus === "loading"}
+            >
               <ArrowRight />
             </button>
 
@@ -1437,7 +1552,11 @@ export default function App() {
 
 
           <small>
-            NEW DROPS. LIMITED EDITS. ZERO SPAM.
+            {newsletterStatus === "success"
+              ? "YOU'RE ON THE OFF GRID LIST."
+              : newsletterStatus === "error"
+              ? "SOMETHING WENT WRONG. TRY AGAIN."
+              : "NEW DROPS. LIMITED EDITS. ZERO SPAM."}
           </small>
 
         </form>
@@ -1707,6 +1826,9 @@ function ProductPage({
   const [selectedSize, setSelectedSize] =
     useState("");
 
+  const [sizeGuideOpen, setSizeGuideOpen] =
+    useState(false);
+
 
   const isWishlisted =
     wishlist.some(
@@ -1957,7 +2079,12 @@ function ProductPage({
                   SELECT SIZE
                 </span>
 
-                <span>
+                <span
+                  className="size-guide-trigger"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSizeGuideOpen(true)}
+                >
                   SIZE GUIDE
                 </span>
 
@@ -2192,6 +2319,11 @@ function ProductPage({
       </section>
 
 
+      {/* REVIEWS */}
+
+      <ProductReviews productId={product.id} />
+
+
       {/* BACK */}
 
       <div className="product-details-bottom">
@@ -2205,6 +2337,11 @@ function ProductPage({
         </button>
 
       </div>
+
+
+      {sizeGuideOpen && (
+        <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />
+      )}
 
     </div>
   );
