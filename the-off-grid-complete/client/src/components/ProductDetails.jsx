@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,11 +7,12 @@ import {
   Truck,
   ShieldCheck,
   RotateCcw,
-  Minus,
-  Plus,
-  Check,
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -25,64 +26,64 @@ export default function ProductDetails({
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("");
+  /* -----------------------------------------
+     FIND PRODUCT
+  ----------------------------------------- */
 
-  /*
-   * IMPORTANT:
-   * Convert both URL ID and product ID to strings.
-   * This prevents the "Product not found" problem
-   * caused by number/string mismatch.
-   */
-  const product = useMemo(() => {
-    return products.find(
-      (item) => String(item.id) === String(id)
-    );
-  }, [products, id]);
+  const product = products.find(
+    (item) => String(item.id) === String(id)
+  );
+
+  /* -----------------------------------------
+     PRODUCT NOT FOUND
+  ----------------------------------------- */
 
   if (!product) {
     return (
-      <main className="page product-page">
-        <div className="product-not-found">
+      <main className="page product-not-found">
+        <div className="product-not-found-inner">
 
           <span className="eyebrow">
             THE OFF GRID
           </span>
 
           <h1>
-            PRODUCT
+            PRODUCT NOT
             <br />
-            NOT FOUND.
+            <em>FOUND.</em>
           </h1>
 
           <p>
-            The product you're looking for
-            doesn't exist or may have been removed.
+            We couldn't find the product you're
+            looking for.
           </p>
 
-          <Link
-            to="/"
+          <button
+            type="button"
             className="primary-button"
+            onClick={() => navigate("/")}
           >
-            <ArrowLeft size={17} />
             BACK TO SHOP
-          </Link>
+            <ArrowRight size={17} />
+          </button>
 
         </div>
       </main>
     );
   }
 
-  const sizes = product.size
-    ? product.size
-        .split("/")
-        .map((size) => size.trim())
-    : [];
+  /* -----------------------------------------
+     WISHLIST
+  ----------------------------------------- */
 
   const isWishlisted = wishlist.some(
     (item) =>
       String(item) === String(product.id)
   );
+
+  /* -----------------------------------------
+     DISCOUNT
+  ----------------------------------------- */
 
   const discount =
     product.old_price && product.price
@@ -93,61 +94,33 @@ export default function ProductDetails({
         )
       : 0;
 
-  const handleAddToCart = () => {
-    if (
-      sizes.length > 0 &&
-      !selectedSize
-    ) {
-      document
-        .getElementById("size-selector")
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
+  /* -----------------------------------------
+     ADD TO BAG
+  ----------------------------------------- */
 
-      return;
+  const handleAddToBag = () => {
+    if (product.stock) {
+      add?.(product);
     }
-
-    for (let i = 0; i < quantity; i++) {
-      add?.({
-        ...product,
-        selectedSize:
-          selectedSize || sizes[0] || "",
-      });
-    }
-  };
-
-  const increaseQuantity = () => {
-    if (
-      product.stock &&
-      quantity >= product.stock
-    ) {
-      return;
-    }
-
-    setQuantity((value) => value + 1);
-  };
-
-  const decreaseQuantity = () => {
-    setQuantity((value) =>
-      Math.max(1, value - 1)
-    );
   };
 
   return (
-    <main className="page product-page">
+    <main className="page product-details-page">
 
-      {/* HEADER */}
+      {/* ---------------------------------------
+          TOP NAV
+      --------------------------------------- */}
 
-      <div className="product-topbar">
+      <div className="product-details-top">
 
-        <Link
-          to="/"
-          className="back-link"
+        <button
+          type="button"
+          className="back-button"
+          onClick={() => navigate(-1)}
         >
           <ArrowLeft size={17} />
-          BACK TO SHOP
-        </Link>
+          BACK
+        </button>
 
         <span>
           THE OFF GRID / PRODUCT
@@ -155,15 +128,21 @@ export default function ProductDetails({
 
       </div>
 
-      {/* PRODUCT */}
+      {/* ---------------------------------------
+          PRODUCT
+      --------------------------------------- */}
 
-      <div className="product-detail">
+      <section className="product-details">
 
         {/* IMAGE */}
+        <div className="product-details-image">
 
-        <div className="product-detail-image">
+          <img
+            src={product.image}
+            alt={product.name}
+          />
 
-          <div className="product-badges">
+          <div className="product-details-badges">
 
             {discount > 0 && (
               <span>
@@ -179,42 +158,14 @@ export default function ProductDetails({
 
           </div>
 
-          <button
-            type="button"
-            className={`product-detail-wishlist ${
-              isWishlisted
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              toggle?.(product.id)
-            }
-            aria-label="Wishlist"
-          >
-            <Heart
-              size={21}
-              fill={
-                isWishlisted
-                  ? "currentColor"
-                  : "none"
-            }
-          />
-          </button>
-
-          <img
-            src={product.image}
-            alt={product.name}
-          />
-
         </div>
 
-        {/* INFORMATION */}
+        {/* INFO */}
+        <div className="product-details-info">
 
-        <div className="product-detail-info">
-
-          <span className="product-category">
+          <span className="eyebrow">
             {product.category}
-            {" · "}
+            {" / "}
             {product.gender}
           </span>
 
@@ -222,7 +173,9 @@ export default function ProductDetails({
             {product.name}
           </h1>
 
-          <div className="product-price">
+          {/* PRICE */}
+
+          <div className="product-details-price">
 
             <strong>
               {money(product.price)}
@@ -242,174 +195,133 @@ export default function ProductDetails({
 
           </div>
 
+          {/* DESCRIPTION */}
+
           <p className="product-description">
             {product.description}
           </p>
 
-          {/* PRODUCT DETAILS */}
+          {/* PRODUCT META */}
 
-          <div className="product-meta">
+          <div className="product-specs">
 
             <div>
-              <span>
-                COLOR
-              </span>
-
+              <span>COLOR</span>
               <strong>
                 {product.color || "—"}
               </strong>
             </div>
 
             <div>
-              <span>
-                FIT
-              </span>
-
+              <span>FIT</span>
               <strong>
                 {product.fit || "—"}
               </strong>
             </div>
 
             <div>
-              <span>
-                AVAILABILITY
-              </span>
-
+              <span>SIZE</span>
               <strong>
-                {product.stock > 0
-                  ? `${product.stock} IN STOCK`
-                  : "OUT OF STOCK"}
+                {product.size || "—"}
               </strong>
             </div>
-
-          </div>
-
-          {/* SIZE */}
-
-          {sizes.length > 0 && (
-            <div
-              className="product-size"
-              id="size-selector"
-            >
-
-              <div className="product-option-heading">
-
-                <span>
-                  SELECT SIZE
-                </span>
-
-                {selectedSize && (
-                  <strong>
-                    {selectedSize}
-                  </strong>
-                )}
-
-              </div>
-
-              <div className="size-options">
-
-                {sizes.map((size) => (
-
-                  <button
-                    type="button"
-                    key={size}
-                    className={
-                      selectedSize === size
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      setSelectedSize(size)
-                    }
-                  >
-                    {size}
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-          )}
-
-          {/* QUANTITY */}
-
-          <div className="product-quantity">
-
-            <span>
-              QUANTITY
-            </span>
 
             <div>
-
-              <button
-                type="button"
-                onClick={decreaseQuantity}
-                aria-label="Decrease quantity"
-              >
-                <Minus size={16} />
-              </button>
-
+              <span>AVAILABILITY</span>
               <strong>
-                {quantity}
+                {product.stock
+                  ? `${product.stock} IN STOCK`
+                  : "SOLD OUT"}
               </strong>
+            </div>
 
-              <button
-                type="button"
-                onClick={increaseQuantity}
-                aria-label="Increase quantity"
-              >
-                <Plus size={16} />
-              </button>
+          </div>
+
+          {/* SIZE DISPLAY */}
+
+          <div className="product-size-section">
+
+            <div className="product-option-title">
+              <span>AVAILABLE SIZES</span>
+            </div>
+
+            <div className="product-size-list">
+
+              {(product.size || "")
+                .split("/")
+                .map((size) => size.trim())
+                .filter(Boolean)
+                .map((size) => (
+                  <span
+                    key={size}
+                    className="product-size"
+                  >
+                    {size}
+                  </span>
+                ))}
 
             </div>
 
           </div>
 
-          {/* ADD TO CART */}
+          {/* ACTIONS */}
 
-          <button
-            type="button"
-            className="product-add-button"
-            disabled={!product.stock}
-            onClick={handleAddToCart}
-          >
-            <ShoppingBag size={19} />
+          <div className="product-details-actions">
 
-            {product.stock
-              ? "ADD TO BAG"
-              : "SOLD OUT"}
+            <button
+              type="button"
+              className="product-details-add"
+              disabled={!product.stock}
+              onClick={handleAddToBag}
+            >
 
-            <ArrowRight size={17} />
-          </button>
+              <span>
+                {product.stock
+                  ? "ADD TO BAG"
+                  : "SOLD OUT"}
+              </span>
 
-          {/* BUY NOW */}
+              {product.stock && (
+                <ShoppingBag size={19} />
+              )}
 
-          <button
-            type="button"
-            className="product-buy-button"
-            disabled={!product.stock}
-            onClick={() => {
-              handleAddToCart();
+            </button>
 
-              if (
-                !sizes.length ||
-                selectedSize
-              ) {
-                navigate("/checkout");
+            <button
+              type="button"
+              className={`product-details-wishlist ${
+                isWishlisted
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                toggle?.(product.id)
               }
-            }}
-          >
-            BUY NOW
-          </button>
+              aria-label={
+                isWishlisted
+                  ? "Remove from wishlist"
+                  : "Add to wishlist"
+              }
+            >
+              <Heart
+                size={21}
+                fill={
+                  isWishlisted
+                    ? "currentColor"
+                    : "none"
+                }
+              />
+            </button>
 
-          {/* SERVICE FEATURES */}
+          </div>
+
+          {/* FEATURES */}
 
           <div className="product-features">
 
-            <div>
+            <div className="product-feature">
 
-              <Truck size={21} />
+              <Truck size={20} />
 
               <div>
                 <strong>
@@ -417,31 +329,31 @@ export default function ProductDetails({
                 </strong>
 
                 <span>
-                  Across India
+                  Delivery across India
                 </span>
               </div>
 
             </div>
 
-            <div>
+            <div className="product-feature">
 
-              <ShieldCheck size={21} />
+              <ShieldCheck size={20} />
 
               <div>
                 <strong>
-                  QUALITY CHECKED
+                  QUALITY FIRST
                 </strong>
 
                 <span>
-                  Every piece inspected
+                  Every piece checked
                 </span>
               </div>
 
             </div>
 
-            <div>
+            <div className="product-feature">
 
-              <RotateCcw size={21} />
+              <RotateCcw size={20} />
 
               <div>
                 <strong>
@@ -457,80 +369,15 @@ export default function ProductDetails({
 
           </div>
 
-          {/* PRODUCT INFO */}
-
-          <div className="product-extra">
-
-            <details open>
-
-              <summary>
-                PRODUCT DETAILS
-                <Plus size={17} />
-              </summary>
-
-              <p>
-                {product.description}
-              </p>
-
-              <ul>
-                <li>
-                  Category: {product.category}
-                </li>
-
-                <li>
-                  Gender: {product.gender}
-                </li>
-
-                <li>
-                  Color: {product.color}
-                </li>
-
-                <li>
-                  Fit: {product.fit}
-                </li>
-              </ul>
-
-            </details>
-
-            <details>
-
-              <summary>
-                SHIPPING & RETURNS
-                <Plus size={17} />
-              </summary>
-
-              <p>
-                Fast shipping across India.
-                Returns are handled through
-                our simple and transparent
-                return process.
-              </p>
-
-            </details>
-
-          </div>
-
-          {/* SKU */}
-
-          <div className="product-sku">
-
-            <span>
-              PRODUCT
-            </span>
-
-            <strong>
-              OG-{String(product.id).padStart(3, "0")}
-            </strong>
-
-          </div>
-
         </div>
 
-      </div>
+      </section>
 
-      {/* BACK */}
+      {/* ---------------------------------------
+          BACK TO SHOP
+      --------------------------------------- */}
 
-      <div className="product-bottom-nav">
+      <section className="product-details-bottom">
 
         <Link
           to="/"
@@ -540,11 +387,7 @@ export default function ProductDetails({
           CONTINUE SHOPPING
         </Link>
 
-        <span>
-          THE OFF GRID / 2026
-        </span>
-
-      </div>
+      </section>
 
     </main>
   );
