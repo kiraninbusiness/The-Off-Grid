@@ -1,63 +1,66 @@
-# THE OFF GRID — Full-stack starter
+# THE OFF GRID — Complete Store Package
 
-A production-oriented starter for a clothing store:
-- React + Vite frontend
-- Node.js + Express API
-- PostgreSQL-ready data model
-- JWT authentication
-- Cart, wishlist, orders
-- Admin product/inventory endpoints
-- Razorpay payment order endpoint (requires your own keys)
+This package is a clean replacement project for the current The Off Grid clothing website.
 
-## 1. Requirements
-- Node.js 18+
-- PostgreSQL 14+
-- A Razorpay account for payments
+## Included
 
-## 2. Configure server
-Copy `server/.env.example` to `server/.env` and fill in your database/JWT values.
-Razorpay keys are optional for local browsing; checkout payment creation requires them.
+- Responsive premium fashion storefront
+- 12 products
+- Product cards
+- Product detail pages using `/product/:id`
+- Direct URL/refresh-safe product routing
+- Wishlist
+- Persistent cart
+- Quantity controls
+- Size selection + size guide
+- Quick View
+- Search
+- Category filtering
+- Sorting
+- Checkout
+- Cash on Delivery flow
+- Online-payment placeholder ready for Razorpay integration
+- Order creation/history
+- Order cancellation
+- Order tracking
+- Customer account
+- Product reviews + star ratings
+- Newsletter form
+- Mobile navigation
+- Responsive UI
+- LocalStorage persistence
+- Express API with products/newsletter/reviews/health endpoints
 
-## 3. Install
-From the project root:
+## Run
+
+1. Install Node.js 18+.
+2. In this folder:
+
 ```bash
-cd server && npm install
-cd ../client && npm install
+npm install
 ```
 
-## 4. Database
-Create a PostgreSQL database, then run:
-```bash
-cd server
-npm run db:init
-```
+3. Start the frontend:
 
-## 5. Run
-Terminal 1:
 ```bash
-cd server
 npm run dev
 ```
-Terminal 2:
+
+4. Optional API server:
+
 ```bash
-cd client
-npm run dev
+npm run server
 ```
 
-The frontend uses `http://localhost:5000/api` by default.
+Frontend: http://localhost:5173  
+API: http://localhost:4000
 
-## 6. Admin
-Register normally, then set the user's `role` to `admin` in PostgreSQL:
-```sql
-UPDATE users SET role='admin' WHERE email='your-email@example.com';
-```
+The storefront works without the API because product/cart/order/review persistence is handled locally.
 
-## 7. Razorpay
-Set:
-- RAZORPAY_KEY_ID
-- RAZORPAY_KEY_SECRET
+## Production payment
 
-The server creates a Razorpay order and returns the order details. For production, add webhook signature verification and persist payment verification before marking orders as paid.
+The checkout intentionally does NOT contain fake Razorpay credentials. For live online payments, connect your Razorpay Key ID/secret and server-side order creation/signature verification in the checkout flow.
 
-## Production checklist
-Use HTTPS, secure cookies or short-lived access tokens, rate limiting, validation, image storage/CDN, email/SMS notifications, Razorpay webhooks, database migrations, backups, logging and monitoring.
+## Important
+
+The project keeps the existing The Off Grid visual direction and does not depend on product data loading before the product detail route can render. Product details are owned by `src/pages/ProductDetails.jsx`.
