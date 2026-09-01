@@ -10,7 +10,11 @@ import {
   Plus,
   Check,
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -21,15 +25,20 @@ export default function ProductDetails({
   wishlist = [],
   toggle,
 }) {
-  const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+
+  /*
+    App.jsx currently displays ProductDetails conditionally
+    when the URL starts with /product/.
+
+    Therefore we read the product ID directly from the URL.
+    This avoids the previous useParams() problem.
+  */
+  const id = location.pathname.split("/")[2];
 
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-
-  /* =====================================================
-     FIND PRODUCT
-  ===================================================== */
 
   const product = useMemo(() => {
     return products.find(
@@ -37,34 +46,42 @@ export default function ProductDetails({
     );
   }, [products, id]);
 
-  /* =====================================================
-     PRODUCT NOT FOUND
-  ===================================================== */
+  /*
+    PRODUCT NOT FOUND
+  */
 
   if (!product) {
     return (
-      <div className="product-not-found">
+      <main className="product-not-found-page">
+        <div className="product-not-found-content">
 
-        <span>404 / PRODUCT</span>
+          <span className="product-detail-eyebrow">
+            404 / PRODUCT
+          </span>
 
-        <h1>
-          PRODUCT
-          <br />
-          NOT FOUND.
-        </h1>
+          <h1>
+            PRODUCT
+            <br />
+            <em>NOT FOUND.</em>
+          </h1>
 
-        <Link to="/" className="orange-btn">
-          BACK TO SHOP
-          <ArrowRight size={18} />
-        </Link>
+          <p>
+            The product you're looking for doesn't
+            exist or may have been removed.
+          </p>
 
-      </div>
+          <Link
+            to="/"
+            className="product-not-found-button"
+          >
+            BACK TO SHOP
+            <ArrowRight size={18} />
+          </Link>
+
+        </div>
+      </main>
     );
   }
-
-  /* =====================================================
-     PRODUCT DATA
-  ===================================================== */
 
   const stock = Number(product.stock) || 0;
   const price = Number(product.price) || 0;
@@ -79,9 +96,9 @@ export default function ProductDetails({
 
   const isWishlisted = wishlist.includes(product.id);
 
-  /* =====================================================
-     QUANTITY
-  ===================================================== */
+  /*
+    QUANTITY
+  */
 
   const decreaseQuantity = () => {
     setQuantity((current) =>
@@ -95,12 +112,12 @@ export default function ProductDetails({
     );
   };
 
-  /* =====================================================
-     ADD TO BAG
-  ===================================================== */
+  /*
+    ADD TO BAG
+  */
 
   const handleAddToBag = () => {
-    if (stock < 1) return;
+    if (stock < 1 || !add) return;
 
     for (let i = 0; i < quantity; i++) {
       add(product);
@@ -113,12 +130,12 @@ export default function ProductDetails({
     }, 1800);
   };
 
-  /* =====================================================
-     BUY NOW
-  ===================================================== */
+  /*
+    BUY NOW
+  */
 
   const handleBuyNow = () => {
-    if (stock < 1) return;
+    if (stock < 1 || !add) return;
 
     for (let i = 0; i < quantity; i++) {
       add(product);
@@ -127,9 +144,9 @@ export default function ProductDetails({
     navigate("/checkout");
   };
 
-  /* =====================================================
-     WISHLIST
-  ===================================================== */
+  /*
+    WISHLIST
+  */
 
   const handleWishlist = () => {
     if (toggle) {
@@ -138,77 +155,85 @@ export default function ProductDetails({
   };
 
   return (
-    <main className="product-details-page">
+    <main className="product-detail-page">
 
-      {/* =================================================
-          TOP NAV
-      ================================================= */}
+      {/* TOP BAR */}
 
-      <div className="product-details-top">
+      <div className="product-detail-top">
 
         <button
           type="button"
-          className="back-button"
+          className="product-detail-back"
           onClick={() => navigate(-1)}
         >
           <ArrowLeft size={17} />
           BACK
         </button>
 
-        <span>
-          THE OFF GRID / PRODUCT
+        <Link
+          to="/"
+          className="product-detail-logo"
+        >
+          <small>THE</small>
+          <strong>OFF GRID</strong>
+        </Link>
+
+        <span className="product-detail-code">
+          PRODUCT / {String(product.id).padStart(3, "0")}
         </span>
 
       </div>
 
-      {/* =================================================
-          PRODUCT
-      ================================================= */}
+      {/* MAIN PRODUCT */}
 
-      <section className="product-details">
+      <section className="product-detail-main">
 
         {/* IMAGE */}
-        <div className="product-details-image">
+
+        <div className="product-detail-image">
 
           <img
             src={product.image}
             alt={product.name}
           />
 
-          {/* BADGES */}
-
-          <div className="product-details-badges">
+          <div className="product-detail-badges">
 
             {discount > 0 && (
-              <span className="badge sale">
+              <span className="product-badge sale">
                 -{discount}%
               </span>
             )}
 
             {product.condition && (
-              <span className="badge">
+              <span className="product-badge">
                 {product.condition}
               </span>
             )}
 
             {stock < 1 && (
-              <span className="badge sold">
+              <span className="product-badge sold">
                 SOLD OUT
               </span>
             )}
 
           </div>
 
+          <div className="product-image-number">
+            001 / THE OFF GRID
+          </div>
+
         </div>
 
         {/* INFORMATION */}
-        <div className="product-details-content">
 
-          <div className="product-details-category">
+        <div className="product-detail-content">
+
+          <div className="product-detail-category">
             {product.category || "COLLECTION"}
-
-            {product.gender &&
-              ` · ${product.gender}`}
+            {product.gender
+              ? ` · ${product.gender}`
+              : ""}
           </div>
 
           <h1>
@@ -217,7 +242,7 @@ export default function ProductDetails({
 
           {/* PRICE */}
 
-          <div className="product-details-price">
+          <div className="product-detail-price">
 
             <strong>
               {money(price)}
@@ -239,15 +264,14 @@ export default function ProductDetails({
 
           {/* DESCRIPTION */}
 
-          {product.description && (
-            <p className="product-details-description">
-              {product.description}
-            </p>
-          )}
+          <p className="product-detail-description">
+            {product.description ||
+              "Designed for everyday wear with clean silhouettes, strong details and a distinctly Off Grid attitude."}
+          </p>
 
-          {/* PRODUCT META */}
+          {/* PRODUCT DETAILS */}
 
-          <div className="product-specifications">
+          <div className="product-detail-specs">
 
             <div>
               <span>SIZE</span>
@@ -256,27 +280,22 @@ export default function ProductDetails({
               </strong>
             </div>
 
-            {product.color && (
-              <div>
-                <span>COLOR</span>
-                <strong>
-                  {product.color}
-                </strong>
-              </div>
-            )}
+            <div>
+              <span>COLOR</span>
+              <strong>
+                {product.color || "STANDARD"}
+              </strong>
+            </div>
 
-            {product.fit && (
-              <div>
-                <span>FIT</span>
-                <strong>
-                  {product.fit}
-                </strong>
-              </div>
-            )}
+            <div>
+              <span>FIT</span>
+              <strong>
+                {product.fit || "REGULAR"}
+              </strong>
+            </div>
 
             <div>
               <span>AVAILABILITY</span>
-
               <strong
                 className={
                   stock > 0
@@ -288,21 +307,16 @@ export default function ProductDetails({
                   ? `${stock} IN STOCK`
                   : "SOLD OUT"}
               </strong>
-
             </div>
 
           </div>
 
-          {/* =================================================
-              QUANTITY
-          ================================================= */}
+          {/* QUANTITY */}
 
           {stock > 0 && (
-            <div className="quantity-section">
+            <div className="product-detail-quantity">
 
-              <span>
-                QUANTITY
-              </span>
+              <span>QUANTITY</span>
 
               <div className="quantity-control">
 
@@ -312,7 +326,7 @@ export default function ProductDetails({
                   disabled={quantity <= 1}
                   aria-label="Decrease quantity"
                 >
-                  <Minus size={15} />
+                  <Minus size={16} />
                 </button>
 
                 <strong>
@@ -322,12 +336,10 @@ export default function ProductDetails({
                 <button
                   type="button"
                   onClick={increaseQuantity}
-                  disabled={
-                    quantity >= stock
-                  }
+                  disabled={quantity >= stock}
                   aria-label="Increase quantity"
                 >
-                  <Plus size={15} />
+                  <Plus size={16} />
                 </button>
 
               </div>
@@ -335,21 +347,18 @@ export default function ProductDetails({
             </div>
           )}
 
-          {/* =================================================
-              ACTIONS
-          ================================================= */}
+          {/* ACTIONS */}
 
-          <div className="product-details-actions">
+          <div className="product-detail-actions">
 
             <button
               type="button"
-              className={`product-details-add ${
+              className={`product-detail-add ${
                 added ? "added" : ""
               }`}
               disabled={stock < 1}
               onClick={handleAddToBag}
             >
-
               {stock < 1 ? (
                 "SOLD OUT"
               ) : added ? (
@@ -363,12 +372,11 @@ export default function ProductDetails({
                   <ArrowRight size={18} />
                 </>
               )}
-
             </button>
 
             <button
               type="button"
-              className="product-details-buy"
+              className="product-detail-buy"
               disabled={stock < 1}
               onClick={handleBuyNow}
             >
@@ -377,7 +385,7 @@ export default function ProductDetails({
 
             <button
               type="button"
-              className={`product-details-wishlist ${
+              className={`product-detail-wishlist ${
                 isWishlisted
                   ? "wishlisted"
                   : ""
@@ -401,13 +409,11 @@ export default function ProductDetails({
 
           </div>
 
-          {/* =================================================
-              SERVICE INFO
-          ================================================= */}
+          {/* SERVICE INFORMATION */}
 
-          <div className="product-service-info">
+          <div className="product-service-grid">
 
-            <div className="service-item">
+            <div className="product-service">
 
               <Truck size={20} />
 
@@ -423,13 +429,13 @@ export default function ProductDetails({
 
             </div>
 
-            <div className="service-item">
+            <div className="product-service">
 
               <ShieldCheck size={20} />
 
               <div>
                 <strong>
-                  QUALITY GUARANTEED
+                  QUALITY FIRST
                 </strong>
 
                 <span>
@@ -439,7 +445,7 @@ export default function ProductDetails({
 
             </div>
 
-            <div className="service-item">
+            <div className="product-service">
 
               <RotateCcw size={20} />
 
@@ -461,13 +467,11 @@ export default function ProductDetails({
 
       </section>
 
-      {/* =================================================
-          PRODUCT INFORMATION
-      ================================================= */}
+      {/* PRODUCT STORY */}
 
-      <section className="product-information">
+      <section className="product-story">
 
-        <div className="product-information-heading">
+        <div className="product-story-heading">
 
           <span>
             THE OFF GRID / DETAILS
@@ -481,88 +485,61 @@ export default function ProductDetails({
 
         </div>
 
-        <div className="product-information-text">
+        <div className="product-story-text">
 
           <p>
             {product.description ||
-              "Designed with a focus on clean silhouettes, strong details and everyday comfort."}
+              "Clean silhouettes. Strong details. Zero unnecessary rules."}
           </p>
 
           <p>
             The Off Grid pieces are designed
-            to be worn your way. Simple,
-            versatile and made for repeat wear.
+            to work beyond trends. Wear them
+            your way, layer them your way and
+            make them part of your everyday.
           </p>
 
         </div>
 
       </section>
 
-      {/* =================================================
-          PRODUCT DATA
-      ================================================= */}
+      {/* PRODUCT DATA */}
 
-      <section className="product-data">
+      <section className="product-data-grid">
 
         <div>
-
-          <span>
-            CATEGORY
-          </span>
-
+          <span>CATEGORY</span>
           <strong>
-            {product.category ||
-              "COLLECTION"}
+            {product.category || "COLLECTION"}
           </strong>
-
         </div>
 
         <div>
-
-          <span>
-            GENDER
-          </span>
-
+          <span>GENDER</span>
           <strong>
-            {product.gender ||
-              "UNISEX"}
+            {product.gender || "UNISEX"}
           </strong>
-
         </div>
 
         <div>
-
-          <span>
-            COLOR
-          </span>
-
+          <span>COLOR</span>
           <strong>
-            {product.color ||
-              "STANDARD"}
+            {product.color || "STANDARD"}
           </strong>
-
         </div>
 
         <div>
-
-          <span>
-            FIT
-          </span>
-
+          <span>FIT</span>
           <strong>
-            {product.fit ||
-              "REGULAR"}
+            {product.fit || "REGULAR"}
           </strong>
-
         </div>
 
       </section>
 
-      {/* =================================================
-          BACK TO SHOP
-      ================================================= */}
+      {/* BACK TO SHOP */}
 
-      <div className="product-details-bottom">
+      <section className="product-detail-bottom">
 
         <Link
           to="/"
@@ -572,7 +549,7 @@ export default function ProductDetails({
           CONTINUE SHOPPING
         </Link>
 
-      </div>
+      </section>
 
     </main>
   );
