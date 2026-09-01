@@ -1,3 +1,4 @@
+// The Off Grid product catalog
 const PRODUCTS = [
   {
     id: 1,
