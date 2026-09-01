@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,14 +8,7 @@ import {
   Truck,
   ShieldCheck,
   RotateCcw,
-  Minus,
-  Plus,
 } from "lucide-react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -28,19 +22,15 @@ export default function ProductDetails({
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("");
-
-  /* =====================================================
-     FIND PRODUCT
-  ===================================================== */
-
-  const product = useMemo(() => {
-    return products.find(
-      (item) =>
-        String(item.id) === String(id)
-    );
-  }, [products, id]);
+  /*
+   * IMPORTANT:
+   * Convert both IDs to strings so that
+   * /product/1 matches product.id = 1
+   */
+  const product = products.find(
+    (item) =>
+      String(item.id) === String(id)
+  );
 
   /* =====================================================
      PRODUCT NOT FOUND
@@ -48,15 +38,15 @@ export default function ProductDetails({
 
   if (!product) {
     return (
-      <main className="page product-page">
+      <main className="product-page">
 
         <div
           style={{
-            minHeight: "80vh",
+            minHeight: "70vh",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
             alignItems: "center",
+            justifyContent: "center",
             textAlign: "center",
             padding: "40px 20px",
           }}
@@ -68,9 +58,9 @@ export default function ProductDetails({
 
           <h1
             style={{
-              fontSize: "clamp(48px, 8vw, 100px)",
-              lineHeight: 0.9,
-              margin: "20px 0",
+              fontSize: "clamp(40px, 7vw, 90px)",
+              margin: "15px 0",
+              letterSpacing: "-0.04em",
             }}
           >
             PRODUCT
@@ -80,21 +70,22 @@ export default function ProductDetails({
 
           <p
             style={{
-              maxWidth: "450px",
+              maxWidth: "500px",
               opacity: 0.65,
               marginBottom: "30px",
             }}
           >
             The product you're looking for
-            doesn't exist or may have been removed.
+            doesn't exist or may have been
+            removed.
           </p>
 
           <Link
             to="/"
             className="primary-button"
           >
-            <ArrowLeft size={17} />
             BACK TO SHOP
+            <ArrowRight size={17} />
           </Link>
 
         </div>
@@ -103,22 +94,15 @@ export default function ProductDetails({
     );
   }
 
+
   /* =====================================================
      PRODUCT DATA
   ===================================================== */
 
-  const sizes = product.size
-    ? product.size
-        .split("/")
-        .map((size) => size.trim())
-    : [];
-
-  const isWishlisted =
-    wishlist.some(
-      (item) =>
-        String(item) ===
-        String(product.id)
-    );
+  const isWishlisted = wishlist.some(
+    (item) =>
+      String(item) === String(product.id)
+  );
 
   const discount =
     product.old_price &&
@@ -131,219 +115,117 @@ export default function ProductDetails({
         )
       : 0;
 
+
   /* =====================================================
-     QUANTITY
+     ADD TO BAG
   ===================================================== */
 
-  const increaseQuantity = () => {
-    if (
-      product.stock &&
-      quantity >= product.stock
-    ) {
-      return;
+  const handleAdd = () => {
+    if (!product.stock) return;
+
+    if (add) {
+      add(product);
     }
-
-    setQuantity(
-      (current) => current + 1
-    );
   };
 
-  const decreaseQuantity = () => {
-    setQuantity(
-      (current) =>
-        Math.max(1, current - 1)
-    );
-  };
 
   /* =====================================================
-     ADD TO CART
-  ===================================================== */
-
-  const handleAddToCart = () => {
-
-    if (!product.stock) {
-      return;
-    }
-
-    if (
-      sizes.length > 0 &&
-      !selectedSize
-    ) {
-      document
-        .getElementById(
-          "product-size-selector"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-
-      return;
-    }
-
-    for (
-      let i = 0;
-      i < quantity;
-      i++
-    ) {
-      add?.({
-        ...product,
-        selectedSize:
-          selectedSize ||
-          sizes[0] ||
-          "",
-      });
-    }
-  };
-
-  /* =====================================================
-     BUY NOW
-  ===================================================== */
-
-  const handleBuyNow = () => {
-
-    if (!product.stock) {
-      return;
-    }
-
-    if (
-      sizes.length > 0 &&
-      !selectedSize
-    ) {
-      document
-        .getElementById(
-          "product-size-selector"
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-
-      return;
-    }
-
-    for (
-      let i = 0;
-      i < quantity;
-      i++
-    ) {
-      add?.({
-        ...product,
-        selectedSize:
-          selectedSize ||
-          sizes[0] ||
-          "",
-      });
-    }
-
-    navigate("/checkout");
-  };
-
-  /* =====================================================
-     UI
+     PAGE
   ===================================================== */
 
   return (
-    <main className="page product-page">
+    <main className="product-page">
 
       {/* =================================================
-          TOP NAV
+          HEADER
       ================================================= */}
 
-      <div className="product-topbar">
+      <header className="product-header">
 
         <Link
           to="/"
-          className="back-link"
+          className="product-back"
         >
           <ArrowLeft size={17} />
           BACK TO SHOP
         </Link>
 
-        <span>
-          THE OFF GRID / PRODUCT
-        </span>
 
-      </div>
+        <Link
+          to="/"
+          className="product-logo"
+        >
+          <small>THE</small>
+          <strong>OFF GRID</strong>
+        </Link>
+
+
+        <button
+          type="button"
+          className="product-bag-link"
+          onClick={() =>
+            navigate("/checkout")
+          }
+        >
+          <ShoppingBag size={19} />
+          BAG
+        </button>
+
+      </header>
+
 
       {/* =================================================
-          PRODUCT AREA
+          PRODUCT
       ================================================= */}
 
-      <section className="product-detail">
+      <section className="product-details">
 
-        {/* ===============================================
-            IMAGE
-        =============================================== */}
+        {/* LEFT IMAGE */}
 
-        <div className="product-detail-image">
-
-          <div className="product-badges">
-
-            {discount > 0 && (
-              <span>
-                -{discount}%
-              </span>
-            )}
-
-            {product.condition && (
-              <span>
-                {product.condition}
-              </span>
-            )}
-
-          </div>
-
-          <button
-            type="button"
-            className={`product-detail-wishlist ${
-              isWishlisted
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              toggle?.(product.id)
-            }
-            aria-label={
-              isWishlisted
-                ? "Remove from wishlist"
-                : "Add to wishlist"
-            }
-          >
-            <Heart
-              size={21}
-              fill={
-                isWishlisted
-                  ? "currentColor"
-                  : "none"
-              }
-            />
-          </button>
+        <div className="product-details-image">
 
           <img
             src={product.image}
             alt={product.name}
           />
 
+          <div className="product-image-label">
+
+            <span>
+              THE OFF GRID / {String(product.id).padStart(3, "0")}
+            </span>
+
+          </div>
+
         </div>
 
-        {/* ===============================================
-            INFORMATION
-        =============================================== */}
 
-        <div className="product-detail-info">
+        {/* RIGHT INFORMATION */}
 
-          <span className="product-category">
-            {product.category}
-            {" · "}
-            {product.gender}
-          </span>
+        <div className="product-details-info">
+
+          <div className="product-details-top">
+
+            <span className="product-category">
+              {product.category}
+              {" · "}
+              {product.gender}
+            </span>
+
+
+            {product.condition && (
+              <span className="product-condition">
+                {product.condition}
+              </span>
+            )}
+
+          </div>
+
 
           <h1>
             {product.name}
           </h1>
 
-          {/* PRICE */}
 
           <div className="product-price">
 
@@ -365,160 +247,95 @@ export default function ProductDetails({
 
           </div>
 
+
           {/* DESCRIPTION */}
 
           <p className="product-description">
-            {product.description}
+            {product.description ||
+              "Designed for everyday wear with a clean silhouette, premium feel and The Off Grid attitude."}
           </p>
 
-          {/* =============================================
-              PRODUCT META
-          ============================================= */}
 
-          <div className="product-meta">
+          {/* PRODUCT INFO */}
+
+          <div className="product-specs">
 
             <div>
-              <span>
-                COLOR
-              </span>
-
+              <span>COLOR</span>
               <strong>
                 {product.color || "—"}
               </strong>
             </div>
 
-            <div>
-              <span>
-                FIT
-              </span>
 
+            <div>
+              <span>FIT</span>
               <strong>
                 {product.fit || "—"}
               </strong>
             </div>
 
+
             <div>
+              <span>SIZE</span>
+              <strong>
+                {product.size || "—"}
+              </strong>
+            </div>
+
+          </div>
+
+
+          {/* SIZE */}
+
+          <div className="product-size-section">
+
+            <div className="product-size-heading">
+
               <span>
-                STOCK
+                SELECT SIZE
               </span>
 
-              <strong>
-                {product.stock > 0
-                  ? `${product.stock} AVAILABLE`
-                  : "SOLD OUT"}
-              </strong>
-            </div>
-
-          </div>
-
-          {/* =============================================
-              SIZE
-          ============================================= */}
-
-          {sizes.length > 0 && (
-            <div
-              className="product-size"
-              id="product-size-selector"
-            >
-
-              <div className="product-option-heading">
-
-                <span>
-                  SELECT SIZE
-                </span>
-
-                <strong>
-                  {selectedSize ||
-                    "SELECT"}
-                </strong>
-
-              </div>
-
-              <div className="size-options">
-
-                {sizes.map(
-                  (size) => (
-
-                    <button
-                      type="button"
-                      key={size}
-                      className={
-                        selectedSize ===
-                        size
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() =>
-                        setSelectedSize(
-                          size
-                        )
-                      }
-                    >
-                      {size}
-                    </button>
-
+              <button
+                type="button"
+                onClick={() =>
+                  alert(
+                    "Size guide coming soon."
                   )
-                )}
-
-              </div>
+                }
+              >
+                SIZE GUIDE
+              </button>
 
             </div>
-          )}
 
-          {/* =============================================
-              QUANTITY
-          ============================================= */}
 
-          <div className="product-quantity">
+            <div className="product-sizes">
 
-            <span>
-              QUANTITY
-            </span>
-
-            <div>
-
-              <button
-                type="button"
-                onClick={
-                  decreaseQuantity
-                }
-                aria-label="Decrease quantity"
-              >
-                <Minus size={16} />
-              </button>
-
-              <strong>
-                {quantity}
-              </strong>
-
-              <button
-                type="button"
-                onClick={
-                  increaseQuantity
-                }
-                aria-label="Increase quantity"
-              >
-                <Plus size={16} />
-              </button>
+              {(product.size || "")
+                .split("/")
+                .map((size) => (
+                  <button
+                    type="button"
+                    key={size.trim()}
+                  >
+                    {size.trim()}
+                  </button>
+                ))}
 
             </div>
 
           </div>
 
-          {/* =============================================
-              ADD TO BAG
-          ============================================= */}
+
+          {/* ADD TO BAG */}
 
           <button
             type="button"
             className="product-add-button"
             disabled={!product.stock}
-            onClick={
-              handleAddToCart
-            }
+            onClick={handleAdd}
           >
-
-            <ShoppingBag size={19} />
 
             <span>
               {product.stock
@@ -526,34 +343,48 @@ export default function ProductDetails({
                 : "SOLD OUT"}
             </span>
 
-            <ArrowRight size={17} />
+            <ShoppingBag size={19} />
 
           </button>
 
-          {/* =============================================
-              BUY NOW
-          ============================================= */}
+
+          {/* WISHLIST */}
 
           <button
             type="button"
-            className="product-buy-button"
-            disabled={!product.stock}
-            onClick={
-              handleBuyNow
+            className={`product-wishlist-button ${
+              isWishlisted
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              toggle?.(product.id)
             }
           >
-            BUY NOW
+
+            <Heart
+              size={18}
+              fill={
+                isWishlisted
+                  ? "currentColor"
+                  : "none"
+              }
+            />
+
+            {isWishlisted
+              ? "REMOVE FROM WISHLIST"
+              : "ADD TO WISHLIST"}
+
           </button>
 
-          {/* =============================================
-              FEATURES
-          ============================================= */}
 
-          <div className="product-features">
+          {/* DELIVERY INFO */}
+
+          <div className="product-service">
 
             <div>
 
-              <Truck size={21} />
+              <Truck size={19} />
 
               <div>
 
@@ -562,38 +393,17 @@ export default function ProductDetails({
                 </strong>
 
                 <span>
-                  Across India
+                  Delivery across India
                 </span>
 
               </div>
 
             </div>
 
-            <div>
-
-              <ShieldCheck
-                size={21}
-              />
-
-              <div>
-
-                <strong>
-                  QUALITY FIRST
-                </strong>
-
-                <span>
-                  Every piece checked
-                </span>
-
-              </div>
-
-            </div>
 
             <div>
 
-              <RotateCcw
-                size={21}
-              />
+              <RotateCcw size={19} />
 
               <div>
 
@@ -609,118 +419,60 @@ export default function ProductDetails({
 
             </div>
 
-          </div>
 
-          {/* =============================================
-              DETAILS
-          ============================================= */}
+            <div>
 
-          <div className="product-extra">
-
-            <details open>
-
-              <summary>
-                PRODUCT DETAILS
-                <Plus size={17} />
-              </summary>
+              <ShieldCheck size={19} />
 
               <div>
 
-                <p>
-                  {product.description}
-                </p>
+                <strong>
+                  SECURE PAYMENT
+                </strong>
 
-                <ul>
-
-                  <li>
-                    Category:{" "}
-                    {product.category}
-                  </li>
-
-                  <li>
-                    Gender:{" "}
-                    {product.gender}
-                  </li>
-
-                  <li>
-                    Color:{" "}
-                    {product.color}
-                  </li>
-
-                  <li>
-                    Fit:{" "}
-                    {product.fit}
-                  </li>
-
-                </ul>
+                <span>
+                  Safe checkout
+                </span>
 
               </div>
 
-            </details>
-
-            <details>
-
-              <summary>
-                SHIPPING & RETURNS
-                <Plus size={17} />
-              </summary>
-
-              <div>
-
-                <p>
-                  We ship across India.
-                  Your order is carefully
-                  packed before dispatch.
-                  Returns are handled
-                  through our simple and
-                  transparent return process.
-                </p>
-
-              </div>
-
-            </details>
+            </div>
 
           </div>
 
-          {/* SKU */}
 
-          <div className="product-sku">
+          {/* BACK */}
 
-            <span>
-              PRODUCT CODE
-            </span>
-
-            <strong>
-              OG-
-              {String(product.id)
-                .padStart(3, "0")}
-            </strong>
-
-          </div>
+          <Link
+            to="/"
+            className="product-continue"
+          >
+            CONTINUE SHOPPING
+            <ArrowRight size={16} />
+          </Link>
 
         </div>
 
       </section>
 
+
       {/* =================================================
-          BOTTOM NAV
+          BOTTOM STATEMENT
       ================================================= */}
 
-      <div className="product-bottom-nav">
-
-        <Link
-          to="/"
-          className="under-btn"
-        >
-          <ArrowLeft size={15} />
-          CONTINUE SHOPPING
-        </Link>
+      <section className="product-statement">
 
         <span>
-          THE OFF GRID / 2026
+          THE OFF GRID
         </span>
 
-      </div>
+        <h2>
+          NOT MADE
+          <br />
+          FOR <em>EVERYONE.</em>
+        </h2>
+
+      </section>
 
     </main>
   );
