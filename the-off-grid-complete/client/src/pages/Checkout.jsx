@@ -7,7 +7,8 @@ import {
   CreditCard,
   MapPin,
   ShieldCheck,
-  Truck
+  Truck,
+  Lock,
 } from "lucide-react";
 
 const money = (n) =>
@@ -16,7 +17,7 @@ const money = (n) =>
 export default function Checkout({
   cart = [],
   user = null,
-  clearCart
+  clearCart,
 }) {
   const navigate = useNavigate();
 
@@ -27,17 +28,16 @@ export default function Checkout({
     address: "",
     city: "",
     state: "",
-    pincode: ""
+    pincode: "",
   });
 
-  const [payment, setPayment] =
-    useState("cod");
+  const [payment, setPayment] = useState("cod");
+  const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState("");
 
-  const [placing, setPlacing] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  /*
+    CALCULATE SUBTOTAL
+  */
 
   const subtotal = useMemo(() => {
     return cart.reduce(
@@ -49,22 +49,34 @@ export default function Checkout({
     );
   }, [cart]);
 
+  /*
+    SHIPPING
+
+    Free shipping above ₹1,499,
+    matching the website's top bar.
+  */
+
   const shipping =
-    subtotal >= 1999 || subtotal === 0
+    subtotal >= 1499 || subtotal === 0
       ? 0
       : 99;
 
-  const total =
-    subtotal + shipping;
+  const total = subtotal + shipping;
 
+  /*
+    UPDATE FORM
+  */
 
   const updateField = (field, value) => {
     setForm((current) => ({
       ...current,
-      [field]: value
+      [field]: value,
     }));
   };
 
+  /*
+    PLACE ORDER
+  */
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,12 +84,7 @@ export default function Checkout({
     setError("");
 
     if (!form.name.trim()) {
-      setError("Please enter your name.");
-      return;
-    }
-
-    if (!form.phone.trim()) {
-      setError("Please enter your phone number.");
+      setError("Please enter your full name.");
       return;
     }
 
@@ -88,8 +95,20 @@ export default function Checkout({
       return;
     }
 
+    if (
+      form.email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        form.email
+      )
+    ) {
+      setError(
+        "Please enter a valid email address."
+      );
+      return;
+    }
+
     if (!form.address.trim()) {
-      setError("Please enter your address.");
+      setError("Please enter your delivery address.");
       return;
     }
 
@@ -110,24 +129,90 @@ export default function Checkout({
       return;
     }
 
+    if (!cart.length) {
+      setError("Your bag is empty.");
+      return;
+    }
+
     setPlacing(true);
 
-    /*
-      Keep this frontend-safe for now.
-      Your existing backend/order API can be
-      connected here later.
-    */
-
     try {
+      /*
+        Temporary frontend order creation.
+
+        Later, this exact object can be sent
+        to your backend/database/payment gateway.
+      */
+
       await new Promise((resolve) =>
         setTimeout(resolve, 700)
       );
+
+      const orderId =
+        "OG" +
+        Date.now()
+          .toString()
+          .slice(-8);
+
+      const order = {
+        id: orderId,
+
+        status: "CONFIRMED",
+
+        items: cart.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: Number(item.price || 0),
+          quantity: Number(item.qty || 1),
+          qty: Number(item.qty || 1),
+          category:
+            item.category || "THE OFF GRID",
+          image: item.image || "",
+        })),
+
+        customer: {
+          name: form.name.trim(),
+          phone: form.phone,
+          email: form.email.trim(),
+          address: form.address.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          pincode: form.pincode,
+        },
+
+        payment:
+          payment === "cod"
+            ? "Cash on Delivery"
+            : "Online Payment",
+
+        subtotal,
+        shipping,
+        total,
+
+        createdAt:
+          new Date().toISOString(),
+      };
+
+      /*
+        Clear cart only after order object
+        has been successfully created.
+      */
 
       if (clearCart) {
         clearCart();
       }
 
-      navigate("/order-success");
+      /*
+        IMPORTANT:
+        Send the order through router state
+        so Success.jsx and Order.jsx can display it.
+      */
+
+      navigate("/order-success", {
+        state: {
+          order,
+        },
+      });
     } catch (err) {
       setError(
         "Something went wrong. Please try again."
@@ -137,8 +222,9 @@ export default function Checkout({
     }
   };
 
-
-  /* EMPTY CART */
+  /*
+    EMPTY CART
+  */
 
   if (!cart.length) {
     return (
@@ -146,12 +232,14 @@ export default function Checkout({
 
         <div className="empty-checkout-content">
 
-          <p className="checkout-eyebrow">
+          <span className="checkout-eyebrow">
             YOUR BAG
-          </p>
+          </span>
 
           <h1>
-            Your bag is empty.
+            YOUR BAG
+            <br />
+            <em>IS EMPTY.</em>
           </h1>
 
           <p>
@@ -160,7 +248,7 @@ export default function Checkout({
           </p>
 
           <Link
-            to="/shop"
+            to="/"
             className="checkout-shop-button"
           >
             SHOP COLLECTION
@@ -172,7 +260,6 @@ export default function Checkout({
       </main>
     );
   }
-
 
   return (
     <main className="checkout-page">
@@ -194,7 +281,8 @@ export default function Checkout({
           to="/"
           className="checkout-logo"
         >
-          THE OFF GRID
+          <small>THE</small>
+          <strong>OFF GRID</strong>
         </Link>
 
         <div className="checkout-secure">
@@ -204,23 +292,28 @@ export default function Checkout({
 
       </header>
 
+      {/* TITLE */}
 
-      {/* PAGE TITLE */}
+      <section className="checkout-title">
 
-      <div className="checkout-title">
-
-        <p className="checkout-eyebrow">
-          CHECKOUT
-        </p>
+        <span className="checkout-eyebrow">
+          CHECKOUT / 001
+        </span>
 
         <h1>
-          Complete your order.
+          COMPLETE
+          <br />
+          <em>YOUR ORDER.</em>
         </h1>
 
-      </div>
+        <p>
+          You're almost there. Complete your
+          details below to place your order.
+        </p>
 
+      </section>
 
-      {/* CONTENT */}
+      {/* MAIN LAYOUT */}
 
       <section className="checkout-layout">
 
@@ -229,8 +322,8 @@ export default function Checkout({
         <div className="checkout-main">
 
           <form
-            onSubmit={handleSubmit}
             className="checkout-form"
+            onSubmit={handleSubmit}
           >
 
             {/* CONTACT */}
@@ -239,9 +332,7 @@ export default function Checkout({
 
               <div className="checkout-section-heading">
 
-                <span>
-                  01
-                </span>
+                <span>01</span>
 
                 <div>
                   <h2>
@@ -255,13 +346,10 @@ export default function Checkout({
 
               </div>
 
-
               <div className="checkout-grid">
 
                 <label>
-                  <span>
-                    FULL NAME
-                  </span>
+                  <span>FULL NAME</span>
 
                   <input
                     type="text"
@@ -273,14 +361,12 @@ export default function Checkout({
                       )
                     }
                     placeholder="Your full name"
+                    autoComplete="name"
                   />
                 </label>
 
-
                 <label>
-                  <span>
-                    PHONE NUMBER
-                  </span>
+                  <span>PHONE NUMBER</span>
 
                   <input
                     type="tel"
@@ -297,14 +383,12 @@ export default function Checkout({
                       )
                     }
                     placeholder="10-digit mobile number"
+                    autoComplete="tel"
                   />
                 </label>
 
-
                 <label className="full-width">
-                  <span>
-                    EMAIL ADDRESS
-                  </span>
+                  <span>EMAIL ADDRESS</span>
 
                   <input
                     type="email"
@@ -316,6 +400,7 @@ export default function Checkout({
                       )
                     }
                     placeholder="you@example.com"
+                    autoComplete="email"
                   />
                 </label>
 
@@ -323,16 +408,13 @@ export default function Checkout({
 
             </section>
 
-
-            {/* SHIPPING */}
+            {/* DELIVERY */}
 
             <section className="checkout-section">
 
               <div className="checkout-section-heading">
 
-                <span>
-                  02
-                </span>
+                <span>02</span>
 
                 <div>
                   <h2>
@@ -346,16 +428,14 @@ export default function Checkout({
 
               </div>
 
-
               <div className="checkout-grid">
 
                 <label className="full-width">
-                  <span>
-                    ADDRESS
-                  </span>
+
+                  <span>ADDRESS</span>
 
                   <textarea
-                    rows="3"
+                    rows="4"
                     value={form.address}
                     onChange={(e) =>
                       updateField(
@@ -364,14 +444,14 @@ export default function Checkout({
                       )
                     }
                     placeholder="House number, street, area"
+                    autoComplete="street-address"
                   />
+
                 </label>
 
-
                 <label>
-                  <span>
-                    CITY
-                  </span>
+
+                  <span>CITY</span>
 
                   <input
                     type="text"
@@ -383,14 +463,14 @@ export default function Checkout({
                       )
                     }
                     placeholder="City"
+                    autoComplete="address-level2"
                   />
+
                 </label>
 
-
                 <label>
-                  <span>
-                    STATE
-                  </span>
+
+                  <span>STATE</span>
 
                   <input
                     type="text"
@@ -402,14 +482,14 @@ export default function Checkout({
                       )
                     }
                     placeholder="State"
+                    autoComplete="address-level1"
                   />
+
                 </label>
 
-
                 <label>
-                  <span>
-                    PINCODE
-                  </span>
+
+                  <span>PINCODE</span>
 
                   <input
                     type="text"
@@ -426,13 +506,14 @@ export default function Checkout({
                       )
                     }
                     placeholder="6-digit pincode"
+                    autoComplete="postal-code"
                   />
+
                 </label>
 
               </div>
 
             </section>
-
 
             {/* PAYMENT */}
 
@@ -440,9 +521,7 @@ export default function Checkout({
 
               <div className="checkout-section-heading">
 
-                <span>
-                  03
-                </span>
+                <span>03</span>
 
                 <div>
                   <h2>
@@ -456,15 +535,16 @@ export default function Checkout({
 
               </div>
 
-
               <div className="payment-options">
 
+                {/* COD */}
+
                 <label
-                  className={
+                  className={`payment-option ${
                     payment === "cod"
-                      ? "payment-option selected"
-                      : "payment-option"
-                  }
+                      ? "selected"
+                      : ""
+                  }`}
                 >
 
                   <input
@@ -482,10 +562,10 @@ export default function Checkout({
                   />
 
                   <div className="payment-icon">
-                    <Truck size={19} />
+                    <Truck size={20} />
                   </div>
 
-                  <div>
+                  <div className="payment-copy">
                     <strong>
                       Cash on Delivery
                     </strong>
@@ -496,18 +576,21 @@ export default function Checkout({
                   </div>
 
                   {payment === "cod" && (
-                    <Check size={18} />
+                    <div className="payment-check">
+                      <Check size={16} />
+                    </div>
                   )}
 
                 </label>
 
+                {/* ONLINE */}
 
                 <label
-                  className={
+                  className={`payment-option ${
                     payment === "online"
-                      ? "payment-option selected"
-                      : "payment-option"
-                  }
+                      ? "selected"
+                      : ""
+                  }`}
                 >
 
                   <input
@@ -525,10 +608,10 @@ export default function Checkout({
                   />
 
                   <div className="payment-icon">
-                    <CreditCard size={19} />
+                    <CreditCard size={20} />
                   </div>
 
-                  <div>
+                  <div className="payment-copy">
                     <strong>
                       Online Payment
                     </strong>
@@ -539,7 +622,9 @@ export default function Checkout({
                   </div>
 
                   {payment === "online" && (
-                    <Check size={18} />
+                    <div className="payment-check">
+                      <Check size={16} />
+                    </div>
                   )}
 
                 </label>
@@ -547,7 +632,6 @@ export default function Checkout({
               </div>
 
             </section>
-
 
             {/* ERROR */}
 
@@ -557,8 +641,7 @@ export default function Checkout({
               </div>
             )}
 
-
-            {/* SUBMIT */}
+            {/* PLACE ORDER */}
 
             <button
               type="submit"
@@ -568,6 +651,7 @@ export default function Checkout({
 
               {placing ? (
                 <>
+                  <span className="checkout-spinner"></span>
                   PLACING ORDER...
                 </>
               ) : (
@@ -579,12 +663,22 @@ export default function Checkout({
 
             </button>
 
+            <div className="checkout-secure-note">
+
+              <Lock size={14} />
+
+              <span>
+                YOUR INFORMATION IS SECURE AND
+                WILL ONLY BE USED TO PROCESS YOUR ORDER.
+              </span>
+
+            </div>
+
           </form>
 
         </div>
 
-
-        {/* RIGHT — SUMMARY */}
+        {/* RIGHT SUMMARY */}
 
         <aside className="checkout-summary">
 
@@ -592,19 +686,28 @@ export default function Checkout({
 
             <div className="summary-heading">
 
-              <span>
-                YOUR ORDER
-              </span>
+              <div>
+                <span>YOUR ORDER</span>
 
-              <strong>
-                {cart.length}{" "}
-                {cart.length === 1
-                  ? "ITEM"
-                  : "ITEMS"}
-              </strong>
+                <strong>
+                  {cart.reduce(
+                    (total, item) =>
+                      total +
+                      Number(item.qty || 1),
+                    0
+                  )}{" "}
+                  {cart.reduce(
+                    (total, item) =>
+                      total +
+                      Number(item.qty || 1),
+                    0
+                  ) === 1
+                    ? "ITEM"
+                    : "ITEMS"}
+                </strong>
+              </div>
 
             </div>
-
 
             {/* ITEMS */}
 
@@ -637,7 +740,6 @@ export default function Checkout({
 
                     </div>
 
-
                     <div className="summary-item-info">
 
                       <strong>
@@ -651,11 +753,11 @@ export default function Checkout({
 
                     </div>
 
-
-                    <strong>
+                    <strong className="summary-item-price">
                       {money(
-                        Number(item.price || 0) *
-                          qty
+                        Number(
+                          item.price || 0
+                        ) * qty
                       )}
                     </strong>
 
@@ -665,26 +767,20 @@ export default function Checkout({
 
             </div>
 
-
             {/* TOTALS */}
 
             <div className="summary-totals">
 
               <div>
-                <span>
-                  SUBTOTAL
-                </span>
+                <span>SUBTOTAL</span>
 
                 <strong>
                   {money(subtotal)}
                 </strong>
               </div>
 
-
               <div>
-                <span>
-                  SHIPPING
-                </span>
+                <span>SHIPPING</span>
 
                 <strong>
                   {shipping === 0
@@ -693,31 +789,26 @@ export default function Checkout({
                 </strong>
               </div>
 
-
               {shipping === 0 &&
                 subtotal > 0 && (
-                  <p className="free-shipping-note">
+                  <div className="free-shipping-note">
                     FREE SHIPPING APPLIED
-                  </p>
+                  </div>
                 )}
 
             </div>
 
-
-            {/* GRAND TOTAL */}
+            {/* TOTAL */}
 
             <div className="summary-total">
 
-              <span>
-                TOTAL
-              </span>
+              <span>TOTAL</span>
 
               <strong>
                 {money(total)}
               </strong>
 
             </div>
-
 
             {/* TRUST */}
 
@@ -732,10 +823,18 @@ export default function Checkout({
               </div>
 
               <div>
-                <MapPin size={17} />
+                <Truck size={17} />
 
                 <span>
                   Delivery across India
+                </span>
+              </div>
+
+              <div>
+                <MapPin size={17} />
+
+                <span>
+                  India / Worldwide
                 </span>
               </div>
 
@@ -747,19 +846,23 @@ export default function Checkout({
 
       </section>
 
-
-      {/* FOOTER NOTE */}
+      {/* FOOTER */}
 
       <footer className="checkout-footer">
 
-        <span>
-          THE OFF GRID
-        </span>
+        <div>
+          <small>THE</small>
+          <strong>OFF GRID</strong>
+        </div>
 
         <p>
-          Built for those who don't follow
-          the usual.
+          BUILT FOR THOSE WHO DON'T FOLLOW
+          THE USUAL.
         </p>
+
+        <span>
+          © 2026 THE OFF GRID
+        </span>
 
       </footer>
 
