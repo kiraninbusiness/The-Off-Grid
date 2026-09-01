@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Heart,
+  ShoppingBag,
   Truck,
   ShieldCheck,
   RotateCcw,
@@ -10,11 +11,7 @@ import {
   Plus,
   Check,
 } from "lucide-react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -25,57 +22,50 @@ export default function ProductDetails({
   wishlist = [],
   toggle,
 }) {
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
 
-  /*
-    App.jsx currently displays ProductDetails conditionally
-    when the URL starts with /product/.
-
-    Therefore we read the product ID directly from the URL.
-    This avoids the previous useParams() problem.
-  */
-  const id = location.pathname.split("/")[2];
-
   const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
+  const [selectedSize, setSelectedSize] = useState("");
 
+  /*
+   * IMPORTANT:
+   * Convert both URL ID and product ID to strings.
+   * This prevents the "Product not found" problem
+   * caused by number/string mismatch.
+   */
   const product = useMemo(() => {
     return products.find(
       (item) => String(item.id) === String(id)
     );
   }, [products, id]);
 
-  /*
-    PRODUCT NOT FOUND
-  */
-
   if (!product) {
     return (
-      <main className="product-not-found-page">
-        <div className="product-not-found-content">
+      <main className="page product-page">
+        <div className="product-not-found">
 
-          <span className="product-detail-eyebrow">
-            404 / PRODUCT
+          <span className="eyebrow">
+            THE OFF GRID
           </span>
 
           <h1>
             PRODUCT
             <br />
-            <em>NOT FOUND.</em>
+            NOT FOUND.
           </h1>
 
           <p>
-            The product you're looking for doesn't
-            exist or may have been removed.
+            The product you're looking for
+            doesn't exist or may have been removed.
           </p>
 
           <Link
             to="/"
-            className="product-not-found-button"
+            className="primary-button"
           >
+            <ArrowLeft size={17} />
             BACK TO SHOP
-            <ArrowRight size={18} />
           </Link>
 
         </div>
@@ -83,174 +73,164 @@ export default function ProductDetails({
     );
   }
 
-  const stock = Number(product.stock) || 0;
-  const price = Number(product.price) || 0;
-  const oldPrice = Number(product.old_price) || 0;
+  const sizes = product.size
+    ? product.size
+        .split("/")
+        .map((size) => size.trim())
+    : [];
+
+  const isWishlisted = wishlist.some(
+    (item) =>
+      String(item) === String(product.id)
+  );
 
   const discount =
-    oldPrice > price
+    product.old_price && product.price
       ? Math.round(
-          ((oldPrice - price) / oldPrice) * 100
+          ((product.old_price - product.price) /
+            product.old_price) *
+            100
         )
       : 0;
 
-  const isWishlisted = wishlist.includes(product.id);
+  const handleAddToCart = () => {
+    if (
+      sizes.length > 0 &&
+      !selectedSize
+    ) {
+      document
+        .getElementById("size-selector")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
 
-  /*
-    QUANTITY
-  */
+      return;
+    }
 
-  const decreaseQuantity = () => {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
-    );
+    for (let i = 0; i < quantity; i++) {
+      add?.({
+        ...product,
+        selectedSize:
+          selectedSize || sizes[0] || "",
+      });
+    }
   };
 
   const increaseQuantity = () => {
-    setQuantity((current) =>
-      Math.min(stock || 1, current + 1)
+    if (
+      product.stock &&
+      quantity >= product.stock
+    ) {
+      return;
+    }
+
+    setQuantity((value) => value + 1);
+  };
+
+  const decreaseQuantity = () => {
+    setQuantity((value) =>
+      Math.max(1, value - 1)
     );
   };
 
-  /*
-    ADD TO BAG
-  */
-
-  const handleAddToBag = () => {
-    if (stock < 1 || !add) return;
-
-    for (let i = 0; i < quantity; i++) {
-      add(product);
-    }
-
-    setAdded(true);
-
-    setTimeout(() => {
-      setAdded(false);
-    }, 1800);
-  };
-
-  /*
-    BUY NOW
-  */
-
-  const handleBuyNow = () => {
-    if (stock < 1 || !add) return;
-
-    for (let i = 0; i < quantity; i++) {
-      add(product);
-    }
-
-    navigate("/checkout");
-  };
-
-  /*
-    WISHLIST
-  */
-
-  const handleWishlist = () => {
-    if (toggle) {
-      toggle(product.id);
-    }
-  };
-
   return (
-    <main className="product-detail-page">
+    <main className="page product-page">
 
-      {/* TOP BAR */}
+      {/* HEADER */}
 
-      <div className="product-detail-top">
-
-        <button
-          type="button"
-          className="product-detail-back"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft size={17} />
-          BACK
-        </button>
+      <div className="product-topbar">
 
         <Link
           to="/"
-          className="product-detail-logo"
+          className="back-link"
         >
-          <small>THE</small>
-          <strong>OFF GRID</strong>
+          <ArrowLeft size={17} />
+          BACK TO SHOP
         </Link>
 
-        <span className="product-detail-code">
-          PRODUCT / {String(product.id).padStart(3, "0")}
+        <span>
+          THE OFF GRID / PRODUCT
         </span>
 
       </div>
 
-      {/* MAIN PRODUCT */}
+      {/* PRODUCT */}
 
-      <section className="product-detail-main">
+      <div className="product-detail">
 
         {/* IMAGE */}
 
         <div className="product-detail-image">
+
+          <div className="product-badges">
+
+            {discount > 0 && (
+              <span>
+                -{discount}%
+              </span>
+            )}
+
+            {product.condition && (
+              <span>
+                {product.condition}
+              </span>
+            )}
+
+          </div>
+
+          <button
+            type="button"
+            className={`product-detail-wishlist ${
+              isWishlisted
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              toggle?.(product.id)
+            }
+            aria-label="Wishlist"
+          >
+            <Heart
+              size={21}
+              fill={
+                isWishlisted
+                  ? "currentColor"
+                  : "none"
+            }
+          />
+          </button>
 
           <img
             src={product.image}
             alt={product.name}
           />
 
-          <div className="product-detail-badges">
-
-            {discount > 0 && (
-              <span className="product-badge sale">
-                -{discount}%
-              </span>
-            )}
-
-            {product.condition && (
-              <span className="product-badge">
-                {product.condition}
-              </span>
-            )}
-
-            {stock < 1 && (
-              <span className="product-badge sold">
-                SOLD OUT
-              </span>
-            )}
-
-          </div>
-
-          <div className="product-image-number">
-            001 / THE OFF GRID
-          </div>
-
         </div>
 
         {/* INFORMATION */}
 
-        <div className="product-detail-content">
+        <div className="product-detail-info">
 
-          <div className="product-detail-category">
-            {product.category || "COLLECTION"}
-            {product.gender
-              ? ` · ${product.gender}`
-              : ""}
-          </div>
+          <span className="product-category">
+            {product.category}
+            {" · "}
+            {product.gender}
+          </span>
 
           <h1>
             {product.name}
           </h1>
 
-          {/* PRICE */}
-
-          <div className="product-detail-price">
+          <div className="product-price">
 
             <strong>
-              {money(price)}
+              {money(product.price)}
             </strong>
 
-            {oldPrice > price && (
+            {product.old_price && (
               <del>
-                {money(oldPrice)}
+                {money(product.old_price)}
               </del>
             )}
 
@@ -262,160 +242,174 @@ export default function ProductDetails({
 
           </div>
 
-          {/* DESCRIPTION */}
-
-          <p className="product-detail-description">
-            {product.description ||
-              "Designed for everyday wear with clean silhouettes, strong details and a distinctly Off Grid attitude."}
+          <p className="product-description">
+            {product.description}
           </p>
 
           {/* PRODUCT DETAILS */}
 
-          <div className="product-detail-specs">
+          <div className="product-meta">
 
             <div>
-              <span>SIZE</span>
+              <span>
+                COLOR
+              </span>
+
               <strong>
-                {product.size || "ONE SIZE"}
+                {product.color || "—"}
               </strong>
             </div>
 
             <div>
-              <span>COLOR</span>
+              <span>
+                FIT
+              </span>
+
               <strong>
-                {product.color || "STANDARD"}
+                {product.fit || "—"}
               </strong>
             </div>
 
             <div>
-              <span>FIT</span>
-              <strong>
-                {product.fit || "REGULAR"}
-              </strong>
-            </div>
+              <span>
+                AVAILABILITY
+              </span>
 
-            <div>
-              <span>AVAILABILITY</span>
-              <strong
-                className={
-                  stock > 0
-                    ? "available"
-                    : "unavailable"
-                }
-              >
-                {stock > 0
-                  ? `${stock} IN STOCK`
-                  : "SOLD OUT"}
+              <strong>
+                {product.stock > 0
+                  ? `${product.stock} IN STOCK`
+                  : "OUT OF STOCK"}
               </strong>
             </div>
 
           </div>
 
-          {/* QUANTITY */}
+          {/* SIZE */}
 
-          {stock > 0 && (
-            <div className="product-detail-quantity">
+          {sizes.length > 0 && (
+            <div
+              className="product-size"
+              id="size-selector"
+            >
 
-              <span>QUANTITY</span>
+              <div className="product-option-heading">
 
-              <div className="quantity-control">
+                <span>
+                  SELECT SIZE
+                </span>
 
-                <button
-                  type="button"
-                  onClick={decreaseQuantity}
-                  disabled={quantity <= 1}
-                  aria-label="Decrease quantity"
-                >
-                  <Minus size={16} />
-                </button>
+                {selectedSize && (
+                  <strong>
+                    {selectedSize}
+                  </strong>
+                )}
 
-                <strong>
-                  {quantity}
-                </strong>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={increaseQuantity}
-                  disabled={quantity >= stock}
-                  aria-label="Increase quantity"
-                >
-                  <Plus size={16} />
-                </button>
+              <div className="size-options">
+
+                {sizes.map((size) => (
+
+                  <button
+                    type="button"
+                    key={size}
+                    className={
+                      selectedSize === size
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedSize(size)
+                    }
+                  >
+                    {size}
+                  </button>
+
+                ))}
 
               </div>
 
             </div>
           )}
 
-          {/* ACTIONS */}
+          {/* QUANTITY */}
 
-          <div className="product-detail-actions">
+          <div className="product-quantity">
 
-            <button
-              type="button"
-              className={`product-detail-add ${
-                added ? "added" : ""
-              }`}
-              disabled={stock < 1}
-              onClick={handleAddToBag}
-            >
-              {stock < 1 ? (
-                "SOLD OUT"
-              ) : added ? (
-                <>
-                  ADDED TO BAG
-                  <Check size={18} />
-                </>
-              ) : (
-                <>
-                  ADD TO BAG
-                  <ArrowRight size={18} />
-                </>
-              )}
-            </button>
+            <span>
+              QUANTITY
+            </span>
 
-            <button
-              type="button"
-              className="product-detail-buy"
-              disabled={stock < 1}
-              onClick={handleBuyNow}
-            >
-              BUY IT NOW
-            </button>
+            <div>
 
-            <button
-              type="button"
-              className={`product-detail-wishlist ${
-                isWishlisted
-                  ? "wishlisted"
-                  : ""
-              }`}
-              onClick={handleWishlist}
-              aria-label={
-                isWishlisted
-                  ? "Remove from wishlist"
-                  : "Add to wishlist"
-              }
-            >
-              <Heart
-                size={21}
-                fill={
-                  isWishlisted
-                    ? "currentColor"
-                    : "none"
-                }
-              />
-            </button>
+              <button
+                type="button"
+                onClick={decreaseQuantity}
+                aria-label="Decrease quantity"
+              >
+                <Minus size={16} />
+              </button>
+
+              <strong>
+                {quantity}
+              </strong>
+
+              <button
+                type="button"
+                onClick={increaseQuantity}
+                aria-label="Increase quantity"
+              >
+                <Plus size={16} />
+              </button>
+
+            </div>
 
           </div>
 
-          {/* SERVICE INFORMATION */}
+          {/* ADD TO CART */}
 
-          <div className="product-service-grid">
+          <button
+            type="button"
+            className="product-add-button"
+            disabled={!product.stock}
+            onClick={handleAddToCart}
+          >
+            <ShoppingBag size={19} />
 
-            <div className="product-service">
+            {product.stock
+              ? "ADD TO BAG"
+              : "SOLD OUT"}
 
-              <Truck size={20} />
+            <ArrowRight size={17} />
+          </button>
+
+          {/* BUY NOW */}
+
+          <button
+            type="button"
+            className="product-buy-button"
+            disabled={!product.stock}
+            onClick={() => {
+              handleAddToCart();
+
+              if (
+                !sizes.length ||
+                selectedSize
+              ) {
+                navigate("/checkout");
+              }
+            }}
+          >
+            BUY NOW
+          </button>
+
+          {/* SERVICE FEATURES */}
+
+          <div className="product-features">
+
+            <div>
+
+              <Truck size={21} />
 
               <div>
                 <strong>
@@ -423,31 +417,31 @@ export default function ProductDetails({
                 </strong>
 
                 <span>
-                  Delivery across India
+                  Across India
                 </span>
               </div>
 
             </div>
 
-            <div className="product-service">
+            <div>
 
-              <ShieldCheck size={20} />
+              <ShieldCheck size={21} />
 
               <div>
                 <strong>
-                  QUALITY FIRST
+                  QUALITY CHECKED
                 </strong>
 
                 <span>
-                  Every piece checked
+                  Every piece inspected
                 </span>
               </div>
 
             </div>
 
-            <div className="product-service">
+            <div>
 
-              <RotateCcw size={20} />
+              <RotateCcw size={21} />
 
               <div>
                 <strong>
@@ -463,93 +457,94 @@ export default function ProductDetails({
 
           </div>
 
+          {/* PRODUCT INFO */}
+
+          <div className="product-extra">
+
+            <details open>
+
+              <summary>
+                PRODUCT DETAILS
+                <Plus size={17} />
+              </summary>
+
+              <p>
+                {product.description}
+              </p>
+
+              <ul>
+                <li>
+                  Category: {product.category}
+                </li>
+
+                <li>
+                  Gender: {product.gender}
+                </li>
+
+                <li>
+                  Color: {product.color}
+                </li>
+
+                <li>
+                  Fit: {product.fit}
+                </li>
+              </ul>
+
+            </details>
+
+            <details>
+
+              <summary>
+                SHIPPING & RETURNS
+                <Plus size={17} />
+              </summary>
+
+              <p>
+                Fast shipping across India.
+                Returns are handled through
+                our simple and transparent
+                return process.
+              </p>
+
+            </details>
+
+          </div>
+
+          {/* SKU */}
+
+          <div className="product-sku">
+
+            <span>
+              PRODUCT
+            </span>
+
+            <strong>
+              OG-{String(product.id).padStart(3, "0")}
+            </strong>
+
+          </div>
+
         </div>
 
-      </section>
+      </div>
 
-      {/* PRODUCT STORY */}
+      {/* BACK */}
 
-      <section className="product-story">
-
-        <div className="product-story-heading">
-
-          <span>
-            THE OFF GRID / DETAILS
-          </span>
-
-          <h2>
-            BUILT FOR
-            <br />
-            <em>YOUR EVERYDAY.</em>
-          </h2>
-
-        </div>
-
-        <div className="product-story-text">
-
-          <p>
-            {product.description ||
-              "Clean silhouettes. Strong details. Zero unnecessary rules."}
-          </p>
-
-          <p>
-            The Off Grid pieces are designed
-            to work beyond trends. Wear them
-            your way, layer them your way and
-            make them part of your everyday.
-          </p>
-
-        </div>
-
-      </section>
-
-      {/* PRODUCT DATA */}
-
-      <section className="product-data-grid">
-
-        <div>
-          <span>CATEGORY</span>
-          <strong>
-            {product.category || "COLLECTION"}
-          </strong>
-        </div>
-
-        <div>
-          <span>GENDER</span>
-          <strong>
-            {product.gender || "UNISEX"}
-          </strong>
-        </div>
-
-        <div>
-          <span>COLOR</span>
-          <strong>
-            {product.color || "STANDARD"}
-          </strong>
-        </div>
-
-        <div>
-          <span>FIT</span>
-          <strong>
-            {product.fit || "REGULAR"}
-          </strong>
-        </div>
-
-      </section>
-
-      {/* BACK TO SHOP */}
-
-      <section className="product-detail-bottom">
+      <div className="product-bottom-nav">
 
         <Link
           to="/"
-          className="product-back-shop"
+          className="under-btn"
         >
-          <ArrowLeft size={17} />
+          <ArrowLeft size={15} />
           CONTINUE SHOPPING
         </Link>
 
-      </section>
+        <span>
+          THE OFF GRID / 2026
+        </span>
+
+      </div>
 
     </main>
   );
