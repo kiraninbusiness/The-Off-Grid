@@ -59,6 +59,11 @@ created_at TIMESTAMPTZ DEFAULT NOW()
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(product_id, user_id)
     );
+    CREATE TABLE IF NOT EXISTS newsletter_subscribers(
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'cod'");
   await pool.query(
