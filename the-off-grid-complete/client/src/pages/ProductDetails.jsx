@@ -1,17 +1,17 @@
-import React, { useState } from "react";
-import {
-  Link,
-  useNavigate,
-  useParams
-} from "react-router-dom";
+import React, { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   Heart,
+  ShoppingBag,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
   Minus,
   Plus,
-  ShoppingBag
+  Check,
 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -21,256 +21,216 @@ export default function ProductDetails({
   add,
   wishlist = [],
   toggle,
-  setCart
 }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const product = products.find(
-    (p) => String(p.id) === String(id)
-  );
-
   const [quantity, setQuantity] = useState(1);
-  const [added, setAdded] = useState(false);
-  const [activeImage, setActiveImage] = useState(
-    product?.image || ""
-  );
+  const [selectedSize, setSelectedSize] = useState("");
 
-  /* PRODUCT NOT FOUND */
+  /*
+   * IMPORTANT:
+   * Convert both URL ID and product ID to strings.
+   * This prevents the "Product not found" problem
+   * caused by number/string mismatch.
+   */
+  const product = useMemo(() => {
+    return products.find(
+      (item) => String(item.id) === String(id)
+    );
+  }, [products, id]);
 
   if (!product) {
     return (
-      <main className="product-not-found">
+      <main className="page product-page">
+        <div className="product-not-found">
 
-        <div>
-          <p className="eyebrow">
-            PRODUCT
-          </p>
+          <span className="eyebrow">
+            THE OFF GRID
+          </span>
 
           <h1>
-            Product not found.
+            PRODUCT
+            <br />
+            NOT FOUND.
           </h1>
 
           <p>
-            This piece may have been removed
-            or is no longer available.
+            The product you're looking for
+            doesn't exist or may have been removed.
           </p>
 
           <Link
-            to="/shop"
-            className="product-back-button"
+            to="/"
+            className="primary-button"
           >
             <ArrowLeft size={17} />
             BACK TO SHOP
           </Link>
-        </div>
 
+        </div>
       </main>
     );
   }
 
-  const stock =
-    Number(product.stock) || 0;
+  const sizes = product.size
+    ? product.size
+        .split("/")
+        .map((size) => size.trim())
+    : [];
 
-  const price =
-    Number(product.price) || 0;
-
-  const oldPrice =
-    Number(product.old_price) || 0;
+  const isWishlisted = wishlist.some(
+    (item) =>
+      String(item) === String(product.id)
+  );
 
   const discount =
-    oldPrice > price
+    product.old_price && product.price
       ? Math.round(
-          ((oldPrice - price) /
-            oldPrice) *
+          ((product.old_price - product.price) /
+            product.old_price) *
             100
         )
       : 0;
 
-  const isWishlisted =
-    wishlist.includes(product.id);
+  const handleAddToCart = () => {
+    if (
+      sizes.length > 0 &&
+      !selectedSize
+    ) {
+      document
+        .getElementById("size-selector")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
 
-  const decreaseQuantity = () => {
-    setQuantity((current) =>
-      Math.max(1, current - 1)
-    );
+      return;
+    }
+
+    for (let i = 0; i < quantity; i++) {
+      add?.({
+        ...product,
+        selectedSize:
+          selectedSize || sizes[0] || "",
+      });
+    }
   };
 
   const increaseQuantity = () => {
-    setQuantity((current) =>
-      Math.min(
-        stock || 1,
-        current + 1
-      )
+    if (
+      product.stock &&
+      quantity >= product.stock
+    ) {
+      return;
+    }
+
+    setQuantity((value) => value + 1);
+  };
+
+  const decreaseQuantity = () => {
+    setQuantity((value) =>
+      Math.max(1, value - 1)
     );
   };
 
-  const handleAdd = () => {
-    if (stock < 1) return;
-
-    /*
-      Add once through the existing App
-      cart system, then increase quantity
-      if necessary.
-    */
-
-    add(product);
-
-    if (quantity > 1 && setCart) {
-      setCart((currentCart) =>
-        currentCart.map((item) =>
-          String(item.id) === String(product.id)
-            ? {
-                ...item,
-                qty: Math.min(
-                  stock,
-                  quantity
-                )
-              }
-            : item
-        )
-      );
-    }
-
-    setAdded(true);
-
-    setTimeout(() => {
-      setAdded(false);
-    }, 1600);
-  };
-
   return (
-    <main className="product-page">
+    <main className="page product-page">
 
-      {/* BACK */}
+      {/* HEADER */}
 
-      <div className="product-page-top">
+      <div className="product-topbar">
 
-        <button
-          type="button"
-          className="product-back"
-          onClick={() => navigate(-1)}
+        <Link
+          to="/"
+          className="back-link"
         >
           <ArrowLeft size={17} />
-          BACK
-        </button>
+          BACK TO SHOP
+        </Link>
 
         <span>
-          THE OFF GRID / COLLECTION
+          THE OFF GRID / PRODUCT
         </span>
 
       </div>
 
-
       {/* PRODUCT */}
 
-      <section className="product-detail">
+      <div className="product-detail">
 
-        {/* GALLERY */}
+        {/* IMAGE */}
 
-        <div className="product-gallery">
+        <div className="product-detail-image">
 
-          <div className="product-main-image">
-
-            <img
-              src={activeImage || product.image}
-              alt={product.name}
-            />
+          <div className="product-badges">
 
             {discount > 0 && (
-              <span className="detail-sale">
+              <span>
                 -{discount}%
               </span>
             )}
 
-            {stock < 1 && (
-              <span className="detail-sold">
-                SOLD OUT
+            {product.condition && (
+              <span>
+                {product.condition}
               </span>
             )}
 
           </div>
 
+          <button
+            type="button"
+            className={`product-detail-wishlist ${
+              isWishlisted
+                ? "active"
+                : ""
+            }`}
+            onClick={() =>
+              toggle?.(product.id)
+            }
+            aria-label="Wishlist"
+          >
+            <Heart
+              size={21}
+              fill={
+                isWishlisted
+                  ? "currentColor"
+                  : "none"
+            }
+          />
+          </button>
 
-          {/* THUMBNAIL */}
-
-          <div className="product-thumbnails">
-
-            <button
-              type="button"
-              className={
-                activeImage === product.image
-                  ? "thumbnail active"
-                  : "thumbnail"
-              }
-              onClick={() =>
-                setActiveImage(product.image)
-              }
-            >
-              <img
-                src={product.image}
-                alt={product.name}
-              />
-            </button>
-
-          </div>
+          <img
+            src={product.image}
+            alt={product.name}
+          />
 
         </div>
 
-
         {/* INFORMATION */}
 
-        <div className="product-details-content">
+        <div className="product-detail-info">
 
-          <div className="product-detail-heading">
+          <span className="product-category">
+            {product.category}
+            {" · "}
+            {product.gender}
+          </span>
 
-            <p className="eyebrow">
-              {product.category || "COLLECTION"}
-              {product.gender
-                ? ` · ${product.gender}`
-                : ""}
-            </p>
+          <h1>
+            {product.name}
+          </h1>
 
-            <h1>
-              {product.name}
-            </h1>
-
-            <button
-              type="button"
-              className={`detail-wishlist ${
-                isWishlisted
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggle(product.id)
-              }
-              aria-label="Wishlist"
-            >
-              <Heart
-                size={21}
-                fill={
-                  isWishlisted
-                    ? "currentColor"
-                    : "none"
-                }
-              />
-            </button>
-
-          </div>
-
-
-          {/* PRICE */}
-
-          <div className="detail-price">
+          <div className="product-price">
 
             <strong>
-              {money(price)}
+              {money(product.price)}
             </strong>
 
-            {oldPrice > price && (
+            {product.old_price && (
               <del>
-                {money(oldPrice)}
+                {money(product.old_price)}
               </del>
             )}
 
@@ -282,274 +242,309 @@ export default function ProductDetails({
 
           </div>
 
+          <p className="product-description">
+            {product.description}
+          </p>
 
-          {/* AVAILABILITY */}
+          {/* PRODUCT DETAILS */}
 
-          <div className="detail-availability">
+          <div className="product-meta">
 
-            <span
-              className={
-                stock > 0
-                  ? "available"
-                  : "unavailable"
-              }
-            />
+            <div>
+              <span>
+                COLOR
+              </span>
 
-            {stock > 0
-              ? stock <= 2
-                ? `ONLY ${stock} LEFT`
-                : "IN STOCK"
-              : "SOLD OUT"}
+              <strong>
+                {product.color || "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                FIT
+              </span>
+
+              <strong>
+                {product.fit || "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                AVAILABILITY
+              </span>
+
+              <strong>
+                {product.stock > 0
+                  ? `${product.stock} IN STOCK`
+                  : "OUT OF STOCK"}
+              </strong>
+            </div>
 
           </div>
 
+          {/* SIZE */}
 
-          {/* DESCRIPTION */}
+          {sizes.length > 0 && (
+            <div
+              className="product-size"
+              id="size-selector"
+            >
 
-          {product.description && (
-            <div className="detail-description">
+              <div className="product-option-heading">
+
+                <span>
+                  SELECT SIZE
+                </span>
+
+                {selectedSize && (
+                  <strong>
+                    {selectedSize}
+                  </strong>
+                )}
+
+              </div>
+
+              <div className="size-options">
+
+                {sizes.map((size) => (
+
+                  <button
+                    type="button"
+                    key={size}
+                    className={
+                      selectedSize === size
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedSize(size)
+                    }
+                  >
+                    {size}
+                  </button>
+
+                ))}
+
+              </div>
+
+            </div>
+          )}
+
+          {/* QUANTITY */}
+
+          <div className="product-quantity">
+
+            <span>
+              QUANTITY
+            </span>
+
+            <div>
+
+              <button
+                type="button"
+                onClick={decreaseQuantity}
+                aria-label="Decrease quantity"
+              >
+                <Minus size={16} />
+              </button>
+
+              <strong>
+                {quantity}
+              </strong>
+
+              <button
+                type="button"
+                onClick={increaseQuantity}
+                aria-label="Increase quantity"
+              >
+                <Plus size={16} />
+              </button>
+
+            </div>
+
+          </div>
+
+          {/* ADD TO CART */}
+
+          <button
+            type="button"
+            className="product-add-button"
+            disabled={!product.stock}
+            onClick={handleAddToCart}
+          >
+            <ShoppingBag size={19} />
+
+            {product.stock
+              ? "ADD TO BAG"
+              : "SOLD OUT"}
+
+            <ArrowRight size={17} />
+          </button>
+
+          {/* BUY NOW */}
+
+          <button
+            type="button"
+            className="product-buy-button"
+            disabled={!product.stock}
+            onClick={() => {
+              handleAddToCart();
+
+              if (
+                !sizes.length ||
+                selectedSize
+              ) {
+                navigate("/checkout");
+              }
+            }}
+          >
+            BUY NOW
+          </button>
+
+          {/* SERVICE FEATURES */}
+
+          <div className="product-features">
+
+            <div>
+
+              <Truck size={21} />
+
+              <div>
+                <strong>
+                  FAST SHIPPING
+                </strong>
+
+                <span>
+                  Across India
+                </span>
+              </div>
+
+            </div>
+
+            <div>
+
+              <ShieldCheck size={21} />
+
+              <div>
+                <strong>
+                  QUALITY CHECKED
+                </strong>
+
+                <span>
+                  Every piece inspected
+                </span>
+              </div>
+
+            </div>
+
+            <div>
+
+              <RotateCcw size={21} />
+
+              <div>
+                <strong>
+                  EASY RETURNS
+                </strong>
+
+                <span>
+                  Simple & transparent
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* PRODUCT INFO */}
+
+          <div className="product-extra">
+
+            <details open>
+
+              <summary>
+                PRODUCT DETAILS
+                <Plus size={17} />
+              </summary>
 
               <p>
                 {product.description}
               </p>
 
-            </div>
-          )}
+              <ul>
+                <li>
+                  Category: {product.category}
+                </li>
 
+                <li>
+                  Gender: {product.gender}
+                </li>
 
-          {/* PRODUCT ATTRIBUTES */}
+                <li>
+                  Color: {product.color}
+                </li>
 
-          <div className="detail-specifications">
+                <li>
+                  Fit: {product.fit}
+                </li>
+              </ul>
 
-            <div>
-              <span>
-                SIZE
-              </span>
+            </details>
 
-              <strong>
-                {product.size || "ONE SIZE"}
-              </strong>
-            </div>
+            <details>
 
+              <summary>
+                SHIPPING & RETURNS
+                <Plus size={17} />
+              </summary>
 
-            {product.color && (
-              <div>
-                <span>
-                  COLOR
-                </span>
+              <p>
+                Fast shipping across India.
+                Returns are handled through
+                our simple and transparent
+                return process.
+              </p>
 
-                <strong>
-                  {product.color}
-                </strong>
-              </div>
-            )}
-
-
-            {product.fit && (
-              <div>
-                <span>
-                  FIT
-                </span>
-
-                <strong>
-                  {product.fit}
-                </strong>
-              </div>
-            )}
-
-
-            {product.condition && (
-              <div>
-                <span>
-                  CONDITION
-                </span>
-
-                <strong>
-                  {product.condition}
-                </strong>
-              </div>
-            )}
+            </details>
 
           </div>
 
+          {/* SKU */}
 
-          {/* PURCHASE */}
+          <div className="product-sku">
 
-          {stock > 0 && (
+            <span>
+              PRODUCT
+            </span>
 
-            <div className="purchase-area">
-
-              <div className="quantity-selector">
-
-                <button
-                  type="button"
-                  onClick={
-                    decreaseQuantity
-                  }
-                  disabled={
-                    quantity <= 1
-                  }
-                >
-                  <Minus size={16} />
-                </button>
-
-                <span>
-                  {quantity}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={
-                    increaseQuantity
-                  }
-                  disabled={
-                    quantity >= stock
-                  }
-                >
-                  <Plus size={16} />
-                </button>
-
-              </div>
-
-
-              <button
-                type="button"
-                className={`detail-add-button ${
-                  added
-                    ? "added"
-                    : ""
-                }`}
-                onClick={handleAdd}
-              >
-
-                {added ? (
-                  <>
-                    ADDED TO BAG
-                    <span>✓</span>
-                  </>
-                ) : (
-                  <>
-                    ADD TO BAG
-                    <ShoppingBag size={18} />
-                  </>
-                )}
-
-              </button>
-
-            </div>
-
-          )}
-
-
-          {stock < 1 && (
-            <button
-              type="button"
-              className="detail-sold-button"
-              disabled
-            >
-              SOLD OUT
-            </button>
-          )}
-
-
-          {/* SHOPPING INFORMATION */}
-
-          <div className="detail-information">
-
-            <div className="detail-info-row">
-
-              <span>
-                SHIPPING
-              </span>
-
-              <p>
-                Fast delivery across India.
-              </p>
-
-            </div>
-
-
-            <div className="detail-info-row">
-
-              <span>
-                PACKAGING
-              </span>
-
-              <p>
-                Carefully packed before dispatch.
-              </p>
-
-            </div>
-
-
-            <div className="detail-info-row">
-
-              <span>
-                SUPPORT
-              </span>
-
-              <p>
-                Need help? Contact us anytime.
-              </p>
-
-            </div>
+            <strong>
+              OG-{String(product.id).padStart(3, "0")}
+            </strong>
 
           </div>
 
-
-          {/* CONTINUE SHOPPING */}
-
-          <Link
-            to="/shop"
-            className="continue-shopping-link"
-          >
-            CONTINUE SHOPPING
-            <ArrowRight size={16} />
-          </Link>
-
         </div>
 
-      </section>
+      </div>
 
+      {/* BACK */}
 
-      {/* LOWER PRODUCT SECTION */}
+      <div className="product-bottom-nav">
 
-      <section className="product-bottom-section">
+        <Link
+          to="/"
+          className="under-btn"
+        >
+          <ArrowLeft size={15} />
+          CONTINUE SHOPPING
+        </Link>
 
-        <div>
+        <span>
+          THE OFF GRID / 2026
+        </span>
 
-          <p className="eyebrow">
-            THE OFF GRID
-          </p>
-
-          <h2>
-            Made to stand
-            <br />
-            <em>apart.</em>
-          </h2>
-
-        </div>
-
-
-        <div>
-
-          <p>
-            Every piece in the collection
-            is selected with intention.
-            No unnecessary noise, no
-            chasing every trend — just
-            clothing that deserves a place
-            in your wardrobe.
-          </p>
-
-          <Link to="/our-story">
-            OUR STORY
-            <ArrowUpRight size={16} />
-          </Link>
-
-        </div>
-
-      </section>
+      </div>
 
     </main>
   );
