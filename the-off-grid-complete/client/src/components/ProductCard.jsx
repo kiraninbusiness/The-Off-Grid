@@ -1,30 +1,478 @@
-import React,{useState} from "react";
-import {Link,useNavigate} from "react-router-dom";
-import {Heart,ShoppingBag,Eye,X,Check,ArrowRight} from "lucide-react";
-const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
-export default function ProductCard({p,add,wish=[],toggle}) {
-  const [added,setAdded]=useState(false),[quick,setQuick]=useState(false);
-  const liked=wish.some(x=>String(x)===String(p.id));
-  const discount=p.old_price?Math.round((p.old_price-p.price)/p.old_price*100):0;
-  const handleAdd=e=>{e.preventDefault();if(!p.stock)return;add({...p,selectedSize:null});setAdded(true);setTimeout(()=>setAdded(false),1200)};
-  return <><article className="product-card">
-    <div className="product-image-wrap">
-      <Link to={`/product/${p.id}`} className="product-image"><img src={p.image} alt={p.name}/></Link>
-      <div className="product-badges">{discount>0&&<span className="badge sale">-{discount}%</span>}{!p.stock&&<span className="badge sold">SOLD OUT</span>}</div>
-      <button className={`wishlist-button ${liked?"active":""}`} onClick={()=>toggle(p.id)}><Heart size={17} fill={liked?"currentColor":"none"}/></button>
-      <button className="quick-view-button" onClick={()=>setQuick(true)}><Eye size={14}/> QUICK VIEW</button>
-    </div>
-    <div className="product-content">
-      <div className="product-info"><div><div className="product-category">{p.category} · {p.gender}</div><h3><Link to={`/product/${p.id}`}>{p.name}</Link></h3></div>
-      <div className="product-price"><strong>{money(p.price)}</strong>{p.old_price&&<del>{money(p.old_price)}</del>}</div></div>
-      <div className="product-meta">{p.color&&<span>{p.color}</span>}{p.fit&&<span>{p.fit}</span>}</div>
-      <button className={`product-add-button ${added?"added":""}`} disabled={!p.stock} onClick={handleAdd}>{added?<><Check size={15}/> ADDED</>:<><ShoppingBag size={15}/>{p.stock?"ADD TO BAG":"SOLD OUT"}</>}</button>
-    </div>
-  </article>
-  {quick&&<QuickView p={p} liked={liked} close={()=>setQuick(false)} add={add} toggle={toggle}/>}</>
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Heart,
+  ShoppingBag,
+  Eye,
+  X,
+  Check,
+  ArrowRight,
+} from "lucide-react";
+
+const money = (n) =>
+  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+export default function ProductCard({
+  p,
+  add,
+  wish = [],
+  wishlist = [],
+  toggle,
+}) {
+  const [added, setAdded] = useState(false);
+  const [quickView, setQuickView] = useState(false);
+
+  if (!p) return null;
+
+  // Supports either "wish" or "wishlist" from App.jsx
+  const activeWishlist = Array.isArray(wish)
+    ? wish
+    : Array.isArray(wishlist)
+    ? wishlist
+    : [];
+
+  const isWishlisted = activeWishlist.some(
+    (item) =>
+      String(typeof item === "object" ? item.id : item) ===
+      String(p.id)
+  );
+
+  const discount =
+    p.old_price && p.price
+      ? Math.round(
+          ((Number(p.old_price) - Number(p.price)) /
+            Number(p.old_price)) *
+            100
+        )
+      : 0;
+
+  const handleAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!p.stock) return;
+
+    if (typeof add === "function") {
+      add(p);
+    }
+
+    setAdded(true);
+
+    setTimeout(() => {
+      setAdded(false);
+    }, 1500);
+  };
+
+  const handleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (typeof toggle === "function") {
+      toggle(p.id);
+    }
+  };
+
+  return (
+    <>
+      <article className="product-card">
+        {/* IMAGE */}
+        <div className="product-image-wrap">
+          <Link
+            to={`/product/${p.id}`}
+            className="product-image"
+            aria-label={`View ${p.name}`}
+          >
+            <img
+              src={p.image}
+              alt={p.name}
+              loading="lazy"
+            />
+          </Link>
+
+          {/* BADGES */}
+          <div className="product-badges">
+            {discount > 0 && (
+              <span className="badge sale">
+                -{discount}%
+              </span>
+            )}
+
+            {!p.stock && (
+              <span className="badge sold">
+                SOLD OUT
+              </span>
+            )}
+
+            {p.condition === "BESTSELLER" && (
+              <span className="badge bestseller">
+                BESTSELLER
+              </span>
+            )}
+          </div>
+
+          {/* WISHLIST */}
+          <button
+            type="button"
+            className={`wishlist-button ${
+              isWishlisted ? "active" : ""
+            }`}
+            onClick={handleWishlist}
+            aria-label={
+              isWishlisted
+                ? "Remove from wishlist"
+                : "Add to wishlist"
+            }
+          >
+            <Heart
+              size={18}
+              fill={
+                isWishlisted
+                  ? "currentColor"
+                  : "none"
+              }
+            />
+          </button>
+
+          {/* QUICK VIEW */}
+          <button
+            type="button"
+            className="quick-view-button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setQuickView(true);
+            }}
+          >
+            <Eye size={15} />
+            QUICK VIEW
+          </button>
+        </div>
+
+        {/* CONTENT */}
+        <div className="product-content">
+          <div className="product-info">
+            <div>
+              <div className="product-category">
+                {p.category || "COLLECTION"}
+                {p.gender
+                  ? ` · ${p.gender}`
+                  : ""}
+              </div>
+
+              <h3>
+                <Link to={`/product/${p.id}`}>
+                  {p.name}
+                </Link>
+              </h3>
+            </div>
+
+            <div className="product-price">
+              <strong>
+                {money(p.price)}
+              </strong>
+
+              {p.old_price &&
+                Number(p.old_price) >
+                  Number(p.price) && (
+                  <del>
+                    {money(p.old_price)}
+                  </del>
+                )}
+            </div>
+          </div>
+
+          {/* META */}
+          {(p.color || p.fit || p.size) && (
+            <div className="product-meta">
+              {p.color && (
+                <span>{p.color}</span>
+              )}
+
+              {p.fit && (
+                <span>{p.fit}</span>
+              )}
+
+              {p.size && (
+                <span>{p.size}</span>
+              )}
+            </div>
+          )}
+
+          {/* ADD TO BAG */}
+          <button
+            type="button"
+            className={`product-add-button ${
+              added ? "added" : ""
+            }`}
+            disabled={!p.stock}
+            onClick={handleAdd}
+          >
+            {added ? (
+              <>
+                <Check size={15} />
+                ADDED
+              </>
+            ) : (
+              <>
+                <ShoppingBag size={15} />
+
+                {p.stock
+                  ? "ADD TO BAG"
+                  : "SOLD OUT"}
+              </>
+            )}
+          </button>
+        </div>
+      </article>
+
+      {/* QUICK VIEW */}
+      {quickView && (
+        <QuickViewModal
+          product={p}
+          isWishlisted={isWishlisted}
+          onClose={() =>
+            setQuickView(false)
+          }
+          onAdd={add}
+          onToggleWishlist={toggle}
+        />
+      )}
+    </>
+  );
 }
-function QuickView({p,liked,close,add,toggle}) {
- const nav=useNavigate(),[added,setAdded]=useState(false),discount=p.old_price?Math.round((p.old_price-p.price)/p.old_price*100):0;
- return <div className="modal-backdrop" onClick={e=>e.target===e.currentTarget&&close()}><div className="quick-modal"><button className="modal-x" onClick={close}><X/></button><img src={p.image} alt={p.name}/><div><div className="product-category">{p.category} · {p.gender}</div><h2>{p.name}</h2><div className="quick-price"><strong>{money(p.price)}</strong>{p.old_price&&<del>{money(p.old_price)}</del>}<span>{discount?`SAVE ${discount}%`:""}</span></div><p>{p.description}</p><div className="quick-meta"><b>COLOR <span>{p.color}</span></b><b>FIT <span>{p.fit}</span></b><b>SIZE <span>{p.size}</span></b></div><div className="quick-actions"><button className="product-add-button" disabled={!p.stock} onClick={()=>{add(p);setAdded(true);setTimeout(()=>setAdded(false),1200)}}>{added?"ADDED":"ADD TO BAG"}</button><button className={`product-detail-wishlist ${liked?"active":""}`} onClick={()=>toggle(p.id)}><Heart fill={liked?"currentColor":"none"}/></button></div><button className="text-button" onClick={()=>nav(`/product/${p.id}`)}>VIEW FULL DETAILS <ArrowRight size={15}/></button></div></div></div>
+
+/* =========================================================
+   QUICK VIEW MODAL
+========================================================= */
+
+function QuickViewModal({
+  product,
+  isWishlisted,
+  onClose,
+  onAdd,
+  onToggleWishlist,
+}) {
+  const navigate = useNavigate();
+
+  const [added, setAdded] = useState(false);
+
+  if (!product) return null;
+
+  const discount =
+    product.old_price && product.price
+      ? Math.round(
+          ((Number(product.old_price) -
+            Number(product.price)) /
+            Number(product.old_price)) *
+            100
+        )
+      : 0;
+
+  const handleAdd = () => {
+    if (!product.stock) return;
+
+    if (typeof onAdd === "function") {
+      onAdd(product);
+    }
+
+    setAdded(true);
+
+    setTimeout(() => {
+      setAdded(false);
+    }, 1500);
+  };
+
+  const handleWishlist = () => {
+    if (
+      typeof onToggleWishlist ===
+      "function"
+    ) {
+      onToggleWishlist(product.id);
+    }
+  };
+
+  const handleFullDetails = () => {
+    onClose();
+
+    navigate(
+      `/product/${product.id}`
+    );
+  };
+
+  return (
+    <div
+      className="quick-view-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Quick product view"
+      onClick={(e) => {
+        if (
+          e.target === e.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <div className="quick-view-modal">
+        {/* CLOSE */}
+        <button
+          type="button"
+          className="quick-view-close"
+          onClick={onClose}
+          aria-label="Close quick view"
+        >
+          <X size={20} />
+        </button>
+
+        {/* IMAGE */}
+        <div className="quick-view-image">
+          <img
+            src={product.image}
+            alt={product.name}
+          />
+        </div>
+
+        {/* DETAILS */}
+        <div className="quick-view-details">
+          <div className="product-category">
+            {product.category ||
+              "COLLECTION"}
+
+            {product.gender
+              ? ` · ${product.gender}`
+              : ""}
+          </div>
+
+          <h2>{product.name}</h2>
+
+          {/* PRICE */}
+          <div className="quick-view-price">
+            <strong>
+              {money(product.price)}
+            </strong>
+
+            {product.old_price &&
+              Number(product.old_price) >
+                Number(product.price) && (
+                <del>
+                  {money(
+                    product.old_price
+                  )}
+                </del>
+              )}
+
+            {discount > 0 && (
+              <span>
+                SAVE {discount}%
+              </span>
+            )}
+          </div>
+
+          {/* DESCRIPTION */}
+          <p className="quick-view-description">
+            {product.description ||
+              "Designed with a focus on clean silhouettes, everyday comfort and effortless styling."}
+          </p>
+
+          {/* PRODUCT DETAILS */}
+          <div className="quick-view-meta">
+            <div>
+              <span>COLOR</span>
+              <strong>
+                {product.color || "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>FIT</span>
+              <strong>
+                {product.fit || "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>SIZE</span>
+              <strong>
+                {product.size || "—"}
+              </strong>
+            </div>
+
+            <div>
+              <span>STATUS</span>
+              <strong>
+                {product.stock
+                  ? `${product.stock} IN STOCK`
+                  : "SOLD OUT"}
+              </strong>
+            </div>
+          </div>
+
+          {/* ACTIONS */}
+          <div className="quick-view-actions">
+            <button
+              type="button"
+              className={`product-add-button ${
+                added ? "added" : ""
+              }`}
+              disabled={!product.stock}
+              onClick={handleAdd}
+            >
+              {added ? (
+                <>
+                  <Check size={15} />
+                  ADDED
+                </>
+              ) : (
+                <>
+                  <ShoppingBag size={15} />
+
+                  {product.stock
+                    ? "ADD TO BAG"
+                    : "SOLD OUT"}
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className={`product-detail-wishlist ${
+                isWishlisted
+                  ? "wishlisted"
+                  : ""
+              }`}
+              onClick={
+                handleWishlist
+              }
+              aria-label={
+                isWishlisted
+                  ? "Remove from wishlist"
+                  : "Add to wishlist"
+              }
+            >
+              <Heart
+                size={19}
+                fill={
+                  isWishlisted
+                    ? "currentColor"
+                    : "none"
+                }
+              />
+            </button>
+          </div>
+
+          {/* FULL DETAILS */}
+          <button
+            type="button"
+            className="quick-view-full-link"
+            onClick={
+              handleFullDetails
+            }
+          >
+            VIEW FULL DETAILS
+            <ArrowRight size={15} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
-const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
