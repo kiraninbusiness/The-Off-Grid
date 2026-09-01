@@ -22,7 +22,7 @@ import ProductCard from "./components/ProductCard";
 import ProductDetails from "./components/ProductDetails";
 
 import Checkout from "./pages/Checkout";
-import Order from "./pages/Order";
+import Order from "./pages/Orders";
 import Success from "./pages/Success";
 
 import "./styles.css";
@@ -344,46 +344,11 @@ export default function App() {
   };
 
   /* =======================================================
-     ROUTES
-  ======================================================= */
-
-  if (location.pathname === "/checkout") {
-    return (
-      <Checkout
-        cart={cart}
-        clearCart={clearCart}
-      />
-    );
-  }
-
-  if (location.pathname === "/order") {
-    return <Order />;
-  }
-
-  if (
-    location.pathname === "/order-success" ||
-    location.pathname === "/success"
-  ) {
-    return <Success />;
-  }
-
-  if (
-    location.pathname.startsWith(
-      "/product/"
-    )
-  ) {
-    return (
-      <ProductDetails
-        products={products}
-        add={addCart}
-        wishlist={wishlist}
-        toggle={toggleWishlist}
-      />
-    );
-  }
-
-  /* =======================================================
      FILTER + SEARCH + SORT
+     
+     IMPORTANT:
+     This hook is ABOVE the route returns so the hook
+     order never changes between pages.
   ======================================================= */
 
   const filteredProducts = useMemo(() => {
@@ -452,9 +417,48 @@ export default function App() {
     "FOOTWEAR",
   ];
 
-  /* =======================================================
+  /* =========================================================
+     ROUTES
+  ========================================================= */
+
+  if (location.pathname === "/checkout") {
+    return (
+      <Checkout
+        cart={cart}
+        clearCart={clearCart}
+      />
+    );
+  }
+
+  if (location.pathname === "/order") {
+    return <Order />;
+  }
+
+  if (
+    location.pathname === "/order-success" ||
+    location.pathname === "/success"
+  ) {
+    return <Success />;
+  }
+
+  if (
+    location.pathname.startsWith(
+      "/product/"
+    )
+  ) {
+    return (
+      <ProductDetails
+        products={products}
+        add={addCart}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
+      />
+    );
+  }
+
+  /* =========================================================
      HOME PAGE
-  ======================================================= */
+  ========================================================= */
 
   return (
     <div className="app">
@@ -564,7 +568,7 @@ export default function App() {
           <button
             type="button"
             onClick={() =>
-              scroll("shop")
+              navigate("/checkout")
             }
           >
             <ShoppingBag size={19} />
