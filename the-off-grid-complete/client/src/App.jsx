@@ -11,31 +11,23 @@ import {
   ChevronDown,
   Instagram,
   Youtube,
-  ArrowLeft,
-  Truck,
-  ShieldCheck,
-  RotateCcw,
-  Minus,
-  Plus,
   User,
 } from "lucide-react";
 
 import {
   useLocation,
   useNavigate,
-  Link,
 } from "react-router-dom";
 
 import ProductCard from "./components/ProductCard";
 import SizeGuideModal from "./components/SizeGuideModal";
-import ProductReviews from "./components/ProductReviews";
-
 import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
 import Success from "./pages/Success";
 import Account from "./pages/Account";
 import Wishlist from "./pages/Wishlist";
 import TrackOrder from "./pages/TrackOrder";
+import ProductDetails from "./pages/ProductDetails";
 
 import { api } from "./api";
 
@@ -43,9 +35,7 @@ import "./styles.css";
 
 
 /* =========================================================
-   THE OFF GRID — PRODUCTS
-   FALLBACK_PRODUCTS is shown only if the live /products API
-   can't be reached, so the shop is never fully empty.
+   FALLBACK PRODUCTS
 ========================================================= */
 
 const FALLBACK_PRODUCTS = [
@@ -283,33 +273,19 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
 
-  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
-  const [productsLoading, setProductsLoading] = useState(true);
+  const [products, setProducts] =
+    useState(FALLBACK_PRODUCTS);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    api("/products")
-      .then((data) => {
-        if (!cancelled && Array.isArray(data) && data.length) {
-          setProducts(data);
-        }
-      })
-      .catch(() => {
-        // API unreachable — keep FALLBACK_PRODUCTS so the shop isn't empty
-      })
-      .finally(() => {
-        if (!cancelled) setProductsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const [productsLoading, setProductsLoading] =
+    useState(true);
 
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("thrift_user")) || null;
+      return (
+        JSON.parse(
+          localStorage.getItem("thrift_user")
+        ) || null
+      );
     } catch {
       return null;
     }
@@ -325,7 +301,47 @@ export default function App() {
     useState("");
 
   const [newsletterStatus, setNewsletterStatus] =
-    useState("idle"); // idle | loading | success | error
+    useState("idle");
+
+
+  /* =======================================================
+     LOAD PRODUCTS
+  ======================================================= */
+
+  useEffect(() => {
+
+    let cancelled = false;
+
+    api("/products")
+      .then((data) => {
+
+        if (
+          !cancelled &&
+          Array.isArray(data) &&
+          data.length
+        ) {
+          setProducts(data);
+        }
+
+      })
+      .catch(() => {
+
+        // Keep fallback products.
+
+      })
+      .finally(() => {
+
+        if (!cancelled) {
+          setProductsLoading(false);
+        }
+
+      });
+
+    return () => {
+      cancelled = true;
+    };
+
+  }, []);
 
 
   /* =======================================================
@@ -345,15 +361,20 @@ export default function App() {
       if (existing) {
 
         return current.map((item) =>
+
           String(item.id) ===
           String(product.id)
+
             ? {
                 ...item,
                 qty:
                   Number(item.qty || 1) + 1,
               }
+
             : item
+
         );
+
       }
 
       return [
@@ -363,7 +384,9 @@ export default function App() {
           qty: 1,
         },
       ];
+
     });
+
   };
 
 
@@ -386,19 +409,27 @@ export default function App() {
 
       const exists = current.some(
         (item) =>
-          String(item) === String(id)
+          String(item) ===
+          String(id)
       );
 
       if (exists) {
 
         return current.filter(
           (item) =>
-            String(item) !== String(id)
+            String(item) !==
+            String(id)
         );
+
       }
 
-      return [...current, id];
+      return [
+        ...current,
+        id,
+      ];
+
     });
+
   };
 
 
@@ -410,7 +441,9 @@ export default function App() {
 
     e.preventDefault();
 
-    if (!newsletterEmail.trim()) return;
+    if (!newsletterEmail.trim()) {
+      return;
+    }
 
     setNewsletterStatus("loading");
 
@@ -418,16 +451,20 @@ export default function App() {
 
       await api("/newsletter", {
         method: "POST",
-        body: JSON.stringify({ email: newsletterEmail.trim() }),
+        body: JSON.stringify({
+          email: newsletterEmail.trim(),
+        }),
       });
 
       setNewsletterStatus("success");
       setNewsletterEmail("");
 
-    } catch (err) {
+    } catch {
 
       setNewsletterStatus("error");
+
     }
+
   };
 
 
@@ -449,6 +486,7 @@ export default function App() {
         });
 
     }, 50);
+
   };
 
 
@@ -464,6 +502,7 @@ export default function App() {
         clearCart={clearCart}
       />
     );
+
   }
 
 
@@ -473,6 +512,7 @@ export default function App() {
   ) {
 
     return <Order />;
+
   }
 
 
@@ -482,6 +522,7 @@ export default function App() {
   ) {
 
     return <Success />;
+
   }
 
 
@@ -493,6 +534,7 @@ export default function App() {
         setUser={setUser}
       />
     );
+
   }
 
 
@@ -506,88 +548,50 @@ export default function App() {
         add={addCart}
       />
     );
+
   }
 
 
-  if (location.pathname.startsWith("/track-order/")) {
+  if (
+    location.pathname.startsWith(
+      "/track-order/"
+    )
+  ) {
 
-    return <TrackOrder user={user} />;
+    return (
+      <TrackOrder
+        user={user}
+      />
+    );
+
   }
 
 
   /* =======================================================
-   PRODUCT DETAIL ROUTE
-======================================================= */
+     PRODUCT DETAILS
+     
+     IMPORTANT:
+     Product details are handled ONLY by
+     ProductDetails.jsx.
+  ======================================================= */
 
-if (location.pathname.startsWith("/product/")) {
+  if (
+    location.pathname.startsWith(
+      "/product/"
+    )
+  ) {
 
-  const rawId =
-    location.pathname
-      .split("/product/")[1]
-      ?.split("/")[0];
-
-  /*
-   * IMPORTANT
-   * Do NOT show Product Not Found while the API
-   * is still loading.
-   */
-
-  if (productsLoading) {
     return (
-      <div className="product-loading-page">
-        <div className="product-loading-inner">
-          <span>THE OFF GRID</span>
-
-          <h1>
-            LOADING
-            <br />
-            PRODUCT
-          </h1>
-
-          <p>
-            Please wait while we load the product.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  /*
-   * API has finished loading.
-   * Now find the product.
-   */
-
-  const product = products.find(
-    (item) =>
-      String(item.id) === String(rawId)
-  );
-
-  /*
-   * Only show NOT FOUND after loading is complete.
-   */
-
-  if (!product) {
-    return (
-      <ProductNotFound
-        onBack={() => navigate("/")}
+      <ProductDetails
+        products={products}
+        add={addCart}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
       />
     );
+
   }
 
-  /*
-   * Product exists.
-   */
-
-  return (
-    <ProductPage
-      product={product}
-      add={addCart}
-      wishlist={wishlist}
-      toggle={toggleWishlist}
-      cart={cart}
-    />
-  );
-}
 
   /* =======================================================
      FILTER / SEARCH / SORT
@@ -598,13 +602,16 @@ if (location.pathname.startsWith("/product/")) {
     let result = [...products];
 
 
-    if (activeCategory !== "ALL") {
+    if (
+      activeCategory !== "ALL"
+    ) {
 
       result = result.filter(
         (product) =>
           product.category ===
           activeCategory
       );
+
     }
 
 
@@ -617,6 +624,7 @@ if (location.pathname.startsWith("/product/")) {
 
       result = result.filter(
         (product) =>
+
           [
             product.name,
             product.category,
@@ -627,7 +635,9 @@ if (location.pathname.startsWith("/product/")) {
             .join(" ")
             .toLowerCase()
             .includes(query)
+
       );
+
     }
 
 
@@ -637,6 +647,7 @@ if (location.pathname.startsWith("/product/")) {
         (a, b) =>
           a.price - b.price
       );
+
     }
 
 
@@ -646,6 +657,7 @@ if (location.pathname.startsWith("/product/")) {
         (a, b) =>
           b.price - a.price
       );
+
     }
 
 
@@ -653,14 +665,18 @@ if (location.pathname.startsWith("/product/")) {
 
       result.sort(
         (a, b) =>
-          a.name.localeCompare(b.name)
+          a.name.localeCompare(
+            b.name
+          )
       );
+
     }
 
 
     return result;
 
   }, [
+    products,
     activeCategory,
     searchText,
     sortBy,
@@ -680,7 +696,7 @@ if (location.pathname.startsWith("/product/")) {
 
 
   /* =======================================================
-     HOME
+     HOME PAGE
   ======================================================= */
 
   return (
@@ -714,7 +730,9 @@ if (location.pathname.startsWith("/product/")) {
         <button
           className="mobile-menu-btn"
           type="button"
-          onClick={() => setMenu(true)}
+          onClick={() =>
+            setMenu(true)
+          }
         >
           <Menu size={23} />
         </button>
@@ -724,7 +742,9 @@ if (location.pathname.startsWith("/product/")) {
 
           <button
             type="button"
-            onClick={() => scroll("shop")}
+            onClick={() =>
+              scroll("shop")
+            }
           >
             SHOP
           </button>
@@ -758,7 +778,9 @@ if (location.pathname.startsWith("/product/")) {
           }
         >
 
-          <small>THE</small>
+          <small>
+            THE
+          </small>
 
           <strong>
             OFF GRID
@@ -787,7 +809,9 @@ if (location.pathname.startsWith("/product/")) {
 
           <button
             type="button"
-            onClick={() => navigate("/account")}
+            onClick={() =>
+              navigate("/account")
+            }
           >
 
             <User size={19} />
@@ -797,7 +821,9 @@ if (location.pathname.startsWith("/product/")) {
 
           <button
             type="button"
-            onClick={() => navigate("/wishlist")}
+            onClick={() =>
+              navigate("/wishlist")
+            }
           >
 
             <Heart size={19} />
@@ -814,23 +840,31 @@ if (location.pathname.startsWith("/product/")) {
           <button
             type="button"
             onClick={() =>
+
               cart.length
                 ? navigate("/checkout")
                 : scroll("shop")
+
             }
           >
 
             <ShoppingBag size={19} />
 
             {cart.length > 0 && (
+
               <b>
+
                 {cart.reduce(
                   (total, item) =>
                     total +
-                    Number(item.qty || 1),
+                    Number(
+                      item.qty || 1
+                    ),
                   0
                 )}
+
               </b>
+
             )}
 
           </button>
@@ -849,7 +883,9 @@ if (location.pathname.startsWith("/product/")) {
           <button
             type="button"
             className="mobile-close"
-            onClick={() => setMenu(false)}
+            onClick={() =>
+              setMenu(false)
+            }
           >
             <X size={28} />
           </button>
@@ -872,10 +908,13 @@ if (location.pathname.startsWith("/product/")) {
 
             <button
               type="button"
-              onClick={() => scroll("shop")}
+              onClick={() =>
+                scroll("shop")
+              }
             >
               SHOP
             </button>
+
 
             <button
               type="button"
@@ -886,6 +925,7 @@ if (location.pathname.startsWith("/product/")) {
               CATEGORIES
             </button>
 
+
             <button
               type="button"
               onClick={() =>
@@ -894,6 +934,7 @@ if (location.pathname.startsWith("/product/")) {
             >
               OUR STORY
             </button>
+
 
             <button
               type="button"
@@ -914,6 +955,7 @@ if (location.pathname.startsWith("/product/")) {
           </p>
 
         </div>
+
       )}
 
 
@@ -927,8 +969,10 @@ if (location.pathname.startsWith("/product/")) {
             type="button"
             className="search-close"
             onClick={() => {
+
               setSearchOpen(false);
               setSearchText("");
+
             }}
           >
             <X size={28} />
@@ -946,6 +990,7 @@ if (location.pathname.startsWith("/product/")) {
 
               <Search size={25} />
 
+
               <input
                 autoFocus
                 type="text"
@@ -957,14 +1002,18 @@ if (location.pathname.startsWith("/product/")) {
                 }
                 onKeyDown={(e) => {
 
-                  if (e.key === "Enter") {
+                  if (
+                    e.key === "Enter"
+                  ) {
 
                     setSearchOpen(false);
 
                     setTimeout(
-                      () => scroll("shop"),
+                      () =>
+                        scroll("shop"),
                       50
                     );
+
                   }
 
                 }}
@@ -981,6 +1030,7 @@ if (location.pathname.startsWith("/product/")) {
           </div>
 
         </div>
+
       )}
 
 
@@ -1007,11 +1057,21 @@ if (location.pathname.startsWith("/product/")) {
 
 
           <h1>
+
             WEAR
             <br />
-            <i>YOUR</i>
+
+            <i>
+              YOUR
+            </i>
+
             <br />
-            WAY<span>.</span>
+
+            WAY
+            <span>
+              .
+            </span>
+
           </h1>
 
 
@@ -1033,8 +1093,11 @@ if (location.pathname.startsWith("/product/")) {
                 scroll("shop")
               }
             >
+
               SHOP NEW ARRIVALS
+
               <ArrowRight size={18} />
+
             </button>
 
 
@@ -1045,7 +1108,9 @@ if (location.pathname.startsWith("/product/")) {
                 scroll("story")
               }
             >
+
               OUR STORY
+
             </button>
 
           </div>
@@ -1109,9 +1174,11 @@ if (location.pathname.startsWith("/product/")) {
         <div className="story-grid">
 
           <h2>
+
             NOT MADE
             <br />
             FOR <em>EVERYONE.</em>
+
           </h2>
 
 
@@ -1133,8 +1200,11 @@ if (location.pathname.startsWith("/product/")) {
                 scroll("journal")
               }
             >
+
               DISCOVER OUR STORY
+
               <ArrowRight size={15} />
+
             </button>
 
           </div>
@@ -1145,23 +1215,53 @@ if (location.pathname.startsWith("/product/")) {
         <div className="benefits">
 
           <div>
-            <strong>01</strong>
-            <h3>FAST SHIPPING</h3>
-            <p>Across India</p>
+
+            <strong>
+              01
+            </strong>
+
+            <h3>
+              FAST SHIPPING
+            </h3>
+
+            <p>
+              Across India
+            </p>
+
           </div>
 
 
           <div>
-            <strong>02</strong>
-            <h3>QUALITY FIRST</h3>
-            <p>Every piece checked</p>
+
+            <strong>
+              02
+            </strong>
+
+            <h3>
+              QUALITY FIRST
+            </h3>
+
+            <p>
+              Every piece checked
+            </p>
+
           </div>
 
 
           <div>
-            <strong>03</strong>
-            <h3>EASY RETURNS</h3>
-            <p>Simple & transparent</p>
+
+            <strong>
+              03
+            </strong>
+
+            <h3>
+              EASY RETURNS
+            </h3>
+
+            <p>
+              Simple & transparent
+            </p>
+
           </div>
 
         </div>
@@ -1185,9 +1285,14 @@ if (location.pathname.startsWith("/product/")) {
             </span>
 
             <h2>
+
               FIND YOUR
               <br />
-              <em>CATEGORY.</em>
+
+              <em>
+                CATEGORY.
+              </em>
+
             </h2>
 
           </div>
@@ -1205,10 +1310,17 @@ if (location.pathname.startsWith("/product/")) {
           <Category
             title="TEES"
             number="01"
-            image={products[0].image}
+            image={
+              products[0]?.image
+            }
             click={() => {
-              setActiveCategory("T-SHIRTS");
+
+              setActiveCategory(
+                "T-SHIRTS"
+              );
+
               scroll("shop");
+
             }}
           />
 
@@ -1216,10 +1328,17 @@ if (location.pathname.startsWith("/product/")) {
           <Category
             title="SHIRTS"
             number="02"
-            image={products[1].image}
+            image={
+              products[1]?.image
+            }
             click={() => {
-              setActiveCategory("SHIRTS");
+
+              setActiveCategory(
+                "SHIRTS"
+              );
+
               scroll("shop");
+
             }}
           />
 
@@ -1227,10 +1346,17 @@ if (location.pathname.startsWith("/product/")) {
           <Category
             title="BOTTOMS"
             number="03"
-            image={products[2].image}
+            image={
+              products[2]?.image
+            }
             click={() => {
-              setActiveCategory("BOTTOMS");
+
+              setActiveCategory(
+                "BOTTOMS"
+              );
+
               scroll("shop");
+
             }}
           />
 
@@ -1238,10 +1364,17 @@ if (location.pathname.startsWith("/product/")) {
           <Category
             title="HOODIES"
             number="04"
-            image={products[3].image}
+            image={
+              products[3]?.image
+            }
             click={() => {
-              setActiveCategory("HOODIES");
+
+              setActiveCategory(
+                "HOODIES"
+              );
+
               scroll("shop");
+
             }}
           />
 
@@ -1266,9 +1399,14 @@ if (location.pathname.startsWith("/product/")) {
             </span>
 
             <h2>
+
               EVERYDAY
               <br />
-              <em>ESSENTIALS.</em>
+
+              <em>
+                ESSENTIALS.
+              </em>
+
             </h2>
 
           </div>
@@ -1299,8 +1437,11 @@ if (location.pathname.startsWith("/product/")) {
                 setSearchText("")
               }
             >
+
               CLEAR
+
               <X size={14} />
+
             </button>
 
           </div>
@@ -1375,7 +1516,10 @@ if (location.pathname.startsWith("/product/")) {
 
               </select>
 
-              <ChevronDown size={15} />
+
+              <ChevronDown
+                size={15}
+              />
 
             </div>
 
@@ -1396,7 +1540,9 @@ if (location.pathname.startsWith("/product/")) {
                   p={product}
                   add={addCart}
                   wish={wishlist}
-                  toggle={toggleWishlist}
+                  toggle={
+                    toggleWishlist
+                  }
                 />
 
               )
@@ -1417,12 +1563,22 @@ if (location.pathname.startsWith("/product/")) {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveCategory("ALL");
+
+                  setActiveCategory(
+                    "ALL"
+                  );
+
                   setSearchText("");
+
                 }}
               >
+
                 VIEW ALL PRODUCTS
-                <ArrowRight size={16} />
+
+                <ArrowRight
+                  size={16}
+                />
+
               </button>
 
             </div>
@@ -1435,13 +1591,17 @@ if (location.pathname.startsWith("/product/")) {
         <div className="shop-count">
 
           SHOWING{" "}
+
           <strong>
             {filteredProducts.length}
           </strong>{" "}
+
           OF{" "}
+
           <strong>
             {products.length}
           </strong>{" "}
+
           PRODUCTS
 
         </div>
@@ -1458,11 +1618,17 @@ if (location.pathname.startsWith("/product/")) {
         </span>
 
         <h2>
+
           YOUR STYLE
           <br />
+
           DOESN'T NEED
           <br />
-          <em>PERMISSION.</em>
+
+          <em>
+            PERMISSION.
+          </em>
+
         </h2>
 
       </section>
@@ -1492,16 +1658,23 @@ if (location.pathname.startsWith("/product/")) {
           </span>
 
           <h2>
+
             THE ART OF
             <br />
-            <em>STANDING OUT.</em>
+
+            <em>
+              STANDING OUT.
+            </em>
+
           </h2>
 
 
           <p>
+
             Trends disappear. Personal style
             stays. Build a wardrobe that feels
             like you.
+
           </p>
 
 
@@ -1514,8 +1687,13 @@ if (location.pathname.startsWith("/product/")) {
               )
             }
           >
+
             READ JOURNAL
-            <ArrowRight size={18} />
+
+            <ArrowRight
+              size={18}
+            />
+
           </button>
 
         </div>
@@ -1534,15 +1712,24 @@ if (location.pathname.startsWith("/product/")) {
           </span>
 
           <h2>
+
             GET IN.
             <br />
-            <em>STAY DIFFERENT.</em>
+
+            <em>
+              STAY DIFFERENT.
+            </em>
+
           </h2>
 
         </div>
 
 
-        <form onSubmit={handleNewsletterSubmit}>
+        <form
+          onSubmit={
+            handleNewsletterSubmit
+          }
+        >
 
           <label>
             EMAIL ADDRESS
@@ -1554,32 +1741,60 @@ if (location.pathname.startsWith("/product/")) {
             <input
               type="email"
               placeholder="you@example.com"
-              value={newsletterEmail}
+              value={
+                newsletterEmail
+              }
               onChange={(e) => {
-                setNewsletterEmail(e.target.value);
-                if (newsletterStatus !== "idle") {
-                  setNewsletterStatus("idle");
+
+                setNewsletterEmail(
+                  e.target.value
+                );
+
+                if (
+                  newsletterStatus !==
+                  "idle"
+                ) {
+
+                  setNewsletterStatus(
+                    "idle"
+                  );
+
                 }
+
               }}
               required
             />
 
+
             <button
               type="submit"
-              disabled={newsletterStatus === "loading"}
+              disabled={
+                newsletterStatus ===
+                "loading"
+              }
             >
+
               <ArrowRight />
+
             </button>
 
           </div>
 
 
           <small>
-            {newsletterStatus === "success"
+
+            {newsletterStatus ===
+            "success"
+
               ? "YOU'RE ON THE OFF GRID LIST."
-              : newsletterStatus === "error"
+
+              : newsletterStatus ===
+                "error"
+
               ? "SOMETHING WENT WRONG. TRY AGAIN."
+
               : "NEW DROPS. LIMITED EDITS. ZERO SPAM."}
+
           </small>
 
         </form>
@@ -1605,10 +1820,12 @@ if (location.pathname.startsWith("/product/")) {
             </strong>
 
             <p>
+
               Independent clothing for
               independent minds.
               <br />
               Est. 2026 / India.
+
             </p>
 
           </div>
@@ -1624,8 +1841,13 @@ if (location.pathname.startsWith("/product/")) {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("ALL");
+
+                setActiveCategory(
+                  "ALL"
+                );
+
                 scroll("shop");
+
               }}
             >
               NEW ARRIVALS
@@ -1635,8 +1857,13 @@ if (location.pathname.startsWith("/product/")) {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("T-SHIRTS");
+
+                setActiveCategory(
+                  "T-SHIRTS"
+                );
+
                 scroll("shop");
+
               }}
             >
               TEES
@@ -1646,8 +1873,13 @@ if (location.pathname.startsWith("/product/")) {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("SHIRTS");
+
+                setActiveCategory(
+                  "SHIRTS"
+                );
+
                 scroll("shop");
+
               }}
             >
               SHIRTS
@@ -1657,8 +1889,13 @@ if (location.pathname.startsWith("/product/")) {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("BOTTOMS");
+
+                setActiveCategory(
+                  "BOTTOMS"
+                );
+
                 scroll("shop");
+
               }}
             >
               BOTTOMS
@@ -1736,8 +1973,13 @@ if (location.pathname.startsWith("/product/")) {
               target="_blank"
               rel="noreferrer"
             >
-              <Instagram size={16} />
+
+              <Instagram
+                size={16}
+              />
+
               INSTAGRAM
+
             </a>
 
 
@@ -1746,8 +1988,13 @@ if (location.pathname.startsWith("/product/")) {
               target="_blank"
               rel="noreferrer"
             >
-              <Youtube size={16} />
+
+              <Youtube
+                size={16}
+              />
+
               YOUTUBE
+
             </a>
 
 
@@ -1798,21 +2045,27 @@ if (location.pathname.startsWith("/product/")) {
           }
         >
 
-          <ShoppingBag size={18} />
+          <ShoppingBag
+            size={18}
+          />
 
           <span>
 
             {cart.reduce(
               (total, item) =>
                 total +
-                Number(item.qty || 1),
+                Number(
+                  item.qty || 1
+                ),
               0
             )}{" "}
 
             {cart.reduce(
               (total, item) =>
                 total +
-                Number(item.qty || 1),
+                Number(
+                  item.qty || 1
+                ),
               0
             ) === 1
               ? "ITEM"
@@ -1820,600 +2073,17 @@ if (location.pathname.startsWith("/product/")) {
 
           </span>
 
-          <ArrowUpRight size={16} />
 
-        </button>
-
-      )}
-
-    </div>
-  );
-}
-
-
-/* =========================================================
-   PRODUCT PAGE
-========================================================= */
-
-function ProductPage({
-  product,
-  add,
-  wishlist,
-  toggle,
-}) {
-
-  const navigate = useNavigate();
-
-  const [qty, setQty] = useState(1);
-
-  const [selectedSize, setSelectedSize] =
-    useState("");
-
-  const [sizeGuideOpen, setSizeGuideOpen] =
-    useState(false);
-
-
-  const isWishlisted =
-    wishlist.some(
-      (item) =>
-        String(item) ===
-        String(product.id)
-    );
-
-
-  const discount =
-    product.old_price && product.price
-      ? Math.round(
-          ((product.old_price -
-            product.price) /
-            product.old_price) *
-            100
-        )
-      : 0;
-
-
-  const sizes =
-    product.size
-      ? product.size
-          .split("/")
-          .map((s) => s.trim())
-      : [];
-
-
-  const increaseQty = () => {
-
-    if (
-      product.stock &&
-      qty < Number(product.stock)
-    ) {
-      setQty((value) => value + 1);
-    }
-  };
-
-
-  const decreaseQty = () => {
-
-    setQty((value) =>
-      value > 1
-        ? value - 1
-        : 1
-    );
-  };
-
-
-  const handleAdd = () => {
-
-    if (!product.stock) return;
-
-
-    for (
-      let i = 0;
-      i < qty;
-      i++
-    ) {
-      add(product);
-    }
-
-
-    navigate("/checkout");
-  };
-
-
-  return (
-
-    <div className="product-details-page">
-
-
-      {/* HEADER */}
-
-      <header className="product-details-header">
-
-        <button
-          type="button"
-          className="product-back"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft size={18} />
-          BACK TO SHOP
-        </button>
-
-
-        <Link
-          to="/"
-          className="product-details-logo"
-        >
-
-          <small>
-            THE
-          </small>
-
-          <strong>
-            OFF GRID
-          </strong>
-
-        </Link>
-
-
-        <div className="product-details-header-right">
-
-          <span>
-            PRODUCT / {product.id}
-          </span>
-
-        </div>
-
-      </header>
-
-
-      {/* MAIN */}
-
-      <main className="product-details-main">
-
-
-        {/* IMAGE */}
-
-        <div className="product-details-image">
-
-          <img
-            src={product.image}
-            alt={product.name}
+          <ArrowUpRight
+            size={16}
           />
 
-
-          <div className="product-details-image-badge">
-
-            {discount > 0 && (
-              <span>
-                -{discount}%
-              </span>
-            )}
-
-
-            {product.condition && (
-              <span>
-                {product.condition}
-              </span>
-            )}
-
-          </div>
-
-        </div>
-
-
-        {/* INFO */}
-
-        <div className="product-details-info">
-
-          <div className="product-details-number">
-            01 / THE OFF GRID
-          </div>
-
-
-          <div className="product-details-category">
-
-            {product.category}
-            {" · "}
-            {product.gender}
-
-          </div>
-
-
-          <h1>
-            {product.name}
-          </h1>
-
-
-          <div className="product-details-price">
-
-            <strong>
-              ₹{Number(product.price).toLocaleString("en-IN")}
-            </strong>
-
-
-            {product.old_price && (
-              <del>
-                ₹{Number(product.old_price).toLocaleString("en-IN")}
-              </del>
-            )}
-
-
-            {discount > 0 && (
-              <span>
-                SAVE {discount}%
-              </span>
-            )}
-
-          </div>
-
-
-          <p className="product-details-description">
-            {product.description}
-          </p>
-
-
-          {/* SPECS */}
-
-          <div className="product-details-specs">
-
-            <div>
-              <span>
-                COLOR
-              </span>
-
-              <strong>
-                {product.color || "—"}
-              </strong>
-            </div>
-
-
-            <div>
-              <span>
-                FIT
-              </span>
-
-              <strong>
-                {product.fit || "—"}
-              </strong>
-            </div>
-
-
-            <div>
-              <span>
-                CONDITION
-              </span>
-
-              <strong>
-                {product.condition || "NEW"}
-              </strong>
-            </div>
-
-          </div>
-
-
-          {/* SIZE */}
-
-          {sizes.length > 0 && (
-
-            <div className="product-size-section">
-
-              <div className="product-size-title">
-
-                <span>
-                  SELECT SIZE
-                </span>
-
-                <span
-                  className="size-guide-trigger"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSizeGuideOpen(true)}
-                >
-                  SIZE GUIDE
-                </span>
-
-              </div>
-
-
-              <div className="product-size-buttons">
-
-                {sizes.map((size) => (
-
-                  <button
-                    key={size}
-                    type="button"
-                    className={
-                      selectedSize === size
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      setSelectedSize(size)
-                    }
-                  >
-                    {size}
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-
-          )}
-
-
-          {/* BUY ROW */}
-
-          <div className="product-buy-row">
-
-
-            <div className="product-quantity">
-
-              <button
-                type="button"
-                onClick={decreaseQty}
-              >
-                <Minus size={15} />
-              </button>
-
-
-              <span>
-                {qty}
-              </span>
-
-
-              <button
-                type="button"
-                onClick={increaseQty}
-              >
-                <Plus size={15} />
-              </button>
-
-            </div>
-
-
-            <button
-              type="button"
-              className={`product-detail-wishlist ${
-                isWishlisted
-                  ? "active"
-                  : ""
-              }`}
-              onClick={() =>
-                toggle(product.id)
-              }
-            >
-
-              <Heart
-                size={20}
-                fill={
-                  isWishlisted
-                    ? "currentColor"
-                    : "none"
-                }
-              />
-
-            </button>
-
-          </div>
-
-
-          {/* ADD */}
-
-          <button
-            type="button"
-            className="product-detail-add"
-            disabled={!product.stock}
-            onClick={handleAdd}
-          >
-
-            <span>
-              {product.stock
-                ? "ADD TO BAG"
-                : "SOLD OUT"}
-            </span>
-
-
-            {product.stock ? (
-              <ShoppingBag size={19} />
-            ) : (
-              <ArrowRight size={19} />
-            )}
-
-          </button>
-
-
-          {/* STOCK */}
-
-          {product.stock > 0 && (
-
-            <p className="product-stock">
-
-              {product.stock <= 5
-                ? `ONLY ${product.stock} LEFT`
-                : `${product.stock} AVAILABLE`}
-
-            </p>
-
-          )}
-
-
-          {/* BENEFITS */}
-
-          <div className="product-benefits">
-
-
-            <div>
-
-              <Truck size={20} />
-
-              <div>
-
-                <strong>
-                  FAST SHIPPING
-                </strong>
-
-                <span>
-                  Across India
-                </span>
-
-              </div>
-
-            </div>
-
-
-            <div>
-
-              <ShieldCheck size={20} />
-
-              <div>
-
-                <strong>
-                  QUALITY FIRST
-                </strong>
-
-                <span>
-                  Every piece checked
-                </span>
-
-              </div>
-
-            </div>
-
-
-            <div>
-
-              <RotateCcw size={20} />
-
-              <div>
-
-                <strong>
-                  EASY RETURNS
-                </strong>
-
-                <span>
-                  Simple & transparent
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </main>
-
-
-      {/* EXTRA */}
-
-      <section className="product-details-extra">
-
-        <div>
-
-          <span>
-            THE OFF GRID / DETAILS
-          </span>
-
-          <h2>
-            BUILT FOR
-            <br />
-            <em>REPEAT WEAR.</em>
-          </h2>
-
-        </div>
-
-
-        <div>
-
-          <p>
-            {product.description}
-          </p>
-
-          <p>
-            Designed with a focus on clean
-            silhouettes, everyday comfort and
-            effortless styling.
-          </p>
-
-        </div>
-
-      </section>
-
-
-      {/* REVIEWS */}
-
-      <ProductReviews productId={product.id} />
-
-
-      {/* BACK */}
-
-      <div className="product-details-bottom">
-
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft size={17} />
-          CONTINUE SHOPPING
         </button>
 
-      </div>
-
-
-      {sizeGuideOpen && (
-        <SizeGuideModal onClose={() => setSizeGuideOpen(false)} />
       )}
 
     </div>
-  );
-}
 
-
-/* =========================================================
-   PRODUCT NOT FOUND
-========================================================= */
-
-function ProductNotFound({
-  onBack,
-}) {
-
-  return (
-
-    <div className="product-not-found-page">
-
-      <div className="product-not-found-inner">
-
-        <span>
-          THE OFF GRID
-        </span>
-
-
-        <h1>
-          PRODUCT NOT
-          <br />
-          FOUND
-        </h1>
-
-
-        <p>
-          We couldn't find the product you're
-          looking for.
-        </p>
-
-
-        <button
-          type="button"
-          onClick={onBack}
-        >
-          <ArrowLeft size={17} />
-          BACK TO SHOP
-        </button>
-
-      </div>
-
-    </div>
   );
 }
 
@@ -2437,11 +2107,15 @@ function Category({
       onClick={click}
     >
 
-      <img
-        src={image}
-        alt={title}
-        loading="lazy"
-      />
+      {image && (
+
+        <img
+          src={image}
+          alt={title}
+          loading="lazy"
+        />
+
+      )}
 
 
       <div className="category-overlay"></div>
@@ -2460,12 +2134,18 @@ function Category({
 
 
         <span>
+
           SHOP NOW
-          <ArrowRight size={15} />
+
+          <ArrowRight
+            size={15}
+          />
+
         </span>
 
       </div>
 
     </button>
+
   );
 }
