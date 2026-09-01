@@ -11,6 +11,7 @@ import {
   Instagram,
   Youtube,
 } from "lucide-react";
+
 import {
   Link,
   useLocation,
@@ -19,6 +20,10 @@ import {
 
 import ProductCard from "./components/ProductCard";
 import ProductDetails from "./components/ProductDetails";
+
+import Checkout from "./pages/Checkout";
+import Order from "./pages/Order";
+import Success from "./pages/Success";
 
 import "./styles.css";
 
@@ -257,7 +262,6 @@ export default function App() {
   const [searchText, setSearchText] = useState("");
 
   const [cart, setCart] = useState([]);
-
   const [wishlist, setWishlist] = useState([]);
 
   const [activeCategory, setActiveCategory] =
@@ -274,8 +278,7 @@ export default function App() {
     setCart((current) => {
       const existing = current.find(
         (item) =>
-          String(item.id) ===
-          String(product.id)
+          String(item.id) === String(product.id)
       );
 
       if (existing) {
@@ -284,10 +287,8 @@ export default function App() {
           String(product.id)
             ? {
                 ...item,
-                qty: Math.min(
+                qty:
                   Number(item.qty || 1) + 1,
-                  Number(product.stock || 999)
-                ),
               }
             : item
         );
@@ -312,69 +313,6 @@ export default function App() {
   };
 
   /* =======================================================
-     REMOVE CART ITEM
-  ======================================================= */
-
-  const removeCart = (id) => {
-    setCart((current) =>
-      current.filter(
-        (item) =>
-          String(item.id) !== String(id)
-      )
-    );
-  };
-
-  /* =======================================================
-     UPDATE CART QUANTITY
-  ======================================================= */
-
-  const updateCartQuantity = (
-    id,
-    quantity
-  ) => {
-    setCart((current) =>
-      current
-        .map((item) => {
-          if (
-            String(item.id) !==
-            String(id)
-          ) {
-            return item;
-          }
-
-          const max =
-            Number(item.stock) || 999;
-
-          const nextQuantity = Math.max(
-            1,
-            Math.min(
-              max,
-              Number(quantity) || 1
-            )
-          );
-
-          return {
-            ...item,
-            qty: nextQuantity,
-          };
-        })
-    );
-  };
-
-  /* =======================================================
-     TOTAL CART ITEMS
-  ======================================================= */
-
-  const cartCount = useMemo(() => {
-    return cart.reduce(
-      (total, item) =>
-        total +
-        Number(item.qty || 1),
-      0
-    );
-  }, [cart]);
-
-  /* =======================================================
      WISHLIST
   ======================================================= */
 
@@ -387,100 +325,6 @@ export default function App() {
         : [...current, id]
     );
   };
-
-  /* =======================================================
-     PRODUCT DETAILS PAGE
-  ======================================================= */
-
-  if (
-    location.pathname.startsWith(
-      "/product/"
-    )
-  ) {
-    return (
-      <ProductDetails
-        products={products}
-        add={addCart}
-        wishlist={wishlist}
-        toggle={toggleWishlist}
-      />
-    );
-  }
-
-  /* =======================================================
-     CHECKOUT PAGE
-  ======================================================= */
-
-  if (
-    location.pathname ===
-    "/checkout"
-  ) {
-    return (
-      <CheckoutPageWrapper
-        cart={cart}
-        clearCart={clearCart}
-      />
-    );
-  }
-
-  /* =======================================================
-     ORDER SUCCESS
-  ======================================================= */
-
-  if (
-    location.pathname ===
-    "/order-success"
-  ) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "40px",
-          textAlign: "center",
-        }}
-      >
-        <div>
-          <span>
-            THE OFF GRID / ORDER
-          </span>
-
-          <h1
-            style={{
-              fontSize: "clamp(48px, 8vw, 100px)",
-              lineHeight: 0.9,
-              margin: "20px 0",
-            }}
-          >
-            ORDER
-            <br />
-            <em>CONFIRMED.</em>
-          </h1>
-
-          <p>
-            Thank you for shopping with
-            The Off Grid.
-          </p>
-
-          <button
-            type="button"
-            className="orange-btn"
-            onClick={() =>
-              navigate("/")
-            }
-            style={{
-              marginTop: "25px",
-            }}
-          >
-            CONTINUE SHOPPING
-            <ArrowRight size={18} />
-          </button>
-        </div>
-      </main>
-    );
-  }
 
   /* =======================================================
      SCROLL
@@ -500,17 +344,43 @@ export default function App() {
   };
 
   /* =======================================================
-     OPEN CART
+     ROUTES
   ======================================================= */
 
-  const openCart = () => {
-    if (!cart.length) {
-      scroll("shop");
-      return;
-    }
+  if (location.pathname === "/checkout") {
+    return (
+      <Checkout
+        cart={cart}
+        clearCart={clearCart}
+      />
+    );
+  }
 
-    navigate("/cart");
-  };
+  if (location.pathname === "/order") {
+    return <Order />;
+  }
+
+  if (
+    location.pathname === "/order-success" ||
+    location.pathname === "/success"
+  ) {
+    return <Success />;
+  }
+
+  if (
+    location.pathname.startsWith(
+      "/product/"
+    )
+  ) {
+    return (
+      <ProductDetails
+        products={products}
+        add={addCart}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
+      />
+    );
+  }
 
   /* =======================================================
      FILTER + SEARCH + SORT
@@ -582,12 +452,14 @@ export default function App() {
     "FOOTWEAR",
   ];
 
+  /* =======================================================
+     HOME PAGE
+  ======================================================= */
+
   return (
     <div className="app">
 
-      {/* ==================================================
-          TOP BAR
-      ================================================== */}
+      {/* TOP BAR */}
 
       <div className="topbar">
 
@@ -605,9 +477,7 @@ export default function App() {
 
       </div>
 
-      {/* ==================================================
-          NAVIGATION
-      ================================================== */}
+      {/* NAVIGATION */}
 
       <header className="navbar">
 
@@ -689,30 +559,33 @@ export default function App() {
                 {wishlist.length}
               </b>
             )}
-
           </button>
 
           <button
             type="button"
-            onClick={openCart}
+            onClick={() =>
+              scroll("shop")
+            }
           >
             <ShoppingBag size={19} />
 
-            {cartCount > 0 && (
+            {cart.length > 0 && (
               <b>
-                {cartCount}
+                {cart.reduce(
+                  (total, item) =>
+                    total +
+                    Number(item.qty || 1),
+                  0
+                )}
               </b>
             )}
-
           </button>
 
         </div>
 
       </header>
 
-      {/* ==================================================
-          MOBILE MENU
-      ================================================== */}
+      {/* MOBILE MENU */}
 
       {menu && (
         <div className="mobile-menu">
@@ -781,9 +654,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ==================================================
-          SEARCH OVERLAY
-      ================================================== */}
+      {/* SEARCH OVERLAY */}
 
       {searchOpen && (
         <div className="search-overlay">
@@ -840,9 +711,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ==================================================
-          HERO
-      ================================================== */}
+      {/* HERO */}
 
       <section
         className="hero"
@@ -917,9 +786,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          MARQUEE
-      ================================================== */}
+      {/* MARQUEE */}
 
       <div className="marquee">
 
@@ -944,9 +811,7 @@ export default function App() {
 
       </div>
 
-      {/* ==================================================
-          STORY
-      ================================================== */}
+      {/* STORY */}
 
       <section
         className="story section"
@@ -1014,9 +879,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          CATEGORIES
-      ================================================== */}
+      {/* CATEGORIES */}
 
       <section
         className="categories section"
@@ -1052,9 +915,7 @@ export default function App() {
             number="01"
             image="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory(
-                "T-SHIRTS"
-              );
+              setActiveCategory("T-SHIRTS");
               scroll("shop");
             }}
           />
@@ -1064,9 +925,7 @@ export default function App() {
             number="02"
             image="https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory(
-                "SHIRTS"
-              );
+              setActiveCategory("SHIRTS");
               scroll("shop");
             }}
           />
@@ -1076,9 +935,7 @@ export default function App() {
             number="03"
             image="https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory(
-                "BOTTOMS"
-              );
+              setActiveCategory("BOTTOMS");
               scroll("shop");
             }}
           />
@@ -1088,9 +945,7 @@ export default function App() {
             number="04"
             image="https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory(
-                "HOODIES"
-              );
+              setActiveCategory("HOODIES");
               scroll("shop");
             }}
           />
@@ -1099,9 +954,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          SHOP
-      ================================================== */}
+      {/* SHOP */}
 
       <section
         className="shop section"
@@ -1219,9 +1072,7 @@ export default function App() {
 
               </select>
 
-              <ChevronDown
-                size={15}
-              />
+              <ChevronDown size={15} />
 
             </div>
 
@@ -1231,8 +1082,7 @@ export default function App() {
 
         <div className="products">
 
-          {filteredProducts.length >
-          0 ? (
+          {filteredProducts.length > 0 ? (
 
             filteredProducts.map(
               (product) => (
@@ -1242,9 +1092,7 @@ export default function App() {
                   p={product}
                   add={addCart}
                   wish={wishlist}
-                  toggle={
-                    toggleWishlist
-                  }
+                  toggle={toggleWishlist}
                 />
 
               )
@@ -1265,9 +1113,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveCategory(
-                    "ALL"
-                  );
+                  setActiveCategory("ALL");
                   setSearchText("");
                 }}
               >
@@ -1297,9 +1143,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          STATEMENT
-      ================================================== */}
+      {/* STATEMENT */}
 
       <section className="statement">
 
@@ -1315,9 +1159,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          JOURNAL
-      ================================================== */}
+      {/* JOURNAL */}
 
       <section
         className="journal section"
@@ -1368,9 +1210,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          NEWSLETTER
-      ================================================== */}
+      {/* NEWSLETTER */}
 
       <section className="newsletter">
 
@@ -1424,9 +1264,7 @@ export default function App() {
 
       </section>
 
-      {/* ==================================================
-          FOOTER
-      ================================================== */}
+      {/* FOOTER */}
 
       <footer>
 
@@ -1460,9 +1298,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory(
-                  "ALL"
-                );
+                setActiveCategory("ALL");
                 scroll("shop");
               }}
             >
@@ -1472,9 +1308,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory(
-                  "T-SHIRTS"
-                );
+                setActiveCategory("T-SHIRTS");
                 scroll("shop");
               }}
             >
@@ -1484,9 +1318,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory(
-                  "SHIRTS"
-                );
+                setActiveCategory("SHIRTS");
                 scroll("shop");
               }}
             >
@@ -1496,9 +1328,7 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory(
-                  "BOTTOMS"
-                );
+                setActiveCategory("BOTTOMS");
                 scroll("shop");
               }}
             >
@@ -1566,7 +1396,7 @@ export default function App() {
             </h4>
 
             <a
-              href="https://instagram.com"
+              href="https://instagram.com/theoffgrid.in"
               target="_blank"
               rel="noreferrer"
             >
@@ -1616,76 +1446,44 @@ export default function App() {
 
       </footer>
 
-      {/* ==================================================
-          FLOATING BAG STATUS
-      ================================================== */}
+      {/* FLOATING BAG */}
 
-      {cartCount > 0 && (
+      {cart.length > 0 && (
 
         <button
           type="button"
           className="floating-bag"
-          onClick={openCart}
+          onClick={() =>
+            navigate("/checkout")
+          }
         >
 
           <ShoppingBag size={18} />
 
           <span>
-            {cartCount}{" "}
-            {cartCount === 1
+            {cart.reduce(
+              (total, item) =>
+                total +
+                Number(item.qty || 1),
+              0
+            )}{" "}
+            {cart.reduce(
+              (total, item) =>
+                total +
+                Number(item.qty || 1),
+              0
+            ) === 1
               ? "ITEM"
               : "ITEMS"}
           </span>
 
-          <ArrowUpRight
-            size={16}
-          />
+          <ArrowUpRight size={16} />
 
         </button>
 
       )}
 
     </div>
-  );
-}
-
-/* =========================================================
-   CHECKOUT WRAPPER
-========================================================= */
-
-function CheckoutPageWrapper({
-  cart,
-  clearCart,
-}) {
-  const [Checkout, setCheckout] =
-    useState(null);
-
-  React.useEffect(() => {
-    import("./components/Checkout")
-      .then((module) => {
-        setCheckout(() => module.default);
-      });
-  }, []);
-
-  if (!Checkout) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          display: "grid",
-          placeItems: "center",
-        }}
-      >
-        LOADING CHECKOUT...
-      </main>
-    );
-  }
-
-  return (
-    <Checkout
-      cart={cart}
-      clearCart={clearCart}
-    />
   );
 }
 
