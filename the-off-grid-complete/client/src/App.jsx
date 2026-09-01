@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+
 import {
   Search,
   Heart,
@@ -19,7 +20,7 @@ import {
 } from "react-router-dom";
 
 import ProductCard from "./components/ProductCard";
-import ProductDetails from "./components/ProductDetails";
+import ProductDetails from "./pages/ProductDetails";
 
 import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
@@ -27,8 +28,9 @@ import Success from "./pages/Success";
 
 import "./styles.css";
 
+
 /* =========================================================
-   THE OFF GRID — PRODUCT COLLECTION
+   THE OFF GRID — PRODUCTS
 ========================================================= */
 
 const products = [
@@ -249,6 +251,7 @@ const products = [
   },
 ];
 
+
 /* =========================================================
    APP
 ========================================================= */
@@ -270,6 +273,7 @@ export default function App() {
   const [sortBy, setSortBy] =
     useState("FEATURED");
 
+
   /* =======================================================
      CART
   ======================================================= */
@@ -278,7 +282,8 @@ export default function App() {
     setCart((current) => {
       const existing = current.find(
         (item) =>
-          String(item.id) === String(product.id)
+          String(item.id) ===
+          String(product.id)
       );
 
       if (existing) {
@@ -304,6 +309,7 @@ export default function App() {
     });
   };
 
+
   /* =======================================================
      CLEAR CART
   ======================================================= */
@@ -311,6 +317,7 @@ export default function App() {
   const clearCart = () => {
     setCart([]);
   };
+
 
   /* =======================================================
      WISHLIST
@@ -325,6 +332,7 @@ export default function App() {
         : [...current, id]
     );
   };
+
 
   /* =======================================================
      SCROLL
@@ -343,12 +351,60 @@ export default function App() {
     }, 50);
   };
 
+
+  /* =======================================================
+     ROUTES
+  ======================================================= */
+
+  if (location.pathname === "/checkout") {
+    return (
+      <Checkout
+        cart={cart}
+        clearCart={clearCart}
+      />
+    );
+  }
+
+
+  if (
+    location.pathname === "/order" ||
+    location.pathname === "/orders"
+  ) {
+    return <Order />;
+  }
+
+
+  if (
+    location.pathname === "/order-success" ||
+    location.pathname === "/success"
+  ) {
+    return <Success />;
+  }
+
+
+  /*
+   * IMPORTANT:
+   * ProductDetails is now ONLY inside pages.
+   */
+
+  if (
+    location.pathname.startsWith(
+      "/product/"
+    )
+  ) {
+    return (
+      <ProductDetails
+        products={products}
+        add={addCart}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
+      />
+    );
+  }
+
+
   /* =======================================================
      FILTER + SEARCH + SORT
-     
-     IMPORTANT:
-     This hook is ABOVE the route returns so the hook
-     order never changes between pages.
   ======================================================= */
 
   const filteredProducts = useMemo(() => {
@@ -406,6 +462,7 @@ export default function App() {
     sortBy,
   ]);
 
+
   const categories = [
     "ALL",
     "T-SHIRTS",
@@ -417,53 +474,18 @@ export default function App() {
     "FOOTWEAR",
   ];
 
-  /* =========================================================
-     ROUTES
-  ========================================================= */
 
-  if (location.pathname === "/checkout") {
-    return (
-      <Checkout
-        cart={cart}
-        clearCart={clearCart}
-      />
-    );
-  }
-
-  if (location.pathname === "/order") {
-    return <Order />;
-  }
-
-  if (
-    location.pathname === "/order-success" ||
-    location.pathname === "/success"
-  ) {
-    return <Success />;
-  }
-
-  if (
-    location.pathname.startsWith(
-      "/product/"
-    )
-  ) {
-    return (
-      <ProductDetails
-        products={products}
-        add={addCart}
-        wishlist={wishlist}
-        toggle={toggleWishlist}
-      />
-    );
-  }
-
-  /* =========================================================
+  /* =======================================================
      HOME PAGE
-  ========================================================= */
+  ======================================================= */
 
   return (
     <div className="app">
 
-      {/* TOP BAR */}
+
+      {/* ===================================================
+          TOP BAR
+      =================================================== */}
 
       <div className="topbar">
 
@@ -481,7 +503,10 @@ export default function App() {
 
       </div>
 
-      {/* NAVIGATION */}
+
+      {/* ===================================================
+          NAVIGATION
+      =================================================== */}
 
       <header className="navbar">
 
@@ -495,6 +520,7 @@ export default function App() {
         >
           <Menu size={23} />
         </button>
+
 
         <nav className="nav-left">
 
@@ -527,6 +553,7 @@ export default function App() {
 
         </nav>
 
+
         <button
           type="button"
           className="logo"
@@ -537,6 +564,7 @@ export default function App() {
           <small>THE</small>
           <strong>OFF GRID</strong>
         </button>
+
 
         <div className="nav-right">
 
@@ -549,6 +577,7 @@ export default function App() {
             <Search size={19} />
             <span>SEARCH</span>
           </button>
+
 
           <button
             type="button"
@@ -565,10 +594,13 @@ export default function App() {
             )}
           </button>
 
+
           <button
             type="button"
             onClick={() =>
-              navigate("/checkout")
+              cart.length
+                ? navigate("/checkout")
+                : scroll("shop")
             }
           >
             <ShoppingBag size={19} />
@@ -589,7 +621,10 @@ export default function App() {
 
       </header>
 
-      {/* MOBILE MENU */}
+
+      {/* ===================================================
+          MOBILE MENU
+      =================================================== */}
 
       {menu && (
         <div className="mobile-menu">
@@ -604,10 +639,12 @@ export default function App() {
             <X size={28} />
           </button>
 
+
           <div className="mobile-logo">
             <small>THE</small>
             <strong>OFF GRID</strong>
           </div>
+
 
           <div className="mobile-links">
 
@@ -620,6 +657,7 @@ export default function App() {
               SHOP
             </button>
 
+
             <button
               type="button"
               onClick={() =>
@@ -629,6 +667,7 @@ export default function App() {
               CATEGORIES
             </button>
 
+
             <button
               type="button"
               onClick={() =>
@@ -637,6 +676,7 @@ export default function App() {
             >
               OUR STORY
             </button>
+
 
             <button
               type="button"
@@ -649,6 +689,7 @@ export default function App() {
 
           </div>
 
+
           <p>
             NO RULES.
             <br />
@@ -658,7 +699,10 @@ export default function App() {
         </div>
       )}
 
-      {/* SEARCH OVERLAY */}
+
+      {/* ===================================================
+          SEARCH OVERLAY
+      =================================================== */}
 
       {searchOpen && (
         <div className="search-overlay">
@@ -674,11 +718,13 @@ export default function App() {
             <X size={28} />
           </button>
 
+
           <div className="search-inner">
 
             <span>
               SEARCH THE OFF GRID
             </span>
+
 
             <div className="big-search">
 
@@ -706,6 +752,7 @@ export default function App() {
 
             </div>
 
+
             <p>
               TRY "TEE", "HOODIE", "CARGO" OR "JACKET"
             </p>
@@ -715,7 +762,10 @@ export default function App() {
         </div>
       )}
 
-      {/* HERO */}
+
+      {/* ===================================================
+          HERO
+      =================================================== */}
 
       <section
         className="hero"
@@ -729,11 +779,13 @@ export default function App() {
 
         <div className="hero-dark"></div>
 
+
         <div className="hero-content">
 
           <span className="eyebrow">
             THE OFF GRID / 001
           </span>
+
 
           <h1>
             WEAR
@@ -743,6 +795,7 @@ export default function App() {
             WAY<span>.</span>
           </h1>
 
+
           <p>
             Clothing for independent minds.
             <br />
@@ -750,6 +803,7 @@ export default function App() {
             <br />
             Zero unnecessary rules.
           </p>
+
 
           <div className="hero-buttons">
 
@@ -763,6 +817,7 @@ export default function App() {
               SHOP NEW ARRIVALS
               <ArrowRight size={18} />
             </button>
+
 
             <button
               type="button"
@@ -778,6 +833,7 @@ export default function App() {
 
         </div>
 
+
         <div className="hero-bottom">
 
           <span>01</span>
@@ -790,7 +846,10 @@ export default function App() {
 
       </section>
 
-      {/* MARQUEE */}
+
+      {/* ===================================================
+          MARQUEE
+      =================================================== */}
 
       <div className="marquee">
 
@@ -815,7 +874,10 @@ export default function App() {
 
       </div>
 
-      {/* STORY */}
+
+      {/* ===================================================
+          STORY
+      =================================================== */}
 
       <section
         className="story section"
@@ -826,6 +888,7 @@ export default function App() {
           01 / THE OFF GRID
         </div>
 
+
         <div className="story-grid">
 
           <h2>
@@ -833,6 +896,7 @@ export default function App() {
             <br />
             FOR <em>EVERYONE.</em>
           </h2>
+
 
           <div>
 
@@ -843,6 +907,7 @@ export default function App() {
               clothes should reflect your point
               of view — not somebody else's.
             </p>
+
 
             <button
               type="button"
@@ -859,6 +924,7 @@ export default function App() {
 
         </div>
 
+
         <div className="benefits">
 
           <div>
@@ -867,11 +933,13 @@ export default function App() {
             <p>Across India</p>
           </div>
 
+
           <div>
             <strong>02</strong>
             <h3>QUALITY FIRST</h3>
             <p>Every piece checked</p>
           </div>
+
 
           <div>
             <strong>03</strong>
@@ -883,7 +951,10 @@ export default function App() {
 
       </section>
 
-      {/* CATEGORIES */}
+
+      {/* ===================================================
+          CATEGORIES
+      =================================================== */}
 
       <section
         className="categories section"
@@ -906,11 +977,13 @@ export default function App() {
 
           </div>
 
+
           <div className="round-arrow">
             ↓
           </div>
 
         </div>
+
 
         <div className="category-grid">
 
@@ -924,6 +997,7 @@ export default function App() {
             }}
           />
 
+
           <Category
             title="SHIRTS"
             number="02"
@@ -934,6 +1008,7 @@ export default function App() {
             }}
           />
 
+
           <Category
             title="BOTTOMS"
             number="03"
@@ -943,6 +1018,7 @@ export default function App() {
               scroll("shop");
             }}
           />
+
 
           <Category
             title="HOODIES"
@@ -958,7 +1034,10 @@ export default function App() {
 
       </section>
 
-      {/* SHOP */}
+
+      {/* ===================================================
+          SHOP
+      =================================================== */}
 
       <section
         className="shop section"
@@ -981,11 +1060,13 @@ export default function App() {
 
           </div>
 
+
           <p>
             BUILT FOR REPEAT WEAR.
           </p>
 
         </div>
+
 
         {searchText && (
           <div className="shop-search-result">
@@ -1010,6 +1091,7 @@ export default function App() {
 
           </div>
         )}
+
 
         <div className="shop-controls">
 
@@ -1041,11 +1123,13 @@ export default function App() {
 
           </div>
 
+
           <div className="sort-wrapper">
 
             <span>
               SORT BY
             </span>
+
 
             <div>
 
@@ -1076,6 +1160,7 @@ export default function App() {
 
               </select>
 
+
               <ChevronDown size={15} />
 
             </div>
@@ -1083,6 +1168,7 @@ export default function App() {
           </div>
 
         </div>
+
 
         <div className="products">
 
@@ -1131,6 +1217,7 @@ export default function App() {
 
         </div>
 
+
         <div className="shop-count">
 
           SHOWING{" "}
@@ -1147,7 +1234,10 @@ export default function App() {
 
       </section>
 
-      {/* STATEMENT */}
+
+      {/* ===================================================
+          STATEMENT
+      =================================================== */}
 
       <section className="statement">
 
@@ -1163,7 +1253,10 @@ export default function App() {
 
       </section>
 
-      {/* JOURNAL */}
+
+      {/* ===================================================
+          JOURNAL
+      =================================================== */}
 
       <section
         className="journal section"
@@ -1179,6 +1272,7 @@ export default function App() {
 
         </div>
 
+
         <div className="journal-content">
 
           <span>
@@ -1191,11 +1285,13 @@ export default function App() {
             <em>STANDING OUT.</em>
           </h2>
 
+
           <p>
             Trends disappear. Personal style
             stays. Build a wardrobe that feels
             like you.
           </p>
+
 
           <button
             type="button"
@@ -1214,7 +1310,10 @@ export default function App() {
 
       </section>
 
-      {/* NEWSLETTER */}
+
+      {/* ===================================================
+          NEWSLETTER
+      =================================================== */}
 
       <section className="newsletter">
 
@@ -1232,6 +1331,7 @@ export default function App() {
 
         </div>
 
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1245,6 +1345,7 @@ export default function App() {
           <label>
             EMAIL ADDRESS
           </label>
+
 
           <div>
 
@@ -1260,6 +1361,7 @@ export default function App() {
 
           </div>
 
+
           <small>
             NEW DROPS. LIMITED EDITS. ZERO SPAM.
           </small>
@@ -1268,11 +1370,15 @@ export default function App() {
 
       </section>
 
-      {/* FOOTER */}
+
+      {/* ===================================================
+          FOOTER
+      =================================================== */}
 
       <footer>
 
         <div className="footer-grid">
+
 
           <div className="footer-brand">
 
@@ -1293,11 +1399,13 @@ export default function App() {
 
           </div>
 
+
           <div>
 
             <h4>
               SHOP
             </h4>
+
 
             <button
               type="button"
@@ -1309,6 +1417,7 @@ export default function App() {
               NEW ARRIVALS
             </button>
 
+
             <button
               type="button"
               onClick={() => {
@@ -1319,6 +1428,7 @@ export default function App() {
               TEES
             </button>
 
+
             <button
               type="button"
               onClick={() => {
@@ -1328,6 +1438,7 @@ export default function App() {
             >
               SHIRTS
             </button>
+
 
             <button
               type="button"
@@ -1341,11 +1452,13 @@ export default function App() {
 
           </div>
 
+
           <div>
 
             <h4>
               INFO
             </h4>
+
 
             <button
               type="button"
@@ -1358,6 +1471,7 @@ export default function App() {
               SHIPPING
             </button>
 
+
             <button
               type="button"
               onClick={() =>
@@ -1369,6 +1483,7 @@ export default function App() {
               RETURNS
             </button>
 
+
             <button
               type="button"
               onClick={() =>
@@ -1379,6 +1494,7 @@ export default function App() {
             >
               CONTACT
             </button>
+
 
             <button
               type="button"
@@ -1393,11 +1509,13 @@ export default function App() {
 
           </div>
 
+
           <div>
 
             <h4>
               FOLLOW
             </h4>
+
 
             <a
               href="https://instagram.com/theoffgrid.in"
@@ -1408,6 +1526,7 @@ export default function App() {
               INSTAGRAM
             </a>
 
+
             <a
               href="https://youtube.com"
               target="_blank"
@@ -1416,6 +1535,7 @@ export default function App() {
               <Youtube size={16} />
               YOUTUBE
             </a>
+
 
             <button
               type="button"
@@ -1431,6 +1551,7 @@ export default function App() {
           </div>
 
         </div>
+
 
         <div className="footer-bottom">
 
@@ -1450,7 +1571,10 @@ export default function App() {
 
       </footer>
 
-      {/* FLOATING BAG */}
+
+      {/* ===================================================
+          FLOATING BAG
+      =================================================== */}
 
       {cart.length > 0 && (
 
@@ -1464,13 +1588,16 @@ export default function App() {
 
           <ShoppingBag size={18} />
 
+
           <span>
+
             {cart.reduce(
               (total, item) =>
                 total +
                 Number(item.qty || 1),
               0
             )}{" "}
+
             {cart.reduce(
               (total, item) =>
                 total +
@@ -1479,7 +1606,9 @@ export default function App() {
             ) === 1
               ? "ITEM"
               : "ITEMS"}
+
           </span>
+
 
           <ArrowUpRight size={16} />
 
@@ -1490,6 +1619,7 @@ export default function App() {
     </div>
   );
 }
+
 
 /* =========================================================
    CATEGORY COMPONENT
@@ -1514,7 +1644,9 @@ function Category({
         loading="lazy"
       />
 
+
       <div className="category-overlay"></div>
+
 
       <div className="category-info">
 
@@ -1522,9 +1654,11 @@ function Category({
           {number}
         </small>
 
+
         <h3>
           {title}
         </h3>
+
 
         <span>
           SHOP NOW
