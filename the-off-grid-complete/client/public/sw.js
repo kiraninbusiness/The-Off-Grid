@@ -1,50 +1,25 @@
-const CACHE_NAME = "off-grid-v1";
+/*
+  The Off Grid
+  Service worker disabled.
 
-const APP_SHELL = [
-  "/",
-  "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png"
-];
+  The application is intentionally not cached here.
+  This prevents stale HTML/JS from causing the site to
+  appear only after a manual refresh during deployments.
+*/
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    )
+      Promise.all(keys.map((key) => caches.delete(key)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-/*
-  Network-first for everything.
-  Falls back to cache only when offline,
-  so shoppers always see live prices/stock
-  when they have a connection.
-*/
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone();
-        caches
-          .open(CACHE_NAME)
-          .then((cache) => cache.put(event.request, clone));
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+self.addEventListener("fetch", () => {
+  // Intentionally do nothing.
+  // Requests use the browser/network normally.
 });
