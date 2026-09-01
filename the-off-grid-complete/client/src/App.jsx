@@ -527,44 +527,113 @@ export default function App() {
      No second product array.
   ======================================================= */
 
-  if (
-    location.pathname.startsWith("/product/")
-  ) {
+if (location.pathname.startsWith("/product/")) {
 
-    const rawId =
-      location.pathname
-        .split("/product/")[1]
-        ?.split("/")[0];
+  const rawId =
+    location.pathname
+      .split("/product/")[1]
+      ?.split("/")[0];
 
-    const product =
-      products.find(
-        (item) =>
-          String(item.id) ===
-          String(rawId)
-      );
+  /*
+   * IMPORTANT:
+   * Wait for the live products API to finish before
+   * deciding that a product does not exist.
+   *
+   * This prevents:
+   * PRODUCT NOT FOUND
+   * appearing temporarily while products are loading.
+   */
 
-
-    if (!product) {
-
-      return (
-        <ProductNotFound
-          onBack={() => navigate("/")}
-        />
-      );
-    }
-
+  if (productsLoading) {
 
     return (
-      <ProductPage
-        product={product}
-        add={addCart}
-        wishlist={wishlist}
-        toggle={toggleWishlist}
-        cart={cart}
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#ebe7dd",
+          fontFamily: "Arial, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "12px",
+              letterSpacing: "3px",
+              marginBottom: "18px",
+            }}
+          >
+            THE OFF GRID
+          </div>
+
+          <div
+            style={{
+              fontSize: "28px",
+              fontWeight: "700",
+              letterSpacing: "-1px",
+            }}
+          >
+            LOADING PRODUCT
+          </div>
+
+          <div
+            style={{
+              marginTop: "18px",
+              fontSize: "11px",
+              letterSpacing: "2px",
+              opacity: 0.55,
+            }}
+          >
+            PLEASE WAIT
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /*
+   * API has finished loading.
+   * Now safely search the live products array.
+   */
+
+  const product = products.find(
+    (item) =>
+      String(item.id) ===
+      String(rawId)
+  );
+
+
+  /*
+   * Only show PRODUCT NOT FOUND after
+   * the API has finished loading.
+   */
+
+  if (!product) {
+
+    return (
+      <ProductNotFound
+        onBack={() => navigate("/")}
       />
     );
   }
 
+
+  return (
+    <ProductPage
+      product={product}
+      add={addCart}
+      wishlist={wishlist}
+      toggle={toggleWishlist}
+      cart={cart}
+    />
+  );
+}
 
   /* =======================================================
      FILTER / SEARCH / SORT
