@@ -11,16 +11,21 @@ import {
   ChevronDown,
   Instagram,
   Youtube,
+  ArrowLeft,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
+  Minus,
+  Plus,
 } from "lucide-react";
 
 import {
-  Link,
   useLocation,
   useNavigate,
+  Link,
 } from "react-router-dom";
 
 import ProductCard from "./components/ProductCard";
-import ProductDetails from "./pages/ProductDetails";
 
 import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
@@ -47,7 +52,7 @@ const products = [
     condition: "NEW",
     stock: 12,
     image:
-      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=90",
     description:
       "Heavyweight oversized cotton tee designed for everyday wear.",
   },
@@ -65,7 +70,7 @@ const products = [
     condition: "NEW",
     stock: 8,
     image:
-      "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=90",
     description:
       "Relaxed linen shirt with a clean silhouette and lightweight feel.",
   },
@@ -83,7 +88,7 @@ const products = [
     condition: "NEW",
     stock: 10,
     image:
-      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90",
     description:
       "Utility-inspired cargo pants with a relaxed streetwear fit.",
   },
@@ -101,7 +106,7 @@ const products = [
     condition: "BESTSELLER",
     stock: 15,
     image:
-      "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1200&q=90",
     description:
       "Premium heavyweight hoodie with an oversized silhouette.",
   },
@@ -119,7 +124,7 @@ const products = [
     condition: "NEW",
     stock: 6,
     image:
-      "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=90",
     description:
       "Minimal bomber jacket with a structured modern silhouette.",
   },
@@ -137,7 +142,7 @@ const products = [
     condition: "NEW",
     stock: 20,
     image:
-      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=1200&q=90",
     description:
       "Minimal six-panel cap finished with The Off Grid branding.",
   },
@@ -155,7 +160,7 @@ const products = [
     condition: "NEW",
     stock: 14,
     image:
-      "https://images.unsplash.com/photo-1618354691373-d851c5c3c990?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1618354691373-d851c5c3c990?auto=format&fit=crop&w=1200&q=90",
     description:
       "Clean ribbed tank designed for layering or standalone wear.",
   },
@@ -173,7 +178,7 @@ const products = [
     condition: "NEW",
     stock: 9,
     image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=90",
     description:
       "Everyday sneakers built around a clean technical streetwear aesthetic.",
   },
@@ -191,7 +196,7 @@ const products = [
     condition: "NEW",
     stock: 7,
     image:
-      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=90",
     description:
       "Utility vest with multiple pockets and a contemporary streetwear cut.",
   },
@@ -209,7 +214,7 @@ const products = [
     condition: "NEW",
     stock: 11,
     image:
-      "https://images.unsplash.com/photo-1603252110481-7ba873bf42ab?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1603252110481-7ba873bf42ab?auto=format&fit=crop&w=1200&q=90",
     description:
       "Structured overshirt designed to work as a light outer layer.",
   },
@@ -227,7 +232,7 @@ const products = [
     condition: "NEW",
     stock: 8,
     image:
-      "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90",
     description:
       "Wide-leg denim with a relaxed profile and washed finish.",
   },
@@ -245,7 +250,7 @@ const products = [
     condition: "BESTSELLER",
     stock: 18,
     image:
-      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1000&q=90",
+      "https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1200&q=90",
     description:
       "Relaxed everyday tee with a vintage-inspired washed finish.",
   },
@@ -257,6 +262,7 @@ const products = [
 ========================================================= */
 
 export default function App() {
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -279,7 +285,9 @@ export default function App() {
   ======================================================= */
 
   const addCart = (product) => {
+
     setCart((current) => {
+
       const existing = current.find(
         (item) =>
           String(item.id) ===
@@ -287,6 +295,7 @@ export default function App() {
       );
 
       if (existing) {
+
         return current.map((item) =>
           String(item.id) ===
           String(product.id)
@@ -324,13 +333,24 @@ export default function App() {
   ======================================================= */
 
   const toggleWishlist = (id) => {
-    setWishlist((current) =>
-      current.includes(id)
-        ? current.filter(
-            (item) => item !== id
-          )
-        : [...current, id]
-    );
+
+    setWishlist((current) => {
+
+      const exists = current.some(
+        (item) =>
+          String(item) === String(id)
+      );
+
+      if (exists) {
+
+        return current.filter(
+          (item) =>
+            String(item) !== String(id)
+        );
+      }
+
+      return [...current, id];
+    });
   };
 
 
@@ -339,24 +359,28 @@ export default function App() {
   ======================================================= */
 
   const scroll = (id) => {
+
     setMenu(false);
 
     setTimeout(() => {
+
       document
         .getElementById(id)
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
+
     }, 50);
   };
 
 
   /* =======================================================
-     ROUTES
+     SPECIAL ROUTES
   ======================================================= */
 
   if (location.pathname === "/checkout") {
+
     return (
       <Checkout
         cart={cart}
@@ -370,6 +394,7 @@ export default function App() {
     location.pathname === "/order" ||
     location.pathname === "/orders"
   ) {
+
     return <Order />;
   }
 
@@ -378,39 +403,73 @@ export default function App() {
     location.pathname === "/order-success" ||
     location.pathname === "/success"
   ) {
+
     return <Success />;
   }
 
 
-  /*
-   * IMPORTANT:
-   * ProductDetails is now ONLY inside pages.
-   */
+  /* =======================================================
+     PRODUCT DETAIL ROUTE
+
+     IMPORTANT:
+     Product is found DIRECTLY from the SAME products
+     array used by the shop.
+
+     No ProductDetails.jsx.
+     No props.
+     No second product array.
+  ======================================================= */
 
   if (
-    location.pathname.startsWith(
-      "/product/"
-    )
+    location.pathname.startsWith("/product/")
   ) {
+
+    const rawId =
+      location.pathname
+        .split("/product/")[1]
+        ?.split("/")[0];
+
+    const product =
+      products.find(
+        (item) =>
+          String(item.id) ===
+          String(rawId)
+      );
+
+
+    if (!product) {
+
+      return (
+        <ProductNotFound
+          onBack={() => navigate("/")}
+        />
+      );
+    }
+
+
     return (
-      <ProductDetails
-        products={products}
+      <ProductPage
+        product={product}
         add={addCart}
         wishlist={wishlist}
         toggle={toggleWishlist}
+        cart={cart}
       />
     );
   }
 
 
   /* =======================================================
-     FILTER + SEARCH + SORT
+     FILTER / SEARCH / SORT
   ======================================================= */
 
   const filteredProducts = useMemo(() => {
+
     let result = [...products];
 
+
     if (activeCategory !== "ALL") {
+
       result = result.filter(
         (product) =>
           product.category ===
@@ -418,9 +477,13 @@ export default function App() {
       );
     }
 
+
     if (searchText.trim()) {
+
       const query =
-        searchText.toLowerCase();
+        searchText
+          .toLowerCase()
+          .trim();
 
       result = result.filter(
         (product) =>
@@ -437,25 +500,36 @@ export default function App() {
       );
     }
 
+
     if (sortBy === "PRICE LOW") {
+
       result.sort(
-        (a, b) => a.price - b.price
+        (a, b) =>
+          a.price - b.price
       );
     }
+
 
     if (sortBy === "PRICE HIGH") {
+
       result.sort(
-        (a, b) => b.price - a.price
+        (a, b) =>
+          b.price - a.price
       );
     }
+
 
     if (sortBy === "NAME") {
-      result.sort((a, b) =>
-        a.name.localeCompare(b.name)
+
+      result.sort(
+        (a, b) =>
+          a.name.localeCompare(b.name)
       );
     }
 
+
     return result;
+
   }, [
     activeCategory,
     searchText,
@@ -476,16 +550,15 @@ export default function App() {
 
 
   /* =======================================================
-     HOME PAGE
+     HOME
   ======================================================= */
 
   return (
+
     <div className="app">
 
 
-      {/* ===================================================
-          TOP BAR
-      =================================================== */}
+      {/* TOPBAR */}
 
       <div className="topbar">
 
@@ -504,19 +577,14 @@ export default function App() {
       </div>
 
 
-      {/* ===================================================
-          NAVIGATION
-      =================================================== */}
+      {/* NAVBAR */}
 
       <header className="navbar">
 
         <button
           className="mobile-menu-btn"
           type="button"
-          onClick={() =>
-            setMenu(true)
-          }
-          aria-label="Open menu"
+          onClick={() => setMenu(true)}
         >
           <Menu size={23} />
         </button>
@@ -526,9 +594,7 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() =>
-              scroll("shop")
-            }
+            onClick={() => scroll("shop")}
           >
             SHOP
           </button>
@@ -561,8 +627,13 @@ export default function App() {
             scroll("home")
           }
         >
+
           <small>THE</small>
-          <strong>OFF GRID</strong>
+
+          <strong>
+            OFF GRID
+          </strong>
+
         </button>
 
 
@@ -574,8 +645,13 @@ export default function App() {
               setSearchOpen(true)
             }
           >
+
             <Search size={19} />
-            <span>SEARCH</span>
+
+            <span>
+              SEARCH
+            </span>
+
           </button>
 
 
@@ -585,6 +661,7 @@ export default function App() {
               scroll("shop")
             }
           >
+
             <Heart size={19} />
 
             {wishlist.length > 0 && (
@@ -592,6 +669,7 @@ export default function App() {
                 {wishlist.length}
               </b>
             )}
+
           </button>
 
 
@@ -603,6 +681,7 @@ export default function App() {
                 : scroll("shop")
             }
           >
+
             <ShoppingBag size={19} />
 
             {cart.length > 0 && (
@@ -615,6 +694,7 @@ export default function App() {
                 )}
               </b>
             )}
+
           </button>
 
         </div>
@@ -622,27 +702,31 @@ export default function App() {
       </header>
 
 
-      {/* ===================================================
-          MOBILE MENU
-      =================================================== */}
+      {/* MOBILE MENU */}
 
       {menu && (
+
         <div className="mobile-menu">
 
           <button
             type="button"
             className="mobile-close"
-            onClick={() =>
-              setMenu(false)
-            }
+            onClick={() => setMenu(false)}
           >
             <X size={28} />
           </button>
 
 
           <div className="mobile-logo">
-            <small>THE</small>
-            <strong>OFF GRID</strong>
+
+            <small>
+              THE
+            </small>
+
+            <strong>
+              OFF GRID
+            </strong>
+
           </div>
 
 
@@ -650,13 +734,10 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() =>
-                scroll("shop")
-              }
+              onClick={() => scroll("shop")}
             >
               SHOP
             </button>
-
 
             <button
               type="button"
@@ -667,7 +748,6 @@ export default function App() {
               CATEGORIES
             </button>
 
-
             <button
               type="button"
               onClick={() =>
@@ -676,7 +756,6 @@ export default function App() {
             >
               OUR STORY
             </button>
-
 
             <button
               type="button"
@@ -700,11 +779,10 @@ export default function App() {
       )}
 
 
-      {/* ===================================================
-          SEARCH OVERLAY
-      =================================================== */}
+      {/* SEARCH */}
 
       {searchOpen && (
+
         <div className="search-overlay">
 
           <button
@@ -740,12 +818,17 @@ export default function App() {
                   )
                 }
                 onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter"
-                  ) {
+
+                  if (e.key === "Enter") {
+
                     setSearchOpen(false);
-                    scroll("shop");
+
+                    setTimeout(
+                      () => scroll("shop"),
+                      50
+                    );
                   }
+
                 }}
                 placeholder="Search products..."
               />
@@ -763,9 +846,7 @@ export default function App() {
       )}
 
 
-      {/* ===================================================
-          HERO
-      =================================================== */}
+      {/* HERO */}
 
       <section
         className="hero"
@@ -836,7 +917,9 @@ export default function App() {
 
         <div className="hero-bottom">
 
-          <span>01</span>
+          <span>
+            01
+          </span>
 
           <span>
             NOT MADE FOR EVERYONE.
@@ -847,9 +930,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          MARQUEE
-      =================================================== */}
+      {/* MARQUEE */}
 
       <div className="marquee">
 
@@ -875,9 +956,7 @@ export default function App() {
       </div>
 
 
-      {/* ===================================================
-          STORY
-      =================================================== */}
+      {/* STORY */}
 
       <section
         className="story section"
@@ -952,9 +1031,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          CATEGORIES
-      =================================================== */}
+      {/* CATEGORIES */}
 
       <section
         className="categories section"
@@ -990,7 +1067,7 @@ export default function App() {
           <Category
             title="TEES"
             number="01"
-            image="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=90"
+            image={products[0].image}
             click={() => {
               setActiveCategory("T-SHIRTS");
               scroll("shop");
@@ -1001,7 +1078,7 @@ export default function App() {
           <Category
             title="SHIRTS"
             number="02"
-            image="https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1000&q=90"
+            image={products[1].image}
             click={() => {
               setActiveCategory("SHIRTS");
               scroll("shop");
@@ -1012,7 +1089,7 @@ export default function App() {
           <Category
             title="BOTTOMS"
             number="03"
-            image="https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1000&q=90"
+            image={products[2].image}
             click={() => {
               setActiveCategory("BOTTOMS");
               scroll("shop");
@@ -1023,7 +1100,7 @@ export default function App() {
           <Category
             title="HOODIES"
             number="04"
-            image="https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=90"
+            image={products[3].image}
             click={() => {
               setActiveCategory("HOODIES");
               scroll("shop");
@@ -1035,9 +1112,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          SHOP
-      =================================================== */}
+      {/* SHOP */}
 
       <section
         className="shop section"
@@ -1069,6 +1144,7 @@ export default function App() {
 
 
         {searchText && (
+
           <div className="shop-search-result">
 
             <span>
@@ -1090,6 +1166,7 @@ export default function App() {
             </button>
 
           </div>
+
         )}
 
 
@@ -1159,7 +1236,6 @@ export default function App() {
                 </option>
 
               </select>
-
 
               <ChevronDown size={15} />
 
@@ -1235,13 +1311,13 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          STATEMENT
-      =================================================== */}
+      {/* STATEMENT */}
 
       <section className="statement">
 
-        <span>03</span>
+        <span>
+          03
+        </span>
 
         <h2>
           YOUR STYLE
@@ -1254,9 +1330,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          JOURNAL
-      =================================================== */}
+      {/* JOURNAL */}
 
       <section
         className="journal section"
@@ -1311,9 +1385,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          NEWSLETTER
-      =================================================== */}
+      {/* NEWSLETTER */}
 
       <section className="newsletter">
 
@@ -1334,11 +1406,13 @@ export default function App() {
 
         <form
           onSubmit={(e) => {
+
             e.preventDefault();
 
             alert(
               "You're on The Off Grid list."
             );
+
           }}
         >
 
@@ -1371,9 +1445,7 @@ export default function App() {
       </section>
 
 
-      {/* ===================================================
-          FOOTER
-      =================================================== */}
+      {/* FOOTER */}
 
       <footer>
 
@@ -1572,9 +1644,7 @@ export default function App() {
       </footer>
 
 
-      {/* ===================================================
-          FLOATING BAG
-      =================================================== */}
+      {/* FLOATING BAG */}
 
       {cart.length > 0 && (
 
@@ -1587,7 +1657,6 @@ export default function App() {
         >
 
           <ShoppingBag size={18} />
-
 
           <span>
 
@@ -1609,7 +1678,6 @@ export default function App() {
 
           </span>
 
-
           <ArrowUpRight size={16} />
 
         </button>
@@ -1622,7 +1690,576 @@ export default function App() {
 
 
 /* =========================================================
-   CATEGORY COMPONENT
+   PRODUCT PAGE
+========================================================= */
+
+function ProductPage({
+  product,
+  add,
+  wishlist,
+  toggle,
+}) {
+
+  const navigate = useNavigate();
+
+  const [qty, setQty] = useState(1);
+
+  const [selectedSize, setSelectedSize] =
+    useState("");
+
+
+  const isWishlisted =
+    wishlist.some(
+      (item) =>
+        String(item) ===
+        String(product.id)
+    );
+
+
+  const discount =
+    product.old_price && product.price
+      ? Math.round(
+          ((product.old_price -
+            product.price) /
+            product.old_price) *
+            100
+        )
+      : 0;
+
+
+  const sizes =
+    product.size
+      ? product.size
+          .split("/")
+          .map((s) => s.trim())
+      : [];
+
+
+  const increaseQty = () => {
+
+    if (
+      product.stock &&
+      qty < Number(product.stock)
+    ) {
+      setQty((value) => value + 1);
+    }
+  };
+
+
+  const decreaseQty = () => {
+
+    setQty((value) =>
+      value > 1
+        ? value - 1
+        : 1
+    );
+  };
+
+
+  const handleAdd = () => {
+
+    if (!product.stock) return;
+
+
+    for (
+      let i = 0;
+      i < qty;
+      i++
+    ) {
+      add(product);
+    }
+
+
+    navigate("/checkout");
+  };
+
+
+  return (
+
+    <div className="product-details-page">
+
+
+      {/* HEADER */}
+
+      <header className="product-details-header">
+
+        <button
+          type="button"
+          className="product-back"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft size={18} />
+          BACK TO SHOP
+        </button>
+
+
+        <Link
+          to="/"
+          className="product-details-logo"
+        >
+
+          <small>
+            THE
+          </small>
+
+          <strong>
+            OFF GRID
+          </strong>
+
+        </Link>
+
+
+        <div className="product-details-header-right">
+
+          <span>
+            PRODUCT / {product.id}
+          </span>
+
+        </div>
+
+      </header>
+
+
+      {/* MAIN */}
+
+      <main className="product-details-main">
+
+
+        {/* IMAGE */}
+
+        <div className="product-details-image">
+
+          <img
+            src={product.image}
+            alt={product.name}
+          />
+
+
+          <div className="product-details-image-badge">
+
+            {discount > 0 && (
+              <span>
+                -{discount}%
+              </span>
+            )}
+
+
+            {product.condition && (
+              <span>
+                {product.condition}
+              </span>
+            )}
+
+          </div>
+
+        </div>
+
+
+        {/* INFO */}
+
+        <div className="product-details-info">
+
+          <div className="product-details-number">
+            01 / THE OFF GRID
+          </div>
+
+
+          <div className="product-details-category">
+
+            {product.category}
+            {" · "}
+            {product.gender}
+
+          </div>
+
+
+          <h1>
+            {product.name}
+          </h1>
+
+
+          <div className="product-details-price">
+
+            <strong>
+              ₹{Number(product.price).toLocaleString("en-IN")}
+            </strong>
+
+
+            {product.old_price && (
+              <del>
+                ₹{Number(product.old_price).toLocaleString("en-IN")}
+              </del>
+            )}
+
+
+            {discount > 0 && (
+              <span>
+                SAVE {discount}%
+              </span>
+            )}
+
+          </div>
+
+
+          <p className="product-details-description">
+            {product.description}
+          </p>
+
+
+          {/* SPECS */}
+
+          <div className="product-details-specs">
+
+            <div>
+              <span>
+                COLOR
+              </span>
+
+              <strong>
+                {product.color || "—"}
+              </strong>
+            </div>
+
+
+            <div>
+              <span>
+                FIT
+              </span>
+
+              <strong>
+                {product.fit || "—"}
+              </strong>
+            </div>
+
+
+            <div>
+              <span>
+                CONDITION
+              </span>
+
+              <strong>
+                {product.condition || "NEW"}
+              </strong>
+            </div>
+
+          </div>
+
+
+          {/* SIZE */}
+
+          {sizes.length > 0 && (
+
+            <div className="product-size-section">
+
+              <div className="product-size-title">
+
+                <span>
+                  SELECT SIZE
+                </span>
+
+                <span>
+                  SIZE GUIDE
+                </span>
+
+              </div>
+
+
+              <div className="product-size-buttons">
+
+                {sizes.map((size) => (
+
+                  <button
+                    key={size}
+                    type="button"
+                    className={
+                      selectedSize === size
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setSelectedSize(size)
+                    }
+                  >
+                    {size}
+                  </button>
+
+                ))}
+
+              </div>
+
+            </div>
+
+          )}
+
+
+          {/* BUY ROW */}
+
+          <div className="product-buy-row">
+
+
+            <div className="product-quantity">
+
+              <button
+                type="button"
+                onClick={decreaseQty}
+              >
+                <Minus size={15} />
+              </button>
+
+
+              <span>
+                {qty}
+              </span>
+
+
+              <button
+                type="button"
+                onClick={increaseQty}
+              >
+                <Plus size={15} />
+              </button>
+
+            </div>
+
+
+            <button
+              type="button"
+              className={`product-detail-wishlist ${
+                isWishlisted
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                toggle(product.id)
+              }
+            >
+
+              <Heart
+                size={20}
+                fill={
+                  isWishlisted
+                    ? "currentColor"
+                    : "none"
+                }
+              />
+
+            </button>
+
+          </div>
+
+
+          {/* ADD */}
+
+          <button
+            type="button"
+            className="product-detail-add"
+            disabled={!product.stock}
+            onClick={handleAdd}
+          >
+
+            <span>
+              {product.stock
+                ? "ADD TO BAG"
+                : "SOLD OUT"}
+            </span>
+
+
+            {product.stock ? (
+              <ShoppingBag size={19} />
+            ) : (
+              <ArrowRight size={19} />
+            )}
+
+          </button>
+
+
+          {/* STOCK */}
+
+          {product.stock > 0 && (
+
+            <p className="product-stock">
+
+              {product.stock <= 5
+                ? `ONLY ${product.stock} LEFT`
+                : `${product.stock} AVAILABLE`}
+
+            </p>
+
+          )}
+
+
+          {/* BENEFITS */}
+
+          <div className="product-benefits">
+
+
+            <div>
+
+              <Truck size={20} />
+
+              <div>
+
+                <strong>
+                  FAST SHIPPING
+                </strong>
+
+                <span>
+                  Across India
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div>
+
+              <ShieldCheck size={20} />
+
+              <div>
+
+                <strong>
+                  QUALITY FIRST
+                </strong>
+
+                <span>
+                  Every piece checked
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <div>
+
+              <RotateCcw size={20} />
+
+              <div>
+
+                <strong>
+                  EASY RETURNS
+                </strong>
+
+                <span>
+                  Simple & transparent
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+
+      {/* EXTRA */}
+
+      <section className="product-details-extra">
+
+        <div>
+
+          <span>
+            THE OFF GRID / DETAILS
+          </span>
+
+          <h2>
+            BUILT FOR
+            <br />
+            <em>REPEAT WEAR.</em>
+          </h2>
+
+        </div>
+
+
+        <div>
+
+          <p>
+            {product.description}
+          </p>
+
+          <p>
+            Designed with a focus on clean
+            silhouettes, everyday comfort and
+            effortless styling.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      {/* BACK */}
+
+      <div className="product-details-bottom">
+
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft size={17} />
+          CONTINUE SHOPPING
+        </button>
+
+      </div>
+
+    </div>
+  );
+}
+
+
+/* =========================================================
+   PRODUCT NOT FOUND
+========================================================= */
+
+function ProductNotFound({
+  onBack,
+}) {
+
+  return (
+
+    <div className="product-not-found-page">
+
+      <div className="product-not-found-inner">
+
+        <span>
+          THE OFF GRID
+        </span>
+
+
+        <h1>
+          PRODUCT NOT
+          <br />
+          FOUND
+        </h1>
+
+
+        <p>
+          We couldn't find the product you're
+          looking for.
+        </p>
+
+
+        <button
+          type="button"
+          onClick={onBack}
+        >
+          <ArrowLeft size={17} />
+          BACK TO SHOP
+        </button>
+
+      </div>
+
+    </div>
+  );
+}
+
+
+/* =========================================================
+   CATEGORY
 ========================================================= */
 
 function Category({
@@ -1631,7 +2268,9 @@ function Category({
   image,
   click,
 }) {
+
   return (
+
     <button
       type="button"
       className="category"
