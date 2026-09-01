@@ -14,6 +14,7 @@ import {
 import {
   Link,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 
 import ProductCard from "./components/ProductCard";
@@ -249,25 +250,129 @@ const products = [
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+
   const [cart, setCart] = useState([]);
+
   const [wishlist, setWishlist] = useState([]);
-  const [activeCategory, setActiveCategory] = useState("ALL");
-  const [sortBy, setSortBy] = useState("FEATURED");
+
+  const [activeCategory, setActiveCategory] =
+    useState("ALL");
+
+  const [sortBy, setSortBy] =
+    useState("FEATURED");
 
   /* =======================================================
      CART
   ======================================================= */
 
   const addCart = (product) => {
-    setCart((current) => [
-      ...current,
-      product,
-    ]);
+    setCart((current) => {
+      const existing = current.find(
+        (item) =>
+          String(item.id) ===
+          String(product.id)
+      );
+
+      if (existing) {
+        return current.map((item) =>
+          String(item.id) ===
+          String(product.id)
+            ? {
+                ...item,
+                qty: Math.min(
+                  Number(item.qty || 1) + 1,
+                  Number(product.stock || 999)
+                ),
+              }
+            : item
+        );
+      }
+
+      return [
+        ...current,
+        {
+          ...product,
+          qty: 1,
+        },
+      ];
+    });
   };
+
+  /* =======================================================
+     CLEAR CART
+  ======================================================= */
+
+  const clearCart = () => {
+    setCart([]);
+  };
+
+  /* =======================================================
+     REMOVE CART ITEM
+  ======================================================= */
+
+  const removeCart = (id) => {
+    setCart((current) =>
+      current.filter(
+        (item) =>
+          String(item.id) !== String(id)
+      )
+    );
+  };
+
+  /* =======================================================
+     UPDATE CART QUANTITY
+  ======================================================= */
+
+  const updateCartQuantity = (
+    id,
+    quantity
+  ) => {
+    setCart((current) =>
+      current
+        .map((item) => {
+          if (
+            String(item.id) !==
+            String(id)
+          ) {
+            return item;
+          }
+
+          const max =
+            Number(item.stock) || 999;
+
+          const nextQuantity = Math.max(
+            1,
+            Math.min(
+              max,
+              Number(quantity) || 1
+            )
+          );
+
+          return {
+            ...item,
+            qty: nextQuantity,
+          };
+        })
+    );
+  };
+
+  /* =======================================================
+     TOTAL CART ITEMS
+  ======================================================= */
+
+  const cartCount = useMemo(() => {
+    return cart.reduce(
+      (total, item) =>
+        total +
+        Number(item.qty || 1),
+      0
+    );
+  }, [cart]);
 
   /* =======================================================
      WISHLIST
@@ -303,6 +408,81 @@ export default function App() {
   }
 
   /* =======================================================
+     CHECKOUT PAGE
+  ======================================================= */
+
+  if (
+    location.pathname ===
+    "/checkout"
+  ) {
+    return (
+      <CheckoutPageWrapper
+        cart={cart}
+        clearCart={clearCart}
+      />
+    );
+  }
+
+  /* =======================================================
+     ORDER SUCCESS
+  ======================================================= */
+
+  if (
+    location.pathname ===
+    "/order-success"
+  ) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px",
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <span>
+            THE OFF GRID / ORDER
+          </span>
+
+          <h1
+            style={{
+              fontSize: "clamp(48px, 8vw, 100px)",
+              lineHeight: 0.9,
+              margin: "20px 0",
+            }}
+          >
+            ORDER
+            <br />
+            <em>CONFIRMED.</em>
+          </h1>
+
+          <p>
+            Thank you for shopping with
+            The Off Grid.
+          </p>
+
+          <button
+            type="button"
+            className="orange-btn"
+            onClick={() =>
+              navigate("/")
+            }
+            style={{
+              marginTop: "25px",
+            }}
+          >
+            CONTINUE SHOPPING
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  /* =======================================================
      SCROLL
   ======================================================= */
 
@@ -317,6 +497,19 @@ export default function App() {
           block: "start",
         });
     }, 50);
+  };
+
+  /* =======================================================
+     OPEN CART
+  ======================================================= */
+
+  const openCart = () => {
+    if (!cart.length) {
+      scroll("shop");
+      return;
+    }
+
+    navigate("/cart");
   };
 
   /* =======================================================
@@ -501,15 +694,13 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() =>
-              scroll("shop")
-            }
+            onClick={openCart}
           >
             <ShoppingBag size={19} />
 
-            {cart.length > 0 && (
+            {cartCount > 0 && (
               <b>
-                {cart.length}
+                {cartCount}
               </b>
             )}
 
@@ -1429,21 +1620,19 @@ export default function App() {
           FLOATING BAG STATUS
       ================================================== */}
 
-      {cart.length > 0 && (
+      {cartCount > 0 && (
 
         <button
           type="button"
           className="floating-bag"
-          onClick={() =>
-            scroll("shop")
-          }
+          onClick={openCart}
         >
 
           <ShoppingBag size={18} />
 
           <span>
-            {cart.length}{" "}
-            {cart.length === 1
+            {cartCount}{" "}
+            {cartCount === 1
               ? "ITEM"
               : "ITEMS"}
           </span>
@@ -1457,6 +1646,46 @@ export default function App() {
       )}
 
     </div>
+  );
+}
+
+/* =========================================================
+   CHECKOUT WRAPPER
+========================================================= */
+
+function CheckoutPageWrapper({
+  cart,
+  clearCart,
+}) {
+  const [Checkout, setCheckout] =
+    useState(null);
+
+  React.useEffect(() => {
+    import("./components/Checkout")
+      .then((module) => {
+        setCheckout(() => module.default);
+      });
+  }, []);
+
+  if (!Checkout) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        LOADING CHECKOUT...
+      </main>
+    );
+  }
+
+  return (
+    <Checkout
+      cart={cart}
+      clearCart={clearCart}
+    />
   );
 }
 
