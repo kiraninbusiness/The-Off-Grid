@@ -25,7 +25,7 @@ import Wishlist from "./pages/Wishlist";
 import TrackOrder from "./pages/TrackOrder";
 
 import { api } from "./api";
-import PRODUCTS from "./data/products";
+import PRODUCTS from "./data/products.js";
 
 import "./styles.css";
 
