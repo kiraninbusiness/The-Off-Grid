@@ -9,14 +9,13 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const money = (n) =>
-  `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const money = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function ProductCard({
   p,
   add,
   wish = [],
-  wishlist = [],
   toggle,
 }) {
   const [added, setAdded] = useState(false);
@@ -24,17 +23,8 @@ export default function ProductCard({
 
   if (!p) return null;
 
-  // Supports either "wish" or "wishlist" from App.jsx
-  const activeWishlist = Array.isArray(wish)
-    ? wish
-    : Array.isArray(wishlist)
-    ? wishlist
-    : [];
-
-  const isWishlisted = activeWishlist.some(
-    (item) =>
-      String(typeof item === "object" ? item.id : item) ===
-      String(p.id)
+  const isWishlisted = wish.some(
+    (item) => String(item) === String(p.id)
   );
 
   const discount =
@@ -52,7 +42,7 @@ export default function ProductCard({
 
     if (!p.stock) return;
 
-    if (typeof add === "function") {
+    if (add) {
       add(p);
     }
 
@@ -67,7 +57,7 @@ export default function ProductCard({
     e.preventDefault();
     e.stopPropagation();
 
-    if (typeof toggle === "function") {
+    if (toggle) {
       toggle(p.id);
     }
   };
@@ -75,12 +65,13 @@ export default function ProductCard({
   return (
     <>
       <article className="product-card">
+
         {/* IMAGE */}
         <div className="product-image-wrap">
+
           <Link
             to={`/product/${p.id}`}
             className="product-image"
-            aria-label={`View ${p.name}`}
           >
             <img
               src={p.image}
@@ -91,6 +82,7 @@ export default function ProductCard({
 
           {/* BADGES */}
           <div className="product-badges">
+
             {discount > 0 && (
               <span className="badge sale">
                 -{discount}%
@@ -108,6 +100,7 @@ export default function ProductCard({
                 BESTSELLER
               </span>
             )}
+
           </div>
 
           {/* WISHLIST */}
@@ -117,11 +110,7 @@ export default function ProductCard({
               isWishlisted ? "active" : ""
             }`}
             onClick={handleWishlist}
-            aria-label={
-              isWishlisted
-                ? "Remove from wishlist"
-                : "Add to wishlist"
-            }
+            aria-label="Toggle wishlist"
           >
             <Heart
               size={18}
@@ -143,17 +132,21 @@ export default function ProductCard({
               setQuickView(true);
             }}
           >
-            <Eye size={15} />
+            <Eye size={14} />
             QUICK VIEW
           </button>
+
         </div>
 
-        {/* CONTENT */}
+        {/* PRODUCT INFORMATION */}
         <div className="product-content">
+
           <div className="product-info">
+
             <div>
+
               <div className="product-category">
-                {p.category || "COLLECTION"}
+                {p.category}
                 {p.gender
                   ? ` · ${p.gender}`
                   : ""}
@@ -164,26 +157,29 @@ export default function ProductCard({
                   {p.name}
                 </Link>
               </h3>
+
             </div>
 
             <div className="product-price">
+
               <strong>
                 {money(p.price)}
               </strong>
 
-              {p.old_price &&
-                Number(p.old_price) >
-                  Number(p.price) && (
-                  <del>
-                    {money(p.old_price)}
-                  </del>
-                )}
+              {p.old_price && (
+                <del>
+                  {money(p.old_price)}
+                </del>
+              )}
+
             </div>
+
           </div>
 
-          {/* META */}
+          {/* PRODUCT META */}
           {(p.color || p.fit || p.size) && (
             <div className="product-meta">
+
               {p.color && (
                 <span>{p.color}</span>
               )}
@@ -195,6 +191,7 @@ export default function ProductCard({
               {p.size && (
                 <span>{p.size}</span>
               )}
+
             </div>
           )}
 
@@ -207,6 +204,7 @@ export default function ProductCard({
             disabled={!p.stock}
             onClick={handleAdd}
           >
+
             {added ? (
               <>
                 <Check size={15} />
@@ -215,24 +213,24 @@ export default function ProductCard({
             ) : (
               <>
                 <ShoppingBag size={15} />
-
                 {p.stock
                   ? "ADD TO BAG"
                   : "SOLD OUT"}
               </>
             )}
+
           </button>
+
         </div>
+
       </article>
 
-      {/* QUICK VIEW */}
+      {/* QUICK VIEW MODAL */}
       {quickView && (
         <QuickViewModal
           product={p}
           isWishlisted={isWishlisted}
-          onClose={() =>
-            setQuickView(false)
-          }
+          onClose={() => setQuickView(false)}
           onAdd={add}
           onToggleWishlist={toggle}
         />
@@ -240,6 +238,7 @@ export default function ProductCard({
     </>
   );
 }
+
 
 /* =========================================================
    QUICK VIEW MODAL
@@ -253,7 +252,6 @@ function QuickViewModal({
   onToggleWishlist,
 }) {
   const navigate = useNavigate();
-
   const [added, setAdded] = useState(false);
 
   if (!product) return null;
@@ -271,7 +269,7 @@ function QuickViewModal({
   const handleAdd = () => {
     if (!product.stock) return;
 
-    if (typeof onAdd === "function") {
+    if (onAdd) {
       onAdd(product);
     }
 
@@ -283,15 +281,12 @@ function QuickViewModal({
   };
 
   const handleWishlist = () => {
-    if (
-      typeof onToggleWishlist ===
-      "function"
-    ) {
+    if (onToggleWishlist) {
       onToggleWishlist(product.id);
     }
   };
 
-  const handleFullDetails = () => {
+  const handleViewDetails = () => {
     onClose();
 
     navigate(
@@ -302,9 +297,6 @@ function QuickViewModal({
   return (
     <div
       className="quick-view-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Quick product view"
       onClick={(e) => {
         if (
           e.target === e.currentTarget
@@ -313,7 +305,9 @@ function QuickViewModal({
         }
       }}
     >
+
       <div className="quick-view-modal">
+
         {/* CLOSE */}
         <button
           type="button"
@@ -326,46 +320,48 @@ function QuickViewModal({
 
         {/* IMAGE */}
         <div className="quick-view-image">
+
           <img
             src={product.image}
             alt={product.name}
           />
+
         </div>
 
         {/* DETAILS */}
         <div className="quick-view-details">
+
           <div className="product-category">
-            {product.category ||
-              "COLLECTION"}
+            {product.category}
 
             {product.gender
               ? ` · ${product.gender}`
               : ""}
           </div>
 
-          <h2>{product.name}</h2>
+          <h2>
+            {product.name}
+          </h2>
 
           {/* PRICE */}
           <div className="quick-view-price">
+
             <strong>
               {money(product.price)}
             </strong>
 
-            {product.old_price &&
-              Number(product.old_price) >
-                Number(product.price) && (
-                <del>
-                  {money(
-                    product.old_price
-                  )}
-                </del>
-              )}
+            {product.old_price && (
+              <del>
+                {money(product.old_price)}
+              </del>
+            )}
 
             {discount > 0 && (
               <span>
                 SAVE {discount}%
               </span>
             )}
+
           </div>
 
           {/* DESCRIPTION */}
@@ -374,8 +370,9 @@ function QuickViewModal({
               "Designed with a focus on clean silhouettes, everyday comfort and effortless styling."}
           </p>
 
-          {/* PRODUCT DETAILS */}
+          {/* META */}
           <div className="quick-view-meta">
+
             <div>
               <span>COLOR</span>
               <strong>
@@ -398,17 +395,17 @@ function QuickViewModal({
             </div>
 
             <div>
-              <span>STATUS</span>
+              <span>CONDITION</span>
               <strong>
-                {product.stock
-                  ? `${product.stock} IN STOCK`
-                  : "SOLD OUT"}
+                {product.condition || "NEW"}
               </strong>
             </div>
+
           </div>
 
           {/* ACTIONS */}
           <div className="quick-view-actions">
+
             <button
               type="button"
               className={`product-add-button ${
@@ -417,6 +414,7 @@ function QuickViewModal({
               disabled={!product.stock}
               onClick={handleAdd}
             >
+
               {added ? (
                 <>
                   <Check size={15} />
@@ -425,12 +423,12 @@ function QuickViewModal({
               ) : (
                 <>
                   <ShoppingBag size={15} />
-
                   {product.stock
                     ? "ADD TO BAG"
                     : "SOLD OUT"}
                 </>
               )}
+
             </button>
 
             <button
@@ -440,17 +438,11 @@ function QuickViewModal({
                   ? "wishlisted"
                   : ""
               }`}
-              onClick={
-                handleWishlist
-              }
-              aria-label={
-                isWishlisted
-                  ? "Remove from wishlist"
-                  : "Add to wishlist"
-              }
+              onClick={handleWishlist}
+              aria-label="Toggle wishlist"
             >
               <Heart
-                size={19}
+                size={18}
                 fill={
                   isWishlisted
                     ? "currentColor"
@@ -458,21 +450,23 @@ function QuickViewModal({
                 }
               />
             </button>
+
           </div>
 
           {/* FULL DETAILS */}
           <button
             type="button"
             className="quick-view-full-link"
-            onClick={
-              handleFullDetails
-            }
+            onClick={handleViewDetails}
           >
             VIEW FULL DETAILS
             <ArrowRight size={15} />
           </button>
+
         </div>
+
       </div>
+
     </div>
   );
 }
