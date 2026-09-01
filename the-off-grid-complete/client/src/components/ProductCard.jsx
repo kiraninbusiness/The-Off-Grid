@@ -19,6 +19,8 @@ export default function ProductCard({
   const [added, setAdded] = useState(false);
   const [quickView, setQuickView] = useState(false);
 
+  if (!p) return null;
+
   const stock = Number(p.stock) || 0;
   const price = Number(p.price) || 0;
   const oldPrice = Number(p.old_price) || 0;
@@ -35,7 +37,9 @@ export default function ProductCard({
   const handleAdd = () => {
     if (stock < 1) return;
 
-    add(p);
+    if (typeof add === "function") {
+      add(p);
+    }
 
     setAdded(true);
 
@@ -44,11 +48,8 @@ export default function ProductCard({
     }, 1400);
   };
 
-  const handleWishlist = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (toggle) {
+  const handleWishlist = () => {
+    if (typeof toggle === "function") {
       toggle(p.id);
     }
   };
@@ -61,8 +62,7 @@ export default function ProductCard({
         }`}
       >
 
-        {/* ================= IMAGE ================= */}
-
+        {/* IMAGE */}
         <div className="product-image-wrap">
 
           <Link
@@ -71,13 +71,12 @@ export default function ProductCard({
           >
             <img
               src={p.image}
-              alt={p.name}
+              alt={p.name || "Product"}
               loading="lazy"
             />
           </Link>
 
           {/* BADGES */}
-
           <div className="product-badges">
 
             {discount > 0 && stock > 0 && (
@@ -101,7 +100,6 @@ export default function ProductCard({
           </div>
 
           {/* WISHLIST */}
-
           <button
             type="button"
             className="wishlist-button"
@@ -124,15 +122,10 @@ export default function ProductCard({
           </button>
 
           {/* QUICK VIEW */}
-
           <button
             type="button"
             className="quick-view-button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setQuickView(true);
-            }}
+            onClick={() => setQuickView(true)}
           >
             <Eye size={16} />
             QUICK VIEW
@@ -140,33 +133,25 @@ export default function ProductCard({
 
         </div>
 
-        {/* ================= PRODUCT CONTENT ================= */}
-
+        {/* PRODUCT INFORMATION */}
         <div className="product-content">
 
           <div className="product-info">
 
             <div>
-
               <p className="product-category">
                 {p.category || "COLLECTION"}
-
                 {p.gender
                   ? ` · ${p.gender}`
                   : ""}
               </p>
 
               <h3>
-                <Link
-                  to={`/product/${p.id}`}
-                >
+                <Link to={`/product/${p.id}`}>
                   {p.name}
                 </Link>
               </h3>
-
             </div>
-
-            {/* PRICE */}
 
             <div className="product-price">
 
@@ -184,32 +169,24 @@ export default function ProductCard({
 
           </div>
 
-          {/* ================= META ================= */}
-
+          {/* META */}
           <div className="product-meta">
 
-            {p.size && (
-              <span>
-                {p.size}
-              </span>
-            )}
+            <span>
+              {p.size || "ONE SIZE"}
+            </span>
 
             {p.color && (
-              <span>
-                {p.color}
-              </span>
+              <span>{p.color}</span>
             )}
 
             {p.fit && (
-              <span>
-                {p.fit}
-              </span>
+              <span>{p.fit}</span>
             )}
 
           </div>
 
-          {/* ================= ADD TO BAG ================= */}
-
+          {/* ADD TO BAG */}
           <button
             type="button"
             className={`product-add-button ${
@@ -239,12 +216,8 @@ export default function ProductCard({
 
       </article>
 
-      {/* =====================================================
-          QUICK VIEW MODAL
-      ===================================================== */}
-
+      {/* QUICK VIEW MODAL */}
       {quickView && (
-
         <div
           className="quick-view-overlay"
           onClick={() =>
@@ -259,47 +232,34 @@ export default function ProductCard({
             }
           >
 
-            {/* CLOSE */}
-
             <button
               type="button"
               className="quick-view-close"
               onClick={() =>
                 setQuickView(false)
               }
-              aria-label="Close"
             >
               <X size={20} />
             </button>
-
-            {/* IMAGE */}
 
             <div className="quick-view-image">
 
               <img
                 src={p.image}
-                alt={p.name}
+                alt={p.name || "Product"}
               />
 
             </div>
-
-            {/* DETAILS */}
 
             <div className="quick-view-details">
 
               <p className="product-category">
                 {p.category || "COLLECTION"}
-
-                {p.gender
-                  ? ` · ${p.gender}`
-                  : ""}
               </p>
 
               <h2>
                 {p.name}
               </h2>
-
-              {/* PRICE */}
 
               <div className="quick-view-price">
 
@@ -315,35 +275,24 @@ export default function ProductCard({
 
               </div>
 
-              {/* DESCRIPTION */}
-
               {p.description && (
                 <p className="quick-view-description">
                   {p.description}
                 </p>
               )}
 
-              {/* PRODUCT DETAILS */}
-
               <div className="quick-view-meta">
 
                 <div>
-                  <span>
-                    SIZE
-                  </span>
-
+                  <span>SIZE</span>
                   <strong>
-                    {p.size ||
-                      "ONE SIZE"}
+                    {p.size || "ONE SIZE"}
                   </strong>
                 </div>
 
                 {p.color && (
                   <div>
-                    <span>
-                      COLOR
-                    </span>
-
+                    <span>COLOR</span>
                     <strong>
                       {p.color}
                     </strong>
@@ -352,10 +301,7 @@ export default function ProductCard({
 
                 {p.fit && (
                   <div>
-                    <span>
-                      FIT
-                    </span>
-
+                    <span>FIT</span>
                     <strong>
                       {p.fit}
                     </strong>
@@ -363,10 +309,7 @@ export default function ProductCard({
                 )}
 
                 <div>
-                  <span>
-                    AVAILABILITY
-                  </span>
-
+                  <span>AVAILABILITY</span>
                   <strong>
                     {stock > 0
                       ? `${stock} AVAILABLE`
@@ -376,26 +319,18 @@ export default function ProductCard({
 
               </div>
 
-              {/* ADD */}
-
               <button
                 type="button"
-                className={`product-add-button ${
-                  added ? "added" : ""
-                }`}
+                className="product-add-button"
                 disabled={stock < 1}
                 onClick={handleAdd}
               >
-
                 {stock < 1
                   ? "SOLD OUT"
                   : added
-                  ? "ADDED TO BAG ✓"
-                  : "ADD TO BAG"}
-
+                    ? "ADDED TO BAG ✓"
+                    : "ADD TO BAG"}
               </button>
-
-              {/* FULL DETAILS */}
 
               <Link
                 to={`/product/${p.id}`}
@@ -413,7 +348,6 @@ export default function ProductCard({
           </div>
 
         </div>
-
       )}
 
     </>
