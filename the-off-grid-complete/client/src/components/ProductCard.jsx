@@ -1,503 +1,294 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
-  ArrowRight,
   Heart,
   ShoppingBag,
-  Truck,
-  ShieldCheck,
-  RotateCcw,
+  Eye,
+  X,
   Check,
 } from "lucide-react";
-import {
-  Link,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
-export default function ProductDetails({
-  products = [],
+/* =========================================================
+   PRODUCT CARD (grid tile)
+   Props: p (product), add, wish (wishlist ids), toggle
+========================================================= */
+
+export default function ProductCard({
+  p,
   add,
-  wishlist = [],
+  wish = [],
   toggle,
 }) {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const [added, setAdded] = useState(false);
+  const [quickView, setQuickView] = useState(false);
 
-  const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState("");
-
-  /* ---------------------------------------------
-     FIND PRODUCT
-  --------------------------------------------- */
-
-  const product = useMemo(() => {
-    return products.find(
-      (item) => String(item.id) === String(id)
-    );
-  }, [products, id]);
-
-  /* ---------------------------------------------
-     PRODUCT NOT FOUND
-  --------------------------------------------- */
-
-  if (!product) {
-    return (
-      <main className="page product-page">
-        <div className="empty-state">
-
-          <span className="eyebrow">
-            THE OFF GRID
-          </span>
-
-          <h1>
-            PRODUCT NOT FOUND
-          </h1>
-
-          <p>
-            We couldn't find the product you're looking for.
-          </p>
-
-          <Link
-            to="/"
-            className="primary-button"
-          >
-            BACK TO SHOP
-            <ArrowRight size={17} />
-          </Link>
-
-        </div>
-      </main>
-    );
-  }
-
-  /* ---------------------------------------------
-     DATA
-  --------------------------------------------- */
-
-  const sizes = product.size
-    ? product.size
-        .split("/")
-        .map((size) => size.trim())
-    : [];
-
-  const isWishlisted = wishlist.some(
-    (item) =>
-      String(item) === String(product.id)
+  const isWishlisted = wish.some(
+    (item) => String(item) === String(p.id)
   );
 
   const discount =
-    product.old_price && product.price
+    p.old_price && p.price
       ? Math.round(
-          ((product.old_price - product.price) /
-            product.old_price) *
-            100
+          ((p.old_price - p.price) / p.old_price) * 100
         )
       : 0;
 
-  /* ---------------------------------------------
-     ADD TO CART
-  --------------------------------------------- */
+  const handleAdd = (e) => {
+    e.preventDefault();
+    if (!p.stock) return;
 
-  const handleAddToBag = () => {
-    if (!product.stock) return;
-
-    for (let i = 0; i < quantity; i++) {
-      add?.(product);
-    }
-  };
-
-  /* ---------------------------------------------
-     BUY NOW
-  --------------------------------------------- */
-
-  const handleBuyNow = () => {
-    if (!product.stock) return;
-
-    for (let i = 0; i < quantity; i++) {
-      add?.(product);
-    }
-
-    navigate("/checkout");
+    add?.(p);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1500);
   };
 
   return (
-    <main className="product-details-page">
+    <>
+      <div className="product-card">
 
-      {/* -----------------------------------------
-          HEADER
-      ----------------------------------------- */}
+        <div className="product-image-wrap">
 
-      <header className="product-details-header">
+          <Link to={`/product/${p.id}`} className="product-image">
+            <img src={p.image} alt={p.name} loading="lazy" />
+          </Link>
 
-        <Link
-          to="/"
-          className="product-back"
-        >
-          <ArrowLeft size={17} />
-          BACK TO SHOP
-        </Link>
-
-        <Link
-          to="/"
-          className="product-logo"
-        >
-          <small>THE</small>
-          <strong>OFF GRID</strong>
-        </Link>
-
-        <Link
-          to="/checkout"
-          className="product-bag-link"
-        >
-          <ShoppingBag size={18} />
-          BAG
-        </Link>
-
-      </header>
-
-      {/* -----------------------------------------
-          PRODUCT
-      ----------------------------------------- */}
-
-      <section className="product-details">
-
-        {/* IMAGE */}
-
-        <div className="product-details-image">
-
-          <img
-            src={product.image}
-            alt={product.name}
-          />
-
-          <div className="product-details-badges">
-
+          <div className="product-badges">
             {discount > 0 && (
-              <span>
-                -{discount}%
-              </span>
+              <span className="badge sale">-{discount}%</span>
             )}
-
-            {product.condition && (
-              <span>
-                {product.condition}
-              </span>
+            {!p.stock && (
+              <span className="badge sold">SOLD OUT</span>
             )}
-
-          </div>
-
-        </div>
-
-        {/* INFORMATION */}
-
-        <div className="product-details-info">
-
-          <div className="product-details-category">
-            {product.category}
-            {" · "}
-            {product.gender}
-          </div>
-
-          <h1>
-            {product.name}
-          </h1>
-
-          <div className="product-details-price">
-
-            <strong>
-              {money(product.price)}
-            </strong>
-
-            {product.old_price && (
-              <del>
-                {money(product.old_price)}
-              </del>
-            )}
-
-            {discount > 0 && (
-              <span>
-                SAVE {discount}%
-              </span>
-            )}
-
-          </div>
-
-          <div className="product-details-line"></div>
-
-          {/* DESCRIPTION */}
-
-          <div className="product-description">
-
-            <p>
-              {product.description ||
-                "Designed for everyday wear with a clean silhouette and strong attention to detail."}
-            </p>
-
-          </div>
-
-          {/* PRODUCT INFO */}
-
-          <div className="product-specs">
-
-            <div>
-              <span>COLOR</span>
-              <strong>
-                {product.color || "—"}
-              </strong>
-            </div>
-
-            <div>
-              <span>FIT</span>
-              <strong>
-                {product.fit || "—"}
-              </strong>
-            </div>
-
-            <div>
-              <span>CONDITION</span>
-              <strong>
-                {product.condition || "NEW"}
-              </strong>
-            </div>
-
-          </div>
-
-          {/* SIZE */}
-
-          {sizes.length > 0 && (
-            <div className="product-size-section">
-
-              <div className="product-option-heading">
-
-                <span>
-                  SELECT SIZE
-                </span>
-
-                <span>
-                  SIZE GUIDE
-                </span>
-
-              </div>
-
-              <div className="product-sizes">
-
-                {sizes.map((size) => (
-
-                  <button
-                    type="button"
-                    key={size}
-                    className={
-                      selectedSize === size
-                        ? "selected"
-                        : ""
-                    }
-                    onClick={() =>
-                      setSelectedSize(size)
-                    }
-                  >
-                    {size}
-
-                    {selectedSize === size && (
-                      <Check size={14} />
-                    )}
-
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-          )}
-
-          {/* QUANTITY */}
-
-          <div className="product-quantity">
-
-            <span>
-              QUANTITY
-            </span>
-
-            <div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setQuantity(
-                    Math.max(1, quantity - 1)
-                  )
-                }
-              >
-                −
-              </button>
-
-              <strong>
-                {quantity}
-              </strong>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setQuantity(
-                    Math.min(
-                      Number(product.stock) || 1,
-                      quantity + 1
-                    )
-                  )
-                }
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-          {/* ACTIONS */}
-
-          <div className="product-actions">
-
-            <button
-              type="button"
-              className="product-main-button"
-              disabled={!product.stock}
-              onClick={handleAddToBag}
-            >
-
-              <ShoppingBag size={18} />
-
-              {product.stock
-                ? "ADD TO BAG"
-                : "SOLD OUT"}
-
-            </button>
-
-            <button
-              type="button"
-              className={
-                isWishlisted
-                  ? "product-wishlist-button active"
-                  : "product-wishlist-button"
-              }
-              onClick={() =>
-                toggle?.(product.id)
-              }
-              aria-label="Wishlist"
-            >
-              <Heart
-                size={20}
-                fill={
-                  isWishlisted
-                    ? "currentColor"
-                    : "none"
-                }
-              />
-            </button>
-
           </div>
 
           <button
             type="button"
-            className="product-buy-now"
-            disabled={!product.stock}
-            onClick={handleBuyNow}
+            className={`wishlist-button ${isWishlisted ? "active" : ""}`}
+            onClick={(e) => {
+              e.preventDefault();
+              toggle?.(p.id);
+            }}
+            aria-label="Toggle wishlist"
           >
-            BUY IT NOW
-            <ArrowRight size={18} />
+            <Heart
+              size={17}
+              fill={isWishlisted ? "currentColor" : "none"}
+            />
           </button>
 
-          {/* DELIVERY */}
+          <button
+            type="button"
+            className="quick-view-button"
+            onClick={(e) => {
+              e.preventDefault();
+              setQuickView(true);
+            }}
+          >
+            <Eye size={14} />
+            QUICK VIEW
+          </button>
 
-          <div className="product-benefits">
+        </div>
+
+        <div className="product-content">
+
+          <div className="product-info">
 
             <div>
-
-              <Truck size={19} />
-
-              <div>
-                <strong>
-                  FAST SHIPPING
-                </strong>
-
-                <span>
-                  Delivery across India
-                </span>
+              <div className="product-category">
+                {p.category}
+                {p.gender ? ` · ${p.gender}` : ""}
               </div>
 
+              <h3>
+                <Link to={`/product/${p.id}`}>{p.name}</Link>
+              </h3>
             </div>
 
-            <div>
-
-              <ShieldCheck size={19} />
-
-              <div>
-                <strong>
-                  SECURE PAYMENT
-                </strong>
-
-                <span>
-                  Safe & secure checkout
-                </span>
-              </div>
-
-            </div>
-
-            <div>
-
-              <RotateCcw size={19} />
-
-              <div>
-                <strong>
-                  EASY RETURNS
-                </strong>
-
-                <span>
-                  Simple return policy
-                </span>
-              </div>
-
+            <div className="product-price">
+              <strong>{money(p.price)}</strong>
+              {p.old_price && <del>{money(p.old_price)}</del>}
             </div>
 
           </div>
 
+          {(p.color || p.fit || p.size) && (
+            <div className="product-meta">
+              {p.color && <span>{p.color}</span>}
+              {p.fit && <span>{p.fit}</span>}
+              {p.size && <span>{p.size}</span>}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={`product-add-button ${added ? "added" : ""}`}
+            disabled={!p.stock}
+            onClick={handleAdd}
+          >
+            {added ? (
+              <>
+                <Check size={15} />
+                ADDED
+              </>
+            ) : (
+              <>
+                <ShoppingBag size={15} />
+                {p.stock ? "ADD TO BAG" : "SOLD OUT"}
+              </>
+            )}
+          </button>
+
         </div>
 
-      </section>
+      </div>
 
-      {/* -----------------------------------------
-          RELATED / CONTINUE SHOPPING
-      ----------------------------------------- */}
+      {quickView && (
+        <QuickViewModal
+          product={p}
+          isWishlisted={isWishlisted}
+          onClose={() => setQuickView(false)}
+          onAdd={add}
+          onToggleWishlist={toggle}
+        />
+      )}
+    </>
+  );
+}
 
-      <section className="product-details-bottom">
+/* =========================================================
+   QUICK VIEW MODAL
+========================================================= */
 
-        <div>
+function QuickViewModal({
+  product,
+  isWishlisted,
+  onClose,
+  onAdd,
+  onToggleWishlist,
+}) {
+  const navigate = useNavigate();
+  const [added, setAdded] = useState(false);
 
-          <span>
-            THE OFF GRID
-          </span>
+  const discount =
+    product.old_price && product.price
+      ? Math.round(
+          ((product.old_price - product.price) / product.old_price) * 100
+        )
+      : 0;
 
-          <h2>
-            NOT MADE
-            <br />
-            FOR <em>EVERYONE.</em>
-          </h2>
+  const handleAdd = () => {
+    if (!product.stock) return;
+    onAdd?.(product);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1500);
+  };
 
-        </div>
+  return (
+    <div
+      className="quick-view-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="quick-view-modal">
 
-        <Link
-          to="/"
-          className="product-continue"
+        <button
+          type="button"
+          className="quick-view-close"
+          onClick={onClose}
+          aria-label="Close quick view"
         >
-          CONTINUE SHOPPING
-          <ArrowRight size={17} />
-        </Link>
+          <X size={18} />
+        </button>
 
-      </section>
+        <div className="quick-view-image">
+          <img src={product.image} alt={product.name} />
+        </div>
 
-    </main>
+        <div className="quick-view-details">
+
+          <div className="product-category">
+            {product.category}
+            {product.gender ? ` · ${product.gender}` : ""}
+          </div>
+
+          <h2>{product.name}</h2>
+
+          <div className="quick-view-price">
+            <strong>{money(product.price)}</strong>
+            {product.old_price && <del>{money(product.old_price)}</del>}
+            {discount > 0 && <span>SAVE {discount}%</span>}
+          </div>
+
+          <p className="quick-view-description">
+            {product.description ||
+              "Designed with a focus on clean silhouettes, everyday comfort and effortless styling."}
+          </p>
+
+          <div className="quick-view-meta">
+            <div>
+              <span>COLOR</span>
+              <strong>{product.color || "—"}</strong>
+            </div>
+            <div>
+              <span>FIT</span>
+              <strong>{product.fit || "—"}</strong>
+            </div>
+            <div>
+              <span>SIZE</span>
+              <strong>{product.size || "—"}</strong>
+            </div>
+            <div>
+              <span>CONDITION</span>
+              <strong>{product.condition || "NEW"}</strong>
+            </div>
+          </div>
+
+          <div className="quick-view-actions">
+            <button
+              type="button"
+              className={`product-add-button ${added ? "added" : ""}`}
+              disabled={!product.stock}
+              onClick={handleAdd}
+            >
+              {added ? (
+                <>
+                  <Check size={15} />
+                  ADDED
+                </>
+              ) : (
+                <>
+                  <ShoppingBag size={15} />
+                  {product.stock ? "ADD TO BAG" : "SOLD OUT"}
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className={`product-detail-wishlist ${isWishlisted ? "wishlisted" : ""}`}
+              onClick={() => onToggleWishlist?.(product.id)}
+              aria-label="Toggle wishlist"
+            >
+              <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="quick-view-full-link"
+            onClick={() => navigate(`/product/${product.id}`)}
+          >
+            VIEW FULL DETAILS
+          </button>
+
+        </div>
+
+      </div>
+    </div>
   );
 }
