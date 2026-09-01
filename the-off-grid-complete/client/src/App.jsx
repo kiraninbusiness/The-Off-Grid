@@ -11,8 +11,14 @@ import {
   Instagram,
   Youtube,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+} from "react-router-dom";
+
 import ProductCard from "./components/ProductCard";
+import ProductDetails from "./components/ProductDetails";
+
 import "./styles.css";
 
 /* =========================================================
@@ -242,6 +248,8 @@ const products = [
 ========================================================= */
 
 export default function App() {
+  const location = useLocation();
+
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
@@ -250,15 +258,15 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [sortBy, setSortBy] = useState("FEATURED");
 
-  const money = (n) =>
-    `₹${Number(n || 0).toLocaleString("en-IN")}`;
-
   /* =======================================================
      CART
   ======================================================= */
 
   const addCart = (product) => {
-    setCart((current) => [...current, product]);
+    setCart((current) => [
+      ...current,
+      product,
+    ]);
   };
 
   /* =======================================================
@@ -268,10 +276,31 @@ export default function App() {
   const toggleWishlist = (id) => {
     setWishlist((current) =>
       current.includes(id)
-        ? current.filter((item) => item !== id)
+        ? current.filter(
+            (item) => item !== id
+          )
         : [...current, id]
     );
   };
+
+  /* =======================================================
+     PRODUCT DETAILS PAGE
+  ======================================================= */
+
+  if (
+    location.pathname.startsWith(
+      "/product/"
+    )
+  ) {
+    return (
+      <ProductDetails
+        products={products}
+        add={addCart}
+        wishlist={wishlist}
+        toggle={toggleWishlist}
+      />
+    );
+  }
 
   /* =======================================================
      SCROLL
@@ -281,10 +310,12 @@ export default function App() {
     setMenu(false);
 
     setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+      document
+        .getElementById(id)
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
     }, 50);
   };
 
@@ -298,33 +329,40 @@ export default function App() {
     if (activeCategory !== "ALL") {
       result = result.filter(
         (product) =>
-          product.category === activeCategory
+          product.category ===
+          activeCategory
       );
     }
 
     if (searchText.trim()) {
-      const query = searchText.toLowerCase();
+      const query =
+        searchText.toLowerCase();
 
-      result = result.filter((product) =>
-        [
-          product.name,
-          product.category,
-          product.gender,
-          product.color,
-          product.fit,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
+      result = result.filter(
+        (product) =>
+          [
+            product.name,
+            product.category,
+            product.gender,
+            product.color,
+            product.fit,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(query)
       );
     }
 
     if (sortBy === "PRICE LOW") {
-      result.sort((a, b) => a.price - b.price);
+      result.sort(
+        (a, b) => a.price - b.price
+      );
     }
 
     if (sortBy === "PRICE HIGH") {
-      result.sort((a, b) => b.price - a.price);
+      result.sort(
+        (a, b) => b.price - a.price
+      );
     }
 
     if (sortBy === "NAME") {
@@ -334,7 +372,11 @@ export default function App() {
     }
 
     return result;
-  }, [activeCategory, searchText, sortBy]);
+  }, [
+    activeCategory,
+    searchText,
+    sortBy,
+  ]);
 
   const categories = [
     "ALL",
@@ -355,6 +397,7 @@ export default function App() {
       ================================================== */}
 
       <div className="topbar">
+
         <span>
           FREE SHIPPING ON ORDERS ABOVE ₹1,499
         </span>
@@ -366,6 +409,7 @@ export default function App() {
         <span>
           INDIA / WORLDWIDE
         </span>
+
       </div>
 
       {/* ==================================================
@@ -377,39 +421,51 @@ export default function App() {
         <button
           className="mobile-menu-btn"
           type="button"
-          onClick={() => setMenu(true)}
+          onClick={() =>
+            setMenu(true)
+          }
           aria-label="Open menu"
         >
           <Menu size={23} />
         </button>
 
         <nav className="nav-left">
+
           <button
             type="button"
-            onClick={() => scroll("shop")}
+            onClick={() =>
+              scroll("shop")
+            }
           >
             SHOP
           </button>
 
           <button
             type="button"
-            onClick={() => scroll("categories")}
+            onClick={() =>
+              scroll("categories")
+            }
           >
             CATEGORIES
           </button>
 
           <button
             type="button"
-            onClick={() => scroll("story")}
+            onClick={() =>
+              scroll("story")
+            }
           >
             STORY
           </button>
+
         </nav>
 
         <button
           type="button"
           className="logo"
-          onClick={() => scroll("home")}
+          onClick={() =>
+            scroll("home")
+          }
         >
           <small>THE</small>
           <strong>OFF GRID</strong>
@@ -419,7 +475,9 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setSearchOpen(true)}
+            onClick={() =>
+              setSearchOpen(true)
+            }
           >
             <Search size={19} />
             <span>SEARCH</span>
@@ -427,27 +485,38 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => scroll("shop")}
+            onClick={() =>
+              scroll("shop")
+            }
           >
             <Heart size={19} />
 
             {wishlist.length > 0 && (
-              <b>{wishlist.length}</b>
+              <b>
+                {wishlist.length}
+              </b>
             )}
+
           </button>
 
           <button
             type="button"
-            onClick={() => scroll("shop")}
+            onClick={() =>
+              scroll("shop")
+            }
           >
             <ShoppingBag size={19} />
 
             {cart.length > 0 && (
-              <b>{cart.length}</b>
+              <b>
+                {cart.length}
+              </b>
             )}
+
           </button>
 
         </div>
+
       </header>
 
       {/* ==================================================
@@ -460,7 +529,9 @@ export default function App() {
           <button
             type="button"
             className="mobile-close"
-            onClick={() => setMenu(false)}
+            onClick={() =>
+              setMenu(false)
+            }
           >
             <X size={28} />
           </button>
@@ -474,28 +545,36 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => scroll("shop")}
+              onClick={() =>
+                scroll("shop")
+              }
             >
               SHOP
             </button>
 
             <button
               type="button"
-              onClick={() => scroll("categories")}
+              onClick={() =>
+                scroll("categories")
+              }
             >
               CATEGORIES
             </button>
 
             <button
               type="button"
-              onClick={() => scroll("story")}
+              onClick={() =>
+                scroll("story")
+              }
             >
               OUR STORY
             </button>
 
             <button
               type="button"
-              onClick={() => scroll("journal")}
+              onClick={() =>
+                scroll("journal")
+              }
             >
               JOURNAL
             </button>
@@ -544,10 +623,14 @@ export default function App() {
                 type="text"
                 value={searchText}
                 onChange={(e) =>
-                  setSearchText(e.target.value)
+                  setSearchText(
+                    e.target.value
+                  )
                 }
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  if (
+                    e.key === "Enter"
+                  ) {
                     setSearchOpen(false);
                     scroll("shop");
                   }
@@ -609,7 +692,9 @@ export default function App() {
             <button
               type="button"
               className="orange-btn"
-              onClick={() => scroll("shop")}
+              onClick={() =>
+                scroll("shop")
+              }
             >
               SHOP NEW ARRIVALS
               <ArrowRight size={18} />
@@ -618,7 +703,9 @@ export default function App() {
             <button
               type="button"
               className="outline-btn"
-              onClick={() => scroll("story")}
+              onClick={() =>
+                scroll("story")
+              }
             >
               OUR STORY
             </button>
@@ -628,11 +715,13 @@ export default function App() {
         </div>
 
         <div className="hero-bottom">
+
           <span>01</span>
 
           <span>
             NOT MADE FOR EVERYONE.
           </span>
+
         </div>
 
       </section>
@@ -642,18 +731,26 @@ export default function App() {
       ================================================== */}
 
       <div className="marquee">
+
         <div>
+
           NOT MADE FOR EVERYONE
           <span>✦</span>
+
           MADE FOR YOU
           <span>✦</span>
+
           OFF THE GRID
           <span>✦</span>
+
           NEW DROP
           <span>✦</span>
+
           NOT MADE FOR EVERYONE
           <span>✦</span>
+
         </div>
+
       </div>
 
       {/* ==================================================
@@ -690,7 +787,9 @@ export default function App() {
             <button
               type="button"
               className="under-btn"
-              onClick={() => scroll("journal")}
+              onClick={() =>
+                scroll("journal")
+              }
             >
               DISCOVER OUR STORY
               <ArrowRight size={15} />
@@ -736,13 +835,17 @@ export default function App() {
         <div className="section-title">
 
           <div>
-            <span>EXPLORE</span>
+
+            <span>
+              EXPLORE
+            </span>
 
             <h2>
               FIND YOUR
               <br />
               <em>CATEGORY.</em>
             </h2>
+
           </div>
 
           <div className="round-arrow">
@@ -758,7 +861,9 @@ export default function App() {
             number="01"
             image="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory("T-SHIRTS");
+              setActiveCategory(
+                "T-SHIRTS"
+              );
               scroll("shop");
             }}
           />
@@ -768,7 +873,9 @@ export default function App() {
             number="02"
             image="https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory("SHIRTS");
+              setActiveCategory(
+                "SHIRTS"
+              );
               scroll("shop");
             }}
           />
@@ -778,7 +885,9 @@ export default function App() {
             number="03"
             image="https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory("BOTTOMS");
+              setActiveCategory(
+                "BOTTOMS"
+              );
               scroll("shop");
             }}
           />
@@ -788,7 +897,9 @@ export default function App() {
             number="04"
             image="https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1000&q=90"
             click={() => {
-              setActiveCategory("HOODIES");
+              setActiveCategory(
+                "HOODIES"
+              );
               scroll("shop");
             }}
           />
@@ -828,7 +939,6 @@ export default function App() {
 
         </div>
 
-        {/* SEARCH RESULT */}
         {searchText && (
           <div className="shop-search-result">
 
@@ -842,7 +952,9 @@ export default function App() {
 
             <button
               type="button"
-              onClick={() => setSearchText("")}
+              onClick={() =>
+                setSearchText("")
+              }
             >
               CLEAR
               <X size={14} />
@@ -851,30 +963,33 @@ export default function App() {
           </div>
         )}
 
-        {/* FILTER BAR */}
-
         <div className="shop-controls">
 
           <div className="category-filters">
 
-            {categories.map((category) => (
+            {categories.map(
+              (category) => (
 
-              <button
-                type="button"
-                key={category}
-                className={
-                  activeCategory === category
-                    ? "active"
-                    : ""
-                }
-                onClick={() =>
-                  setActiveCategory(category)
-                }
-              >
-                {category}
-              </button>
+                <button
+                  type="button"
+                  key={category}
+                  className={
+                    activeCategory ===
+                    category
+                      ? "active"
+                      : ""
+                  }
+                  onClick={() =>
+                    setActiveCategory(
+                      category
+                    )
+                  }
+                >
+                  {category}
+                </button>
 
-            ))}
+              )
+            )}
 
           </div>
 
@@ -889,9 +1004,12 @@ export default function App() {
               <select
                 value={sortBy}
                 onChange={(e) =>
-                  setSortBy(e.target.value)
+                  setSortBy(
+                    e.target.value
+                  )
                 }
               >
+
                 <option>
                   FEATURED
                 </option>
@@ -907,9 +1025,12 @@ export default function App() {
                 <option>
                   NAME
                 </option>
+
               </select>
 
-              <ChevronDown size={15} />
+              <ChevronDown
+                size={15}
+              />
 
             </div>
 
@@ -917,23 +1038,26 @@ export default function App() {
 
         </div>
 
-        {/* PRODUCTS */}
-
         <div className="products">
 
-          {filteredProducts.length > 0 ? (
+          {filteredProducts.length >
+          0 ? (
 
-            filteredProducts.map((product) => (
+            filteredProducts.map(
+              (product) => (
 
-              <ProductCard
-                key={product.id}
-                p={product}
-                add={addCart}
-                wish={wishlist}
-                toggle={toggleWishlist}
-              />
+                <ProductCard
+                  key={product.id}
+                  p={product}
+                  add={addCart}
+                  wish={wishlist}
+                  toggle={
+                    toggleWishlist
+                  }
+                />
 
-            ))
+              )
+            )
 
           ) : (
 
@@ -950,7 +1074,9 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveCategory("ALL");
+                  setActiveCategory(
+                    "ALL"
+                  );
                   setSearchText("");
                 }}
               >
@@ -1117,7 +1243,9 @@ export default function App() {
 
           <div className="footer-brand">
 
-            <small>THE</small>
+            <small>
+              THE
+            </small>
 
             <strong>
               OFF GRID
@@ -1141,7 +1269,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("ALL");
+                setActiveCategory(
+                  "ALL"
+                );
                 scroll("shop");
               }}
             >
@@ -1151,7 +1281,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("T-SHIRTS");
+                setActiveCategory(
+                  "T-SHIRTS"
+                );
                 scroll("shop");
               }}
             >
@@ -1161,7 +1293,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("SHIRTS");
+                setActiveCategory(
+                  "SHIRTS"
+                );
                 scroll("shop");
               }}
             >
@@ -1171,7 +1305,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                setActiveCategory("BOTTOMS");
+                setActiveCategory(
+                  "BOTTOMS"
+                );
                 scroll("shop");
               }}
             >
@@ -1294,11 +1430,15 @@ export default function App() {
       ================================================== */}
 
       {cart.length > 0 && (
+
         <button
           type="button"
           className="floating-bag"
-          onClick={() => scroll("shop")}
+          onClick={() =>
+            scroll("shop")
+          }
         >
+
           <ShoppingBag size={18} />
 
           <span>
@@ -1308,8 +1448,12 @@ export default function App() {
               : "ITEMS"}
           </span>
 
-          <ArrowUpRight size={16} />
+          <ArrowUpRight
+            size={16}
+          />
+
         </button>
+
       )}
 
     </div>
