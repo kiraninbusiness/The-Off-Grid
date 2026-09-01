@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React from "react";
 import {
-  ArrowUpRight,
   Heart,
   Eye,
-  X,
+  ShoppingBag,
+  ArrowUpRight,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const money = (n) =>
   `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -16,340 +16,179 @@ export default function ProductCard({
   wish = [],
   toggle,
 }) {
-  const [added, setAdded] = useState(false);
-  const [quickView, setQuickView] = useState(false);
-
   if (!p) return null;
 
-  const stock = Number(p.stock) || 0;
-  const price = Number(p.price) || 0;
-  const oldPrice = Number(p.old_price) || 0;
+  const isWishlisted = wish.some(
+    (id) =>
+      String(id) === String(p.id)
+  );
 
   const discount =
-    oldPrice > price
+    p.old_price && p.price
       ? Math.round(
-          ((oldPrice - price) / oldPrice) * 100
+          ((p.old_price - p.price) /
+            p.old_price) *
+            100
         )
       : 0;
 
-  const isWishlisted = wish.includes(p.id);
-
-  const handleAdd = () => {
-    if (stock < 1) return;
-
-    if (typeof add === "function") {
-      add(p);
-    }
-
-    setAdded(true);
-
-    setTimeout(() => {
-      setAdded(false);
-    }, 1400);
-  };
-
-  const handleWishlist = () => {
-    if (typeof toggle === "function") {
-      toggle(p.id);
-    }
-  };
-
   return (
-    <>
-      <article
-        className={`product-card ${
-          stock < 1 ? "sold-out" : ""
-        }`}
-      >
+    <article className="product-card">
 
-        {/* IMAGE */}
-        <div className="product-image-wrap">
+      {/* IMAGE */}
 
-          <Link
-            to={`/product/${p.id}`}
-            className="product-image"
-          >
-            <img
-              src={p.image}
-              alt={p.name || "Product"}
-              loading="lazy"
-            />
-          </Link>
+      <div className="product-card-image">
 
-          {/* BADGES */}
-          <div className="product-badges">
+        <Link
+          to={`/product/${p.id}`}
+          className="product-image-link"
+          aria-label={`View ${p.name}`}
+        >
 
-            {discount > 0 && stock > 0 && (
-              <span className="badge sale">
-                -{discount}%
-              </span>
-            )}
+          <img
+            src={p.image}
+            alt={p.name}
+            loading="lazy"
+          />
 
-            {stock > 0 && (
-              <span className="badge">
-                {p.condition || "NEW"}
-              </span>
-            )}
+        </Link>
 
-            {stock < 1 && (
-              <span className="badge sold">
-                SOLD OUT
-              </span>
-            )}
+        {/* BADGES */}
 
-          </div>
+        <div className="product-card-badges">
 
-          {/* WISHLIST */}
-          <button
-            type="button"
-            className="wishlist-button"
-            onClick={handleWishlist}
-            aria-label={
-              isWishlisted
-                ? "Remove from wishlist"
-                : "Add to wishlist"
-            }
-          >
-            <Heart
-              size={19}
-              strokeWidth={1.6}
-              fill={
-                isWishlisted
-                  ? "currentColor"
-                  : "none"
-              }
-            />
-          </button>
-
-          {/* QUICK VIEW */}
-          <button
-            type="button"
-            className="quick-view-button"
-            onClick={() => setQuickView(true)}
-          >
-            <Eye size={16} />
-            QUICK VIEW
-          </button>
-
-        </div>
-
-        {/* PRODUCT INFORMATION */}
-        <div className="product-content">
-
-          <div className="product-info">
-
-            <div>
-              <p className="product-category">
-                {p.category || "COLLECTION"}
-                {p.gender
-                  ? ` · ${p.gender}`
-                  : ""}
-              </p>
-
-              <h3>
-                <Link to={`/product/${p.id}`}>
-                  {p.name}
-                </Link>
-              </h3>
-            </div>
-
-            <div className="product-price">
-
-              <strong>
-                {money(price)}
-              </strong>
-
-              {oldPrice > price && (
-                <del>
-                  {money(oldPrice)}
-                </del>
-              )}
-
-            </div>
-
-          </div>
-
-          {/* META */}
-          <div className="product-meta">
-
+          {discount > 0 && (
             <span>
-              {p.size || "ONE SIZE"}
+              -{discount}%
             </span>
+          )}
 
-            {p.color && (
-              <span>{p.color}</span>
-            )}
+          {p.condition && (
+            <span>
+              {p.condition}
+            </span>
+          )}
 
-            {p.fit && (
-              <span>{p.fit}</span>
+        </div>
+
+        {/* WISHLIST */}
+
+        <button
+          type="button"
+          className={`product-wishlist ${
+            isWishlisted
+              ? "active"
+              : ""
+          }`}
+          onClick={() =>
+            toggle?.(p.id)
+          }
+          aria-label={
+            isWishlisted
+              ? "Remove from wishlist"
+              : "Add to wishlist"
+          }
+        >
+          <Heart
+            size={19}
+            fill={
+              isWishlisted
+                ? "currentColor"
+                : "none"
+            }
+          />
+        </button>
+
+        {/* QUICK VIEW */}
+
+        <Link
+          to={`/product/${p.id}`}
+          className="quick-view"
+        >
+          <Eye size={15} />
+          QUICK VIEW
+        </Link>
+
+      </div>
+
+      {/* PRODUCT INFORMATION */}
+
+      <div className="product-card-info">
+
+        <div className="product-card-top">
+
+          <span className="product-card-category">
+            {p.category}
+            {" · "}
+            {p.gender}
+          </span>
+
+          <div className="product-card-price">
+
+            <strong>
+              {money(p.price)}
+            </strong>
+
+            {p.old_price && (
+              <del>
+                {money(p.old_price)}
+              </del>
             )}
 
           </div>
 
-          {/* ADD TO BAG */}
-          <button
-            type="button"
-            className={`product-add-button ${
-              added ? "added" : ""
-            }`}
-            disabled={stock < 1}
-            onClick={handleAdd}
-          >
+        </div>
 
-            {stock < 1 ? (
-              "SOLD OUT"
-            ) : added ? (
-              <>
-                ADDED TO BAG
-                <span>✓</span>
-              </>
-            ) : (
-              <>
-                ADD TO BAG
-                <ArrowUpRight size={17} />
-              </>
-            )}
+        <Link
+          to={`/product/${p.id}`}
+          className="product-card-name"
+        >
+          {p.name}
+        </Link>
 
-          </button>
+        <div className="product-card-meta">
+
+          <span>
+            {p.size}
+          </span>
+
+          <span>
+            {p.color}
+          </span>
+
+          <span>
+            {p.fit}
+          </span>
 
         </div>
 
-      </article>
+        {/* ADD TO BAG */}
 
-      {/* QUICK VIEW MODAL */}
-      {quickView && (
-        <div
-          className="quick-view-overlay"
+        <button
+          type="button"
+          className="product-add"
+          disabled={!p.stock}
           onClick={() =>
-            setQuickView(false)
+            add?.(p)
           }
         >
 
-          <div
-            className="quick-view-modal"
-            onClick={(e) =>
-              e.stopPropagation()
-            }
-          >
+          <span>
+            {p.stock
+              ? "ADD TO BAG"
+              : "SOLD OUT"}
+          </span>
 
-            <button
-              type="button"
-              className="quick-view-close"
-              onClick={() =>
-                setQuickView(false)
-              }
-            >
-              <X size={20} />
-            </button>
+          {p.stock ? (
+            <ShoppingBag size={16} />
+          ) : (
+            <ArrowUpRight size={16} />
+          )}
 
-            <div className="quick-view-image">
+        </button>
 
-              <img
-                src={p.image}
-                alt={p.name || "Product"}
-              />
+      </div>
 
-            </div>
-
-            <div className="quick-view-details">
-
-              <p className="product-category">
-                {p.category || "COLLECTION"}
-              </p>
-
-              <h2>
-                {p.name}
-              </h2>
-
-              <div className="quick-view-price">
-
-                <strong>
-                  {money(price)}
-                </strong>
-
-                {oldPrice > price && (
-                  <del>
-                    {money(oldPrice)}
-                  </del>
-                )}
-
-              </div>
-
-              {p.description && (
-                <p className="quick-view-description">
-                  {p.description}
-                </p>
-              )}
-
-              <div className="quick-view-meta">
-
-                <div>
-                  <span>SIZE</span>
-                  <strong>
-                    {p.size || "ONE SIZE"}
-                  </strong>
-                </div>
-
-                {p.color && (
-                  <div>
-                    <span>COLOR</span>
-                    <strong>
-                      {p.color}
-                    </strong>
-                  </div>
-                )}
-
-                {p.fit && (
-                  <div>
-                    <span>FIT</span>
-                    <strong>
-                      {p.fit}
-                    </strong>
-                  </div>
-                )}
-
-                <div>
-                  <span>AVAILABILITY</span>
-                  <strong>
-                    {stock > 0
-                      ? `${stock} AVAILABLE`
-                      : "SOLD OUT"}
-                  </strong>
-                </div>
-
-              </div>
-
-              <button
-                type="button"
-                className="product-add-button"
-                disabled={stock < 1}
-                onClick={handleAdd}
-              >
-                {stock < 1
-                  ? "SOLD OUT"
-                  : added
-                    ? "ADDED TO BAG ✓"
-                    : "ADD TO BAG"}
-              </button>
-
-              <Link
-                to={`/product/${p.id}`}
-                className="quick-view-full-link"
-                onClick={() =>
-                  setQuickView(false)
-                }
-              >
-                VIEW FULL DETAILS
-                <ArrowUpRight size={16} />
-              </Link>
-
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-    </>
+    </article>
   );
 }
