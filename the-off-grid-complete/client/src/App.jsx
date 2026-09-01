@@ -516,16 +516,8 @@ export default function App() {
 
 
   /* =======================================================
-     PRODUCT DETAIL ROUTE
-
-     IMPORTANT:
-     Product is found DIRECTLY from the SAME products
-     array used by the shop.
-
-     No ProductDetails.jsx.
-     No props.
-     No second product array.
-  ======================================================= */
+   PRODUCT DETAIL ROUTE
+======================================================= */
 
 if (location.pathname.startsWith("/product/")) {
 
@@ -535,63 +527,26 @@ if (location.pathname.startsWith("/product/")) {
       ?.split("/")[0];
 
   /*
-   * IMPORTANT:
-   * Wait for the live products API to finish before
-   * deciding that a product does not exist.
-   *
-   * This prevents:
-   * PRODUCT NOT FOUND
-   * appearing temporarily while products are loading.
+   * IMPORTANT
+   * Do NOT show Product Not Found while the API
+   * is still loading.
    */
 
   if (productsLoading) {
-
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#ebe7dd",
-          fontFamily: "Arial, sans-serif",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "12px",
-              letterSpacing: "3px",
-              marginBottom: "18px",
-            }}
-          >
-            THE OFF GRID
-          </div>
+      <div className="product-loading-page">
+        <div className="product-loading-inner">
+          <span>THE OFF GRID</span>
 
-          <div
-            style={{
-              fontSize: "28px",
-              fontWeight: "700",
-              letterSpacing: "-1px",
-            }}
-          >
-            LOADING PRODUCT
-          </div>
+          <h1>
+            LOADING
+            <br />
+            PRODUCT
+          </h1>
 
-          <div
-            style={{
-              marginTop: "18px",
-              fontSize: "11px",
-              letterSpacing: "2px",
-              opacity: 0.55,
-            }}
-          >
-            PLEASE WAIT
-          </div>
+          <p>
+            Please wait while we load the product.
+          </p>
         </div>
       </div>
     );
@@ -599,23 +554,19 @@ if (location.pathname.startsWith("/product/")) {
 
   /*
    * API has finished loading.
-   * Now safely search the live products array.
+   * Now find the product.
    */
 
   const product = products.find(
     (item) =>
-      String(item.id) ===
-      String(rawId)
+      String(item.id) === String(rawId)
   );
 
-
   /*
-   * Only show PRODUCT NOT FOUND after
-   * the API has finished loading.
+   * Only show NOT FOUND after loading is complete.
    */
 
   if (!product) {
-
     return (
       <ProductNotFound
         onBack={() => navigate("/")}
@@ -623,6 +574,9 @@ if (location.pathname.startsWith("/product/")) {
     );
   }
 
+  /*
+   * Product exists.
+   */
 
   return (
     <ProductPage
