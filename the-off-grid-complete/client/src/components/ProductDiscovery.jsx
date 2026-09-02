@@ -1,53 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
+import { SlidersHorizontal, X, ChevronDown, Search, Sparkles } from "lucide-react";
 import ProductCard from "./ProductCard";
 
 const SORTS = ["FEATURED", "PRICE LOW", "PRICE HIGH", "NEWEST", "SALE", "BESTSELLERS"];
 const PRICES = ["ALL", "UNDER 1500", "1500-2500", "2500-3500", "3500+"];
+const QUICK_TABS = ["ALL", "NEW", "BESTSELLERS", "SALE"];
 
-export default function ProductDiscovery({
-  products = [],
-  add,
-  wishlist = [],
-  toggle,
-  initialCategory = "ALL",
-  searchText = "",
-}) {
+export default function ProductDiscovery({ products = [], add, wishlist = [], toggle, initialCategory = "ALL", searchText = "", setSearchText }) {
   const [category, setCategory] = useState(initialCategory || "ALL");
   const [gender, setGender] = useState("ALL");
   const [fit, setFit] = useState("ALL");
   const [color, setColor] = useState("ALL");
   const [sort, setSort] = useState("FEATURED");
   const [price, setPrice] = useState("ALL");
+  const [quickTab, setQuickTab] = useState("ALL");
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    setCategory(initialCategory || "ALL");
-  }, [initialCategory]);
+  useEffect(() => setCategory(initialCategory || "ALL"), [initialCategory]);
 
-  const categories = useMemo(
-    () => ["ALL", ...new Set(products.map((p) => p.category).filter(Boolean))],
-    [products]
-  );
-  const genders = useMemo(
-    () => ["ALL", ...new Set(products.map((p) => p.gender).filter(Boolean))],
-    [products]
-  );
-  const fits = useMemo(
-    () => ["ALL", ...new Set(products.map((p) => p.fit).filter(Boolean))],
-    [products]
-  );
-  const colors = useMemo(
-    () => [
-      "ALL",
-      ...new Set(
-        products.flatMap((p) =>
-          Array.isArray(p.colors) && p.colors.length ? p.colors : [p.color]
-        ).filter(Boolean)
-      ),
-    ],
-    [products]
-  );
+  const categories = useMemo(() => ["ALL", ...new Set(products.map((p) => p.category).filter(Boolean))], [products]);
+  const genders = useMemo(() => ["ALL", ...new Set(products.map((p) => p.gender).filter(Boolean))], [products]);
+  const fits = useMemo(() => ["ALL", ...new Set(products.map((p) => p.fit).filter(Boolean))], [products]);
+  const colors = useMemo(() => ["ALL", ...new Set(products.flatMap((p) => Array.isArray(p.colors) && p.colors.length ? p.colors : [p.color]).filter(Boolean))], [products]);
 
   const result = useMemo(() => {
     const query = String(searchText || "").trim().toLowerCase();
@@ -59,73 +33,49 @@ export default function ProductDiscovery({
         const productColors = Array.isArray(p.colors) && p.colors.length ? p.colors : [p.color];
         if (!productColors.some((c) => String(c || "").toUpperCase() === color.toUpperCase())) return false;
       }
-
       const value = Number(p.price || 0);
       if (price === "UNDER 1500" && value >= 1500) return false;
       if (price === "1500-2500" && (value < 1500 || value > 2500)) return false;
       if (price === "2500-3500" && (value < 2500 || value > 3500)) return false;
       if (price === "3500+" && value < 3500) return false;
-
+      if (quickTab === "NEW" && String(p.condition || "").toUpperCase() === "SOLD OUT") return false;
+      if (quickTab === "BESTSELLERS" && String(p.condition || "").toUpperCase() !== "BESTSELLER") return false;
+      if (quickTab === "SALE" && !(p.old_price && Number(p.old_price) > Number(p.price || 0))) return false;
       if (query) {
-        const haystack = [
-          p.name,
-          p.category,
-          p.gender,
-          p.color,
-          ...(Array.isArray(p.colors) ? p.colors : []),
-          p.fit,
-          p.description,
-          p.material,
-        ].filter(Boolean).join(" ").toLowerCase();
+        const haystack = [p.name, p.category, p.gender, p.color, ...(Array.isArray(p.colors) ? p.colors : []), p.fit, p.description, p.material].filter(Boolean).join(" ").toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
     });
-
     list = [...list];
     if (sort === "PRICE LOW") list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     if (sort === "PRICE HIGH") list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
     if (sort === "NEWEST") list.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-    if (sort === "SALE") list.sort((a, b) => {
-      const discount = (p) => p.old_price && p.price ? (Number(p.old_price) - Number(p.price)) / Number(p.old_price) : 0;
-      return discount(b) - discount(a);
-    });
-    if (sort === "BESTSELLERS") list.sort((a, b) => Number(b.condition === "BESTSELLER") - Number(a.condition === "BESTSELLER"));
+    if (sort === "SALE") list.sort((a, b) => ((Number(b.old_price || 0) - Number(b.price || 0)) / Math.max(Number(b.old_price || 1), 1)) - ((Number(a.old_price || 0) - Number(a.price || 0)) / Math.max(Number(a.old_price || 1), 1)));
+    if (sort === "BESTSELLERS") list.sort((a, b) => Number(String(b.condition || "").toUpperCase() === "BESTSELLER") - Number(String(a.condition || "").toUpperCase() === "BESTSELLER"));
     return list;
-  }, [products, category, gender, fit, color, price, sort, searchText]);
+  }, [products, category, gender, fit, color, price, sort, quickTab, searchText]);
 
   const activeFilters = [category, gender, fit, color, price].filter((v) => v !== "ALL").length;
-
-  const clearFilters = () => {
-    setGender("ALL");
-    setFit("ALL");
-    setColor("ALL");
-    setPrice("ALL");
-    setSort("FEATURED");
-    setCategory(initialCategory || "ALL");
-  };
-
-  const selectClass = "discovery-select";
+  const hasSearch = String(searchText || "").trim().length > 0;
+  const clearFilters = () => { setGender("ALL"); setFit("ALL"); setColor("ALL"); setPrice("ALL"); setSort("FEATURED"); setQuickTab("ALL"); setCategory(initialCategory || "ALL"); };
+  const clearAll = () => { clearFilters(); setSearchText?.(""); };
 
   return (
     <div className="product-discovery">
+      <div className="discovery-intro">
+        <div><span>02 / NEW DROP</span><h2>EVERYDAY <em>ESSENTIALS.</em></h2></div>
+        <p>BUILT FOR REPEAT WEAR.</p>
+      </div>
+
+      <div className="discovery-quick-tabs" role="tablist" aria-label="Collection filters">
+        {QUICK_TABS.map((tab) => <button key={tab} type="button" className={quickTab === tab ? "active" : ""} onClick={() => { setQuickTab(tab); if (tab === "NEW") setSort("NEWEST"); if (tab === "BESTSELLERS") setSort("BESTSELLERS"); if (tab === "SALE") setSort("SALE"); if (tab === "ALL") setSort("FEATURED"); }}>{tab}</button>)}
+      </div>
+
       <div className="discovery-toolbar">
-        <div className="discovery-filter-label">
-          <span>FILTER / REFINE</span>
-          {activeFilters > 0 && <b>{activeFilters}</b>}
-        </div>
-        <button className="discovery-mobile-filter" type="button" onClick={() => setMobileOpen(true)}>
-          <SlidersHorizontal size={16} /> FILTERS{activeFilters ? ` (${activeFilters})` : ""}
-        </button>
-        <div className="discovery-sort">
-          <span>SORT BY</span>
-          <div>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort products">
-              {SORTS.map((item) => <option key={item}>{item}</option>)}
-            </select>
-            <ChevronDown size={14} />
-          </div>
-        </div>
+        <div className="discovery-filter-label"><span>FILTER / REFINE</span>{activeFilters > 0 && <b>{activeFilters}</b>}</div>
+        <button className="discovery-mobile-filter" type="button" onClick={() => setMobileOpen(true)}><SlidersHorizontal size={16} /> FILTERS{activeFilters ? ` (${activeFilters})` : ""}</button>
+        <div className="discovery-sort"><span>SORT BY</span><div><select value={sort} onChange={(e) => { setSort(e.target.value); if (e.target.value === "BESTSELLERS") setQuickTab("BESTSELLERS"); else if (e.target.value === "SALE") setQuickTab("SALE"); else setQuickTab("ALL"); }} aria-label="Sort products">{SORTS.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={14} /></div></div>
       </div>
 
       <div className="discovery-filters desktop-filters">
@@ -134,64 +84,17 @@ export default function ProductDiscovery({
         <Filter label="FIT" value={fit} setValue={setFit} options={fits} />
         <Filter label="COLOUR" value={color} setValue={setColor} options={colors} />
         <Filter label="PRICE" value={price} setValue={setPrice} options={PRICES} />
-        {(activeFilters > 0 || sort !== "FEATURED") && (
-          <button className="discovery-clear" type="button" onClick={clearFilters}>CLEAR ALL <X size={13} /></button>
-        )}
+        {(activeFilters > 0 || sort !== "FEATURED" || hasSearch) && <button className="discovery-clear" type="button" onClick={clearAll}>CLEAR ALL <X size={13} /></button>}
       </div>
 
-      {mobileOpen && (
-        <div className="discovery-drawer-backdrop" onClick={(e) => e.target === e.currentTarget && setMobileOpen(false)}>
-          <aside className="discovery-drawer">
-            <div className="discovery-drawer-head">
-              <strong>FILTERS</strong>
-              <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close filters"><X /></button>
-            </div>
-            <Filter label="CATEGORY" value={category} setValue={setCategory} options={categories} />
-            <Filter label="GENDER" value={gender} setValue={setGender} options={genders} />
-            <Filter label="FIT" value={fit} setValue={setFit} options={fits} />
-            <Filter label="COLOUR" value={color} setValue={setColor} options={colors} />
-            <Filter label="PRICE" value={price} setValue={setPrice} options={PRICES} />
-            <button className="orange-btn discovery-apply" type="button" onClick={() => setMobileOpen(false)}>SHOW {result.length} PRODUCTS</button>
-            <button className="discovery-clear drawer-clear" type="button" onClick={clearFilters}>CLEAR ALL</button>
-          </aside>
-        </div>
-      )}
+      {mobileOpen && <div className="discovery-drawer-backdrop" onClick={(e) => e.target === e.currentTarget && setMobileOpen(false)}><aside className="discovery-drawer"><div className="discovery-drawer-head"><strong>FILTERS</strong><button type="button" onClick={() => setMobileOpen(false)} aria-label="Close filters"><X /></button></div><Filter label="CATEGORY" value={category} setValue={setCategory} options={categories} /><Filter label="GENDER" value={gender} setValue={setGender} options={genders} /><Filter label="FIT" value={fit} setValue={setFit} options={fits} /><Filter label="COLOUR" value={color} setValue={setColor} options={colors} /><Filter label="PRICE" value={price} setValue={setPrice} options={PRICES} /><button className="orange-btn discovery-apply" type="button" onClick={() => setMobileOpen(false)}>SHOW {result.length} PRODUCTS</button><button className="discovery-clear drawer-clear" type="button" onClick={clearAll}>CLEAR ALL</button></aside></div>}
 
-      <div className="discovery-results-head">
-        <span>{searchText ? `SEARCH RESULTS FOR “${searchText}”` : "THE OFF GRID COLLECTION"}</span>
-        <strong>{result.length} {result.length === 1 ? "PRODUCT" : "PRODUCTS"}</strong>
-      </div>
+      <div className="discovery-results-head"><span>{hasSearch ? <><Search size={13} /> SEARCH RESULTS FOR “{searchText}”</> : quickTab === "NEW" ? "NEW ARRIVALS" : quickTab === "BESTSELLERS" ? "BESTSELLERS" : quickTab === "SALE" ? "SALE EDIT" : "THE OFF GRID COLLECTION"}</span><strong>{result.length} {result.length === 1 ? "PRODUCT" : "PRODUCTS"}</strong></div>
 
-      {result.length ? (
-        <div className="products discovery-grid">
-          {result.map((product) => (
-            <ProductCard key={product.id} p={product} add={add} wish={wishlist} toggle={toggle} />
-          ))}
-        </div>
-      ) : (
-        <div className="discovery-empty">
-          <span>NO MATCHES</span>
-          <h3>NOTHING HERE.</h3>
-          <p>Try clearing a filter or searching for another piece.</p>
-          <button type="button" onClick={clearFilters}>VIEW ALL PRODUCTS</button>
-        </div>
-      )}
-
+      {result.length ? <div className="products discovery-grid">{result.map((product) => <ProductCard key={product.id} p={product} add={add} wish={wishlist} toggle={toggle} />)}</div> : <div className="discovery-empty"><Sparkles size={18} /><span>NO MATCHES</span><h3>NOTHING HERE.</h3><p>Try clearing a filter or searching for another piece.</p><button type="button" onClick={clearAll}>VIEW ALL PRODUCTS</button></div>}
       <div className="shop-count">SHOWING <strong>{result.length}</strong> OF <strong>{products.length}</strong> PRODUCTS</div>
     </div>
   );
 }
 
-function Filter({ label, value, setValue, options }) {
-  return (
-    <label className="discovery-filter">
-      <span>{label}</span>
-      <div>
-        <select value={value} onChange={(e) => setValue(e.target.value)} aria-label={label}>
-          {options.map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <ChevronDown size={13} />
-      </div>
-    </label>
-  );
-}
+function Filter({ label, value, setValue, options }) { return <label className="discovery-filter"><span>{label}</span><div><select value={value} onChange={(e) => setValue(e.target.value)} aria-label={label}>{options.map((item) => <option key={item}>{item}</option>)}</select><ChevronDown size={13} /></div></label>; }
