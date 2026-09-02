@@ -11,6 +11,7 @@ import {
   Instagram,
   Youtube,
   User,
+  Settings,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -23,6 +24,7 @@ import Success from "./pages/Success";
 import Account from "./pages/Account";
 import Wishlist from "./pages/Wishlist";
 import TrackOrder from "./pages/TrackOrder";
+import Admin from "./pages/Admin";
 
 import { api } from "./api";
 import PRODUCTS from "./data/products.js";
@@ -79,15 +81,61 @@ export default function App() {
 
   /* =========================================================
      USER
+
+     FIX: this used to read from "thrift_user" while Account.jsx
+     wrote to "offgrid_user" — different keys, so a logged-in user
+     was silently signed out on every page refresh. Both now agree
+     on "offgrid_user".
   ========================================================= */
 
   const [user, setUser] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem("thrift_user")) || null;
+      return JSON.parse(localStorage.getItem("offgrid_user")) || null;
     } catch {
       return null;
     }
   });
+
+  /* =========================================================
+     ORDERS
+
+     FIX: there was previously no orders state anywhere in the
+     app at all, even though Checkout, Orders, Account and
+     TrackOrder all expected one. Placing an order had nowhere
+     to go, "My Orders" crashed (orders.length on undefined),
+     and order tracking could never find anything.
+  ========================================================= */
+
+  const [orders, setOrders] = useState(() => {
+    try {
+      const saved = localStorage.getItem("offgrid_orders");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("offgrid_orders", JSON.stringify(orders));
+    } catch {}
+  }, [orders]);
+
+  const addOrder = (order) => {
+    setOrders((current) => [order, ...current]);
+  };
+
+  const cancelOrder = (id) => {
+    setOrders((current) =>
+      current.map((order) =>
+        String(order.id) === String(id) &&
+        order.status !== "delivered" &&
+        order.status !== "cancelled"
+          ? { ...order, status: "cancelled" }
+          : order
+      )
+    );
+  };
 
   /* =========================================================
      SHOP FILTERS
@@ -348,6 +396,7 @@ export default function App() {
     "HOODIES",
     "BOTTOMS",
     "JACKETS",
+    "TANK TOPS",
     "ACCESSORIES",
     "FOOTWEAR",
   ];
@@ -360,7 +409,9 @@ export default function App() {
     return (
       <Checkout
         cart={cart}
-        clearCart={clearCart}
+        setCart={setCart}
+        user={user}
+        onOrder={addOrder}
       />
     );
   }
@@ -369,7 +420,12 @@ export default function App() {
     location.pathname === "/order" ||
     location.pathname === "/orders"
   ) {
-    return <Order />;
+    return (
+      <Order
+        orders={orders}
+        onCancel={cancelOrder}
+      />
+    );
   }
 
   if (
@@ -384,6 +440,7 @@ export default function App() {
       <Account
         user={user}
         setUser={setUser}
+        orders={orders}
       />
     );
   }
@@ -404,7 +461,11 @@ export default function App() {
       "/track-order/"
     )
   ) {
-    return <TrackOrder user={user} />;
+    return <TrackOrder orders={orders} />;
+  }
+
+  if (location.pathname === "/admin") {
+    return <Admin user={user} />;
   }
 
   /* =========================================================
@@ -471,9 +532,11 @@ export default function App() {
     return (
       <ProductDetails
         product={finalProduct}
+        products={products}
         add={addCart}
         wishlist={wishlist}
         toggle={toggleWishlist}
+        user={user}
       />
     );
   }
@@ -584,6 +647,18 @@ export default function App() {
           >
             <User size={19} />
           </button>
+
+          {user?.role === "admin" && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/admin")
+              }
+              aria-label="Admin panel"
+            >
+              <Settings size={19} />
+            </button>
+          )}
 
           <button
             type="button"

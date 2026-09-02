@@ -1,5 +1,5 @@
 import React,{useState,useEffect} from "react";
-import {Link,useNavigate,useParams} from "react-router-dom";
+import {Link,useNavigate} from "react-router-dom";
 import {ArrowLeft,Heart,ShoppingBag,Truck,ShieldCheck,RotateCcw,Minus,Plus,Bell} from "lucide-react";
 import SizeGuideModal from "../components/SizeGuideModal";
 import ProductReviews from "../components/ProductReviews";
@@ -9,10 +9,21 @@ import DeliveryCheck from "../components/DeliveryCheck";
 import {api} from "../api";
 import {PRODUCTS} from "../data/products.js";
 const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
-export default function ProductDetails({products=PRODUCTS,add,wishlist=[],toggle,user}) {
- const {id}=useParams(),nav=useNavigate(),[qty,setQty]=useState(1),[size,setSize]=useState(""),[guide,setGuide]=useState(false);
+/*
+  IMPORTANT FIX:
+  This component used to read the product via useParams() and an
+  internal `products` list — but App.jsx never mounts this behind a
+  <Route path="/product/:id">, it renders it directly after resolving
+  the product by hand. useParams() therefore always returned {} and
+  `product` was always undefined, so every product page showed
+  "PRODUCT NOT FOUND". App.jsx now passes the already-resolved
+  product straight in via the `product` prop, which is what we use.
+  `products` (the full catalog) is kept separately, only for the
+  Related/Recently-Viewed sections.
+*/
+export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user}) {
+ const nav=useNavigate(),[qty,setQty]=useState(1),[size,setSize]=useState(""),[guide,setGuide]=useState(false);
  const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle");
- const product=products.find(p=>String(p.id)===String(id));
 
  useEffect(()=>{ if(product) trackRecentlyViewed(product.id); },[product?.id]);
 
