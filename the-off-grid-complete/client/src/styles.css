@@ -148,3 +148,133 @@
 .size-guide-premium>span{display:flex;align-items:center;gap:6px}.size-guide-product{font-size:10px;letter-spacing:1px;color:#777;margin-top:-6px}
 @media(max-width:1000px){.product-details-premium{grid-template-columns:1fr}.product-gallery{position:relative;top:auto}.product-gallery-main{min-height:0}.product-story-grid{grid-template-columns:1fr;gap:25px}}
 @media(max-width:700px){.product-gallery{grid-template-columns:58px 1fr;gap:8px}.product-gallery-thumbs{gap:7px}.product-gallery-main{aspect-ratio:4/5}.gallery-arrow{width:32px;height:32px}.gallery-zoom{right:8px;bottom:8px}.product-color-options button{padding:9px 10px}.product-story-grid{padding-left:5%;padding-right:5%}}
+
+/* =========================================================
+   PRODUCT GALLERY — lightbox + count + empty state
+   (fills gaps left by ProductGallery.jsx, matches the
+   existing .product-gallery-main / .gallery-arrow system)
+========================================================= */
+.product-gallery-tools{position:absolute;right:16px;top:16px;display:flex;gap:8px}
+.gallery-count{position:absolute;left:16px;bottom:16px;background:rgba(17,17,17,.78);color:#fff;font-size:9px;letter-spacing:1.4px;padding:7px 10px}
+.product-gallery-empty{aspect-ratio:4/5;background:#eeeae4;min-height:620px}
+.gallery-lightbox{position:fixed;inset:0;background:rgba(10,10,10,.96);z-index:300;display:grid;place-items:center;padding:40px}
+.gallery-lightbox img{max-width:min(920px,90vw);max-height:86vh;object-fit:contain}
+.gallery-lightbox-close{position:absolute;right:28px;top:24px;color:#fff;width:42px;height:42px;border:1px solid rgba(255,255,255,.3);border-radius:50%;display:grid;place-items:center}
+.gallery-lightbox-arrow{position:absolute;top:50%;transform:translateY(-50%);color:#fff;width:46px;height:46px;border:1px solid rgba(255,255,255,.3);border-radius:50%;display:grid;place-items:center}
+.gallery-lightbox-prev{left:26px}.gallery-lightbox-next{right:26px}
+.gallery-lightbox-close:hover,.gallery-lightbox-arrow:hover{border-color:#fff}
+@media(max-width:700px){.gallery-lightbox{padding:20px}.gallery-lightbox-close{right:16px;top:16px;width:36px;height:36px}.gallery-lightbox-arrow{width:38px;height:38px}.gallery-lightbox-prev{left:12px}.gallery-lightbox-next{right:12px}.product-gallery-empty{min-height:420px}}
+
+/* =========================================================
+   PRODUCT DISCOVERY — the full shop filter/sort system
+   (ProductDiscovery.jsx). Same tokens as the rest of the
+   storefront: ink/orange/paper/line, Space Grotesk headings,
+   uppercase micro-labels at 9-11px with wide letter-spacing.
+========================================================= */
+.product-discovery{width:100%}
+.discovery-intro{display:grid;grid-template-columns:1.1fr 1fr;gap:8vw;align-items:end;margin-bottom:38px}
+.discovery-intro>div>span{font-size:10px;letter-spacing:1.8px;color:#777}
+.discovery-intro h2{font-family:"Space Grotesk";font-size:clamp(45px,6vw,90px);line-height:.88;letter-spacing:-4px;margin:15px 0}
+.discovery-intro>p{font-size:10px;letter-spacing:1.5px;align-self:end}
+
+.discovery-quick-tabs{display:flex;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;margin-bottom:20px}
+.discovery-quick-tabs button{font-size:10px;letter-spacing:1.3px;padding:9px 16px;border:1px solid var(--line);transition:.18s}
+.discovery-quick-tabs button:hover{border-color:#111}
+.discovery-quick-tabs button.active{background:#111;color:#fff;border-color:#111}
+
+.discovery-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:18px}
+.discovery-filter-label{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:1.6px;color:#555}
+.discovery-filter-label b{background:var(--orange);color:#fff;border-radius:50%;min-width:18px;height:18px;display:grid;place-items:center;font-size:9px}
+.discovery-mobile-filter{display:none;align-items:center;gap:8px;font-size:10px;letter-spacing:1.2px;border:1px solid var(--line);padding:11px 15px}
+.discovery-mobile-filter.has-filters{border-color:#111}
+.discovery-sort{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:1.2px}
+.discovery-sort>div{position:relative;display:flex;align-items:center}
+.discovery-sort select{appearance:none;background:none;border:1px solid var(--line);padding:10px 26px 10px 12px;font-size:10px;letter-spacing:1px}
+.discovery-sort svg{position:absolute;right:9px;pointer-events:none}
+
+.discovery-filters{display:flex;flex-wrap:wrap;align-items:end;gap:22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:20px 0 24px;margin-bottom:36px}
+.discovery-filter{display:flex;flex-direction:column;gap:7px;font-size:9px;letter-spacing:1.3px;color:#777}
+.discovery-filter>div{position:relative;display:flex;align-items:center}
+.discovery-filter select{appearance:none;background:none;border:1px solid var(--line);color:var(--ink);padding:10px 24px 10px 11px;font-size:10px;letter-spacing:.6px;min-width:118px}
+.discovery-filter svg{position:absolute;right:8px;pointer-events:none;color:#999}
+.discovery-sale-toggle{align-self:flex-end;height:38px;padding:0 16px;border:1px solid var(--line);font-size:9px;letter-spacing:1.3px}
+.discovery-sale-toggle.active{background:var(--orange);color:#fff;border-color:var(--orange)}
+.discovery-clear{align-self:flex-end;height:38px;display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:1.3px;color:var(--orange);margin-left:auto}
+
+.discovery-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:250;display:flex;justify-content:flex-end}
+.discovery-drawer{width:min(380px,88vw);height:100%;background:var(--paper);padding:26px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.discovery-drawer-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px}
+.discovery-drawer-head strong{font-size:11px;letter-spacing:1.4px}
+.discovery-drawer .discovery-filter{width:100%}
+.discovery-drawer .discovery-filter>div{width:100%}
+.discovery-drawer .discovery-filter select{width:100%}
+.discovery-apply{margin-top:auto}
+.drawer-clear{align-self:center}
+
+.discovery-results-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px;font-size:10px;letter-spacing:1.3px}
+.discovery-results-head>span{display:flex;align-items:center;gap:7px;color:#777}
+.discovery-results-head>strong{font-family:"Space Grotesk";font-size:14px;letter-spacing:0}
+.discovery-grid{margin-bottom:10px}
+
+.discovery-empty{text-align:center;padding:110px 20px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px}
+.discovery-empty svg{color:var(--orange);margin-bottom:6px}
+.discovery-empty span{font-size:9px;letter-spacing:1.6px;color:#777}
+.discovery-empty h3{font-family:"Space Grotesk";font-size:26px;margin:4px 0}
+.discovery-empty p{color:#777;font-size:12px;max-width:340px}
+.discovery-empty button{margin-top:14px;border:1px solid #111;padding:11px 18px;font-size:9px;letter-spacing:1.3px}
+
+@media(max-width:900px){
+  .discovery-intro{grid-template-columns:1fr;gap:14px}
+  .discovery-intro>p{align-self:start}
+  .discovery-filters{display:none}
+  .discovery-mobile-filter{display:flex}
+  .discovery-quick-tabs{overflow-x:auto;flex-wrap:nowrap}
+}
+
+/* =========================================================
+   COMPLETE THE LOOK — CompleteTheLook.jsx
+========================================================= */
+.complete-look{padding:90px 8%;border-top:1px solid var(--line);display:grid;grid-template-columns:.85fr 1.15fr;gap:6vw;align-items:center}
+.complete-look-copy span{font-size:10px;letter-spacing:1.8px;color:#777}
+.complete-look-copy h2{font-family:"Space Grotesk";font-size:clamp(38px,5vw,58px);line-height:.9;letter-spacing:-2px;margin:12px 0 16px}
+.complete-look-copy p{color:#555;line-height:1.7;max-width:420px;margin-bottom:18px}
+.complete-look-copy strong{font-family:"Space Grotesk";font-size:24px}
+.complete-look-copy small{display:block;color:#777;font-size:10px;letter-spacing:1px;margin:4px 0 22px}
+.complete-look-button{width:100%;height:52px;background:#111;color:#fff;font-size:10px;letter-spacing:1.3px}
+.complete-look-button:disabled{opacity:.45;cursor:not-allowed}
+.complete-look-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.complete-look-card{display:block}
+.complete-look-image{position:relative;aspect-ratio:3/4;overflow:hidden;background:#eeeae4}
+.complete-look-image img{width:100%;height:100%;object-fit:cover;transition:transform .4s}
+.complete-look-card:hover .complete-look-image img{transform:scale(1.04)}
+.complete-look-image span{position:absolute;left:10px;top:10px;background:#fff;font-size:9px;letter-spacing:1px;padding:5px 8px}
+.complete-look-card h4{font-family:"Space Grotesk";font-size:12px;font-weight:500;margin:10px 0 4px}
+.complete-look-card p{font-size:11px;color:#777}
+@media(max-width:900px){.complete-look{grid-template-columns:1fr;padding:60px 6%}.complete-look-grid{gap:10px}}
+@media(max-width:600px){.complete-look-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* =========================================================
+   PREMIUM MICRO-INTERACTIONS
+   Subtle motion/hover polish only — no layout or structural
+   changes. This is what most flat "template" sites skip and
+   what makes premium D2C sites (Snitch/Wrogn/Rare Rabbit)
+   feel expensive: fast, quiet, consistent transitions.
+========================================================= */
+a,button{transition:color .18s ease,background-color .18s ease,border-color .18s ease,opacity .18s ease,transform .18s ease}
+.orange-btn,.outline-btn,.product-detail-add,.product-add-button,.complete-look-button{transition:background-color .2s ease,color .2s ease,transform .15s ease}
+.orange-btn:hover,.product-detail-add:not(:disabled):hover,.complete-look-button:not(:disabled):hover{filter:brightness(1.08)}
+.outline-btn:hover{background:#111;color:#fff;border-color:#111}
+.orange-btn:active,.product-detail-add:active,.outline-btn:active{transform:scale(.98)}
+.wishlist-button{transition:transform .18s ease,color .18s ease}
+.wishlist-button:hover{transform:scale(1.08)}
+.category{transition:transform .5s ease}
+.category img{transition:transform .6s ease}
+.category:hover img{transform:scale(1.05)}
+.footer-grid button:hover,.footer-grid a:hover,.text-button:hover,.under-btn:hover{color:var(--orange)}
+.nav-left button:hover,.nav-right button:hover{color:var(--orange)}
+.logo{transition:opacity .18s ease}
+.logo:hover{opacity:.75}
+.related-card h4,.complete-look-card h4{transition:color .18s ease}
+.related-card:hover h4,.complete-look-card:hover h4{color:var(--orange)}
+.discovery-quick-tabs button,.discovery-sale-toggle,.category-filters button{transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-offset:1px}

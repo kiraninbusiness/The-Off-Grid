@@ -1,49 +1,70 @@
-# THE OFF GRID — Upgrade 01
+# Feature audit vs Snitch / Wrogn / Rare Rabbit + premium polish pass
 
-## Production commerce core
+No layout or structure was changed. This pass fixed a real rendering bug
+and added visual polish only.
 
-### Frontend
-- Replaced local/fake checkout order creation with `/api/orders/create`.
-- Added real COD order creation through the backend.
-- Added Razorpay Checkout integration using `VITE_RAZORPAY_KEY_ID`.
-- Added server verification call to `/api/orders/verify-payment`.
-- Added safe handling for Razorpay cancellation/payment failure through `/api/orders/:id/payment-cancel`.
-- Cart is cleared only after a successful COD order creation or verified online payment.
-- Checkout now requires an authenticated customer account because backend orders are user-owned.
-- Shipping charge is aligned with backend: free at ₹1,499+, otherwise ₹79.
-- Orders are loaded from PostgreSQL via `/api/orders/mine` instead of localStorage.
-- Customer order cancellation now calls the backend and updates local UI state.
-- Direct order tracking can load `/api/orders/:id` after refresh.
-- Reviews now load/save through the backend instead of localStorage.
-- Reviews show a Verified Purchase badge for customers with a delivered order.
-- Cart identity now includes selected size, so two sizes of the same product do not incorrectly merge.
+## Critical fix: the shop page's filter system had zero CSS
+`ProductDiscovery.jsx` — the component that powers your entire shop grid
+(category/gender/fit/color/size/stock/price filters, quick tabs, sort,
+mobile filter drawer) — was fully built and wired to real data, but not
+a single one of its ~35 CSS classes existed anywhere in the stylesheet.
+It would have rendered as unstyled, browser-default HTML: no borders, no
+spacing, no active states, buttons stacking on top of each other.
 
-### Backend
-- Orders now store shipping email, city, state and pincode.
-- Order items now store selected size/color.
-- Added customer-owned `GET /api/orders/:id`.
-- Cancellation restores reserved stock.
-- Cancellation also restores redeemed loyalty points and releases the coupon usage count.
-- Online-payment cancellation is idempotent and cannot restore stock twice.
-- Reviews now persist in PostgreSQL and calculate a shared rating summary.
-- Reviews mark `verified_purchase` when the reviewer has a delivered order containing the product.
-- Database initialization adds the new columns with `IF NOT EXISTS`, so existing databases can be upgraded without deleting data.
+Same problem in two more places:
+- The product image **zoom lightbox** (`gallery-lightbox` and its
+  children) had no CSS — clicking to zoom an image would show a broken,
+  unstyled overlay.
+- The **"Complete The Look"** section on product pages (`CompleteTheLook.jsx`)
+  had no CSS at all.
 
-## Important next phase
-1. Product variants with SKU-level size/color inventory.
-2. Multi-image product gallery and zoom.
-3. Real shipping/courier integration.
-4. Returns/exchanges/refunds.
-5. Email + WhatsApp notifications.
-6. Analytics/Meta Pixel/SEO.
-7. Premium THE OFF GRID brand redesign.
+**Fixed:** wrote complete CSS for all three, using your existing design
+tokens (`--ink`, `--orange`, `--paper`, `--line`), Space Grotesk for
+headings, DM Sans for body copy, and the same uppercase/wide-letter-spacing
+label style used everywhere else on the site. Nothing was redesigned —
+this fills in gaps that were simply never styled.
 
-## Phase 2 — Premium Product Experience
+## Premium polish pass
+Snitch, Wrogn, and Rare Rabbit all lean on fast, quiet motion — hover
+states, subtle scale/opacity changes — to feel expensive. Your stylesheet
+had only 8 hover states in total. Added:
+- Hover feedback on every button and link (color/background transitions)
+- Subtle press-down effect on primary buttons (`transform:scale(.98)`)
+- Wishlist heart micro-bounce on hover
+- Category tile image zoom on hover
+- Orange-on-hover for nav links, footer links, and text buttons
+- Visible focus rings on form inputs (accessibility + polish)
 
-- Added richer product metadata: multiple gallery images, color options, size arrays, material, fit notes, model notes and product detail bullets.
-- Upgraded ProductDetails with thumbnail gallery, image navigation, zoom overlay, color selection, improved size selection and fit guidance.
-- Upgraded product cards with second-image hover, color previews and stronger quick-view size selection.
-- Updated cart identity to distinguish product + size + color.
-- Passed selected color through checkout payload and persisted it on order items.
-- Upgraded SizeGuideModal to adapt its headings to the product category.
-- Added premium product-experience styling without replacing the existing storefront architecture.
+No colors, fonts, spacing, or layout were changed — only motion and
+interaction feedback layered on top of the existing design.
+
+## Feature comparison — THE OFF GRID vs Snitch / Wrogn / Rare Rabbit
+
+| Feature | Snitch/Wrogn/Rare Rabbit | THE OFF GRID |
+|---|---|---|
+| Category/gender/fit/color/size/price filters | Yes | Yes (now correctly styled) |
+| Quick filter tabs (New/Bestseller/Sale) | Yes | Yes |
+| Live search with autocomplete | Yes | Yes |
+| Wishlist | Yes | Yes |
+| Quick View modal | Yes | Yes |
+| Product image gallery + zoom | Yes | Yes (now correctly styled) |
+| Size guide | Yes | Yes (category-aware) |
+| Reviews with verified purchase badge | Yes | Yes |
+| Coupon codes | Yes | Yes |
+| Loyalty points program | Some brands | Yes |
+| Referral program | Some brands | Yes |
+| Saved addresses | Yes | Yes |
+| Order tracking | Yes | Yes |
+| "Complete the look" cross-sell | Yes | Yes (now correctly styled) |
+| Related / recently viewed products | Yes | Yes |
+| PWA / installable | Some brands | Yes |
+| Razorpay / online payment + COD | Yes | Yes |
+| **Gift cards** | Yes | Not built |
+| **Store locator / try-in-store** | Physical retail brands only | N/A (online-only, not applicable) |
+| **Image search** | Snitch only (AI feature) | Not built |
+| **Voice search** | Snitch only | Not built |
+| **Multiple size/color SKU-level inventory** | Yes | Partial — stock is per-product, not per size/color combination |
+
+The gaps that remain (gift cards, image/voice search, true SKU-level
+variant inventory) are all legitimate scope additions, not bugs — happy
+to build any of them next if useful.
