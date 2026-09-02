@@ -6,6 +6,7 @@ import ProductReviews from "../components/ProductReviews";
 import RelatedProducts from "../components/RelatedProducts";
 import RecentlyViewed,{trackRecentlyViewed} from "../components/RecentlyViewed";
 import DeliveryCheck from "../components/DeliveryCheck";
+import CompleteTheLook from "../components/CompleteTheLook";
 import {api} from "../api";
 import {PRODUCTS} from "../data/products.js";
 
@@ -18,6 +19,16 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle");
  useEffect(()=>{if(product)trackRecentlyViewed(product.id)},[product?.id]);
  useEffect(()=>{setSize("");setColor(product?.color||"");setImageIndex(0);setQty(1)},[product?.id]);
+ useEffect(()=>{
+  const handleLook=(event)=>{
+   const look=Array.isArray(event.detail)?event.detail:[];
+   if(!look.length)return;
+   look.forEach(item=>add?.(item));
+   nav("/checkout");
+  };
+  window.addEventListener("offgrid-add-look",handleLook);
+  return()=>window.removeEventListener("offgrid-add-look",handleLook);
+ },[add,nav]);
  if(!product)return <div className="product-not-found-page"><div><span>THE OFF GRID</span><h1>PRODUCT NOT<br/>FOUND</h1><p>We couldn't find the product you're looking for.</p><button className="orange-btn" onClick={()=>nav("/")}>BACK TO SHOP</button></div></div>;
  const images=useMemo(()=>Array.from(new Set([product.image,...(Array.isArray(product.images)?product.images:[])].filter(Boolean))),[product]);
  const sizes=Array.isArray(product.sizes)&&product.sizes.length?product.sizes:String(product.size||"").split("/").map(x=>x.trim()).filter(Boolean);
@@ -47,6 +58,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
    </div>
   </main>
   <section className="product-details-extra product-story-grid"><div><span>THE OFF GRID / DETAILS</span><h2>BUILT FOR<br/><em>REPEAT WEAR.</em></h2></div><div><p>{product.description}</p><div className="product-detail-points">{(product.details||[]).map(x=><div key={x}>✓ {x}</div>)}</div><p><strong>MATERIAL</strong><br/>{product.material||"Premium fabric selected for everyday wear."}</p></div></section>
+  <CompleteTheLook current={{...product,selectedSize:size,selectedColor:color}} products={products} selectedSize={size}/>
   <ProductReviews productId={product.id} user={user}/><RelatedProducts current={product} products={related}/><RecentlyViewed current={product} products={products}/><div className="product-details-bottom"><button onClick={()=>nav("/")}>← CONTINUE SHOPPING</button></div>
   {guide&&<SizeGuideModal onClose={()=>setGuide(false)} product={product}/>} {zoom&&<div className="product-zoom-overlay" onClick={e=>e.target===e.currentTarget&&setZoom(false)}><button onClick={()=>setZoom(false)}>CLOSE ×</button><img src={images[imageIndex]} alt={product.name}/></div>}
  </div>;
