@@ -23,11 +23,10 @@ export async function initDb(){
       condition TEXT DEFAULT 'Excellent',
       price INTEGER NOT NULL,
       old_price INTEGER,
-  image TEXT NOT NULL,
-images TEXT[] DEFAULT '{}',
-stock INTEGER NOT NULL DEFAULT 1,
-created_at TIMESTAMPTZ DEFAULT NOW()
-      
+      image TEXT NOT NULL,
+      images TEXT[] DEFAULT '{}',
+      stock INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS orders(
       id SERIAL PRIMARY KEY,
@@ -77,28 +76,26 @@ created_at TIMESTAMPTZ DEFAULT NOW()
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city TEXT");
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_state TEXT");
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_pincode TEXT");
-  await pool.query(
-  "ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}'"
-);
+  await pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}'");
   await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_size TEXT");
   await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_color TEXT");
   await pool.query("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN NOT NULL DEFAULT FALSE");
   await pool.query(`
-  ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS reset_token TEXT,
-  ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS loyalty_points INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE,
-  ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id),
-  ADD COLUMN IF NOT EXISTS referral_bonus_given BOOLEAN NOT NULL DEFAULT FALSE
-`);
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS reset_token TEXT,
+    ADD COLUMN IF NOT EXISTS reset_token_expires TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS loyalty_points INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE,
+    ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS referral_bonus_given BOOLEAN NOT NULL DEFAULT FALSE
+  `);
   await pool.query(`
-  ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS points_earned INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS points_redeemed INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS discount INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS points_awarded BOOLEAN NOT NULL DEFAULT FALSE
-`);
+    ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS points_earned INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS points_redeemed INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS discount INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS points_awarded BOOLEAN NOT NULL DEFAULT FALSE
+  `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS coupons(
       id SERIAL PRIMARY KEY,
@@ -114,21 +111,25 @@ created_at TIMESTAMPTZ DEFAULT NOW()
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT, ADD COLUMN IF NOT EXISTS coupon_discount INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT, ADD COLUMN IF NOT EXISTS fit TEXT`);
   await pool.query(`
-  ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS coupon_code TEXT,
-  ADD COLUMN IF NOT EXISTS coupon_discount INTEGER NOT NULL DEFAULT 0
-`);
-  await pool.query(`
-  ALTER TABLE products
-  ADD COLUMN IF NOT EXISTS color TEXT,
-  ADD COLUMN IF NOT EXISTS fit TEXT
-`);
-  await pool.query(`
-    UPDATE users
-    SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6))
-    WHERE referral_code IS NULL
+    CREATE TABLE IF NOT EXISTS customer_addresses(
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label TEXT NOT NULL DEFAULT 'HOME',
+      name TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      state TEXT NOT NULL,
+      pincode TEXT NOT NULL,
+      is_default BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS customer_addresses_user_idx ON customer_addresses(user_id);
   `);
+  await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6)) WHERE referral_code IS NULL`);
   if(process.env.ADMIN_EMAIL){ await pool.query("UPDATE users SET role='admin' WHERE email=$1",[process.env.ADMIN_EMAIL.toLowerCase()]); }
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){
