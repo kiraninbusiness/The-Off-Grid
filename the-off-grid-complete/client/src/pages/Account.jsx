@@ -1,105 +1,63 @@
-import React,{useState} from "react";
+import React,{useEffect,useMemo,useState} from "react";
 import {useNavigate} from "react-router-dom";
 import {api} from "../api";
+import {ArrowRight,Copy,Heart,LogOut,MapPin,Package,RefreshCw,ShieldCheck,Star,UserRound} from "lucide-react";
 
-/*
-  IMPORTANT FIX / NEW FUNCTIONALITY:
-  The old version "logged in" by writing straight to localStorage
-  with no password check and no server round-trip at all — it never
-  called the (fully built) /api/auth endpoints, so accounts were
-  fake, could never sync across devices, and could never satisfy the
-  admin check in Admin.jsx (which requires a real role from a real
-  JWT). This now performs a real register/login against the backend
-  and stores the returned token the same way api.js expects it
-  ("offgrid_token"), plus the user object under the same key App.jsx
-  reads on load ("offgrid_user") — that key mismatch used to log
-  people out on every refresh.
-*/
-export default function Account({user,setUser,orders=[]}) {
+const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
+const emptyAddress={label:"HOME",name:"",phone:"",address:"",city:"",state:"Karnataka",pincode:"",is_default:false};
+
+export default function Account({user,setUser,orders=[]}){
  const nav=useNavigate();
  const [mode,setMode]=useState(user?"profile":"login");
+ const [tab,setTab]=useState("overview");
  const [f,setF]=useState({name:"",email:"",password:"",referral_code:""});
+ const [address,setAddress]=useState(emptyAddress);
+ const [addresses,setAddresses]=useState([]);
+ const [editing,setEditing]=useState(null);
+ const [profile,setProfile]=useState(null);
  const [busy,setBusy]=useState(false);
+ const [addressBusy,setAddressBusy]=useState(false);
  const [err,setErr]=useState("");
+ const [notice,setNotice]=useState("");
+ const [forgot,setForgot]=useState(false);
+ const [forgotEmail,setForgotEmail]=useState("");
 
- const persist=(u,token)=>{
-  localStorage.setItem("offgrid_user",JSON.stringify(u));
-  if(token)localStorage.setItem("offgrid_token",token);
-  setUser(u);
- };
+ useEffect(()=>{ if(!user)return; let cancelled=false; setBusy(true); Promise.all([
+   api("/auth/me"),
+   api("/profile/addresses")
+ ]).then(([me,addrs])=>{if(!cancelled){setProfile(me);setAddresses(Array.isArray(addrs)?addrs:[]);}}).catch(e=>{if(!cancelled)setNotice(e.message||"Unable to load account details")}).finally(()=>{if(!cancelled)setBusy(false)}); return()=>{cancelled=true}},[user]);
 
- const login=async e=>{
-  e.preventDefault();
-  setBusy(true);setErr("");
-  try{
-   const res=await api("/auth/login",{method:"POST",body:JSON.stringify({email:f.email,password:f.password})});
-   persist(res.user,res.token);
-   setMode("profile");
-  }catch(error){
-   setErr(error.message||"Login failed");
-  }finally{setBusy(false)}
- };
+ const persist=(u,token)=>{localStorage.setItem("offgrid_user",JSON.stringify(u));if(token)localStorage.setItem("offgrid_token",token);setUser(u);setProfile(p=>({...p,...u}))};
+ const login=async e=>{e.preventDefault();setBusy(true);setErr("");try{const res=await api("/auth/login",{method:"POST",body:JSON.stringify({email:f.email.trim(),password:f.password})});persist(res.user,res.token);setMode("profile");}catch(e){setErr(e.message||"Login failed")}finally{setBusy(false)}};
+ const register=async e=>{e.preventDefault();setBusy(true);setErr("");try{const res=await api("/auth/register",{method:"POST",body:JSON.stringify({name:f.name.trim(),email:f.email.trim(),password:f.password,referral_code:f.referral_code||undefined})});persist(res.user,res.token);setMode("profile");}catch(e){setErr(e.message||"Registration failed")}finally{setBusy(false)}};
+ const signOut=()=>{localStorage.removeItem("offgrid_user");localStorage.removeItem("offgrid_token");setUser(null);setMode("login");setProfile(null);setAddresses([])};
+ const refreshAccount=async()=>{try{const [me,addrs]=await Promise.all([api("/auth/me"),api("/profile/addresses")]);setProfile(me);setAddresses(Array.isArray(addrs)?addrs:[]);setUser(u=>({...u,...me}));localStorage.setItem("offgrid_user",JSON.stringify({...user,...me}))}catch(e){setNotice(e.message||"Could not refresh account")}};
+ const startAddress=(item=null)=>{setEditing(item?.id||null);setAddress(item?{...item}:emptyAddress);setNotice("");setTab("addresses")};
+ const saveAddress=async e=>{e.preventDefault();setAddressBusy(true);setNotice("");try{const payload={...address,is_default:Boolean(address.is_default)};const saved=editing?await api(`/profile/addresses/${editing}`,{method:"PATCH",body:JSON.stringify(payload)}):await api("/profile/addresses",{method:"POST",body:JSON.stringify(payload)});setAddresses(cur=>editing?cur.map(a=>a.id===saved.id?saved:a):[saved,...cur]);setEditing(null);setAddress(emptyAddress);setNotice("ADDRESS SAVED")}catch(e){setNotice(e.message||"Could not save address")}finally{setAddressBusy(false)}};
+ const removeAddress=async id=>{if(!window.confirm("Remove this saved address?"))return;try{await api(`/profile/addresses/${id}`,{method:"DELETE"});setAddresses(cur=>cur.filter(a=>a.id!==id));setNotice("ADDRESS REMOVED")}catch(e){setNotice(e.message||"Could not remove address")}};
+ const makeDefault=async id=>{try{const saved=await api(`/profile/addresses/${id}/default`,{method:"POST"});setAddresses(cur=>cur.map(a=>({...a,is_default:a.id===saved.id})));setNotice("DEFAULT ADDRESS UPDATED")}catch(e){setNotice(e.message||"Could not update default address")}};
+ const sendReset=async e=>{e.preventDefault();setBusy(true);setErr("");try{const res=await api("/auth/forgot-password",{method:"POST",body:JSON.stringify({email:forgotEmail.trim()})});setNotice(res.message||"Check your email for reset instructions");setForgot(false)}catch(e){setErr(e.message||"Could not start password reset")}finally{setBusy(false)}};
+ const copyReferral=async()=>{if(!profile?.referral_code)return;try{await navigator.clipboard.writeText(profile.referral_code);setNotice("REFERRAL CODE COPIED")}catch{setNotice(`YOUR REFERRAL CODE: ${profile.referral_code}`)}};
+ const stats=useMemo(()=>{const total=orders.reduce((s,o)=>s+Number(o.total||0),0);const delivered=orders.filter(o=>String(o.status)==="delivered").length;return{total,delivered,count:orders.length}},[orders]);
+ const recent=orders.slice(0,3);
 
- const register=async e=>{
-  e.preventDefault();
-  setBusy(true);setErr("");
-  try{
-   const res=await api("/auth/register",{method:"POST",body:JSON.stringify({name:f.name,email:f.email,password:f.password,referral_code:f.referral_code||undefined})});
-   persist(res.user,res.token);
-   setMode("profile");
-  }catch(error){
-   setErr(error.message||"Registration failed");
-  }finally{setBusy(false)}
- };
-
- const signOut=()=>{
-  localStorage.removeItem("offgrid_user");
-  localStorage.removeItem("offgrid_token");
-  setUser(null);
-  setMode("login");
- };
-
- if(mode==="profile"&&user){
-  return <div className="page account-page">
-   <div className="page-head"><span>THE OFF GRID / ACCOUNT</span><h1>WELCOME, <em>{user?.name||"YOU"}.</em></h1></div>
-   <div className="account-grid">
-    <div>
-     <h2>ACCOUNT DETAILS</h2>
-     <p>{user?.email}</p>
-     {user?.role==="admin"&&<p className="admin-tag">ADMINISTRATOR</p>}
-     <button className="text-button" onClick={signOut}>SIGN OUT</button>
-    </div>
-    <div>
-     <h2>ORDER HISTORY</h2>
-     <p>{orders.length} order{orders.length===1?"":"s"}</p>
-     <button className="orange-btn" onClick={()=>nav("/orders")}>VIEW ORDERS</button>
-     {user?.role==="admin"&&<button className="outline-btn" style={{marginTop:12}} onClick={()=>nav("/admin")}>ADMIN PANEL</button>}
-    </div>
-   </div>
-  </div>;
+ if(mode!=="profile"||!user){
+  return <div className="page account-page"><div className="page-head"><span>THE OFF GRID / ACCOUNT</span><h1>{forgot?<>RESET <em>PASSWORD.</em></>:mode==="login"?<>GET <em>IN.</em></>:<>JOIN THE <em>GRID.</em></>}</h1></div>{forgot?<form className="login-form account-auth-card" onSubmit={sendReset}><p>Enter your account email and we'll send password reset instructions.</p><input required type="email" placeholder="EMAIL" value={forgotEmail} onChange={e=>setForgotEmail(e.target.value)}/>{err&&<p className="notify-me-error">{err}</p>}{notice&&<p className="account-notice">{notice}</p>}<button className="orange-btn" disabled={busy}>{busy?"SENDING...":"SEND RESET LINK"}</button><button type="button" className="text-button auth-toggle" onClick={()=>{setForgot(false);setErr("")}}>BACK TO SIGN IN</button></form>:mode==="login"?<form className="login-form account-auth-card" onSubmit={login}><div className="account-auth-intro"><UserRound size={22}/><span>MEMBERS GET MORE</span></div><input required type="email" placeholder="EMAIL" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input required type="password" placeholder="PASSWORD" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/>{err&&<p className="notify-me-error">{err}</p>}<button className="orange-btn" disabled={busy}>{busy?"SIGNING IN...":"SIGN IN"}</button><button type="button" className="text-button" onClick={()=>{setForgot(true);setForgotEmail(f.email);setErr("")}}>FORGOT PASSWORD?</button><button type="button" className="text-button auth-toggle" onClick={()=>{setMode("register");setErr("")}}>NEW HERE? CREATE AN ACCOUNT</button></form>:<form className="login-form account-auth-card" onSubmit={register}><input required placeholder="NAME" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input required type="email" placeholder="EMAIL" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input required type="password" placeholder="PASSWORD (6+ CHARACTERS)" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/><input placeholder="REFERRAL CODE (OPTIONAL)" value={f.referral_code} onChange={e=>setF({...f,referral_code:e.target.value})}/>{err&&<p className="notify-me-error">{err}</p>}<button className="orange-btn" disabled={busy}>{busy?"CREATING ACCOUNT...":"CREATE ACCOUNT"}</button><button type="button" className="text-button auth-toggle" onClick={()=>{setMode("login");setErr("")}}>ALREADY HAVE AN ACCOUNT? SIGN IN</button></form>}</div>;
  }
 
- return <div className="page account-page">
-  <div className="page-head"><span>THE OFF GRID / ACCOUNT</span><h1>GET <em>IN.</em></h1></div>
-
-  {mode==="login"?
-   <form className="login-form" onSubmit={login}>
-    <input required type="email" placeholder="EMAIL" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/>
-    <input required type="password" placeholder="PASSWORD" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/>
-    {err&&<p className="notify-me-error">{err}</p>}
-    <button className="orange-btn" disabled={busy}>{busy?"SIGNING IN...":"SIGN IN"}</button>
-    <button type="button" className="text-button auth-toggle" onClick={()=>{setMode("register");setErr("")}}>NEW HERE? CREATE AN ACCOUNT</button>
-   </form>
-   :
-   <form className="login-form" onSubmit={register}>
-    <input required placeholder="NAME" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
-    <input required type="email" placeholder="EMAIL" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/>
-    <input required type="password" placeholder="PASSWORD (6+ CHARACTERS)" value={f.password} onChange={e=>setF({...f,password:e.target.value})}/>
-    <input placeholder="REFERRAL CODE (OPTIONAL)" value={f.referral_code} onChange={e=>setF({...f,referral_code:e.target.value})}/>
-    {err&&<p className="notify-me-error">{err}</p>}
-    <button className="orange-btn" disabled={busy}>{busy?"CREATING ACCOUNT...":"CREATE ACCOUNT"}</button>
-    <button type="button" className="text-button auth-toggle" onClick={()=>{setMode("login");setErr("")}}>ALREADY HAVE AN ACCOUNT? SIGN IN</button>
-   </form>
-  }
+ return <div className="page account-page"><div className="page-head account-head"><span>THE OFF GRID / ACCOUNT</span><div className="account-head-row"><div><h1>WELCOME, <em>{user.name||"YOU"}.</em></h1><p className="account-member-line">{profile?.email||user.email} {profile?.role==="admin"&&<b>ADMIN</b>}</p></div><button className="text-button" onClick={signOut}><LogOut size={15}/> SIGN OUT</button></div></div>
+  {notice&&<div className="account-notice account-notice-wide">{notice}</div>}
+  <div className="account-dashboard">
+   <aside className="account-sidebar"><button className={tab==="overview"?"active":""} onClick={()=>setTab("overview")}><UserRound/> OVERVIEW</button><button className={tab==="orders"?"active":""} onClick={()=>setTab("orders")}><Package/> ORDERS <b>{stats.count}</b></button><button className={tab==="addresses"?"active":""} onClick={()=>setTab("addresses")}><MapPin/> ADDRESSES <b>{addresses.length}</b></button><button className={tab==="wishlist"?"active":""} onClick={()=>nav("/wishlist")}><Heart/> WISHLIST</button><button className={tab==="rewards"?"active":""} onClick={()=>setTab("rewards")}><Star/> REWARDS</button><button className={tab==="profile"?"active":""} onClick={()=>setTab("profile")}><ShieldCheck/> PROFILE</button></aside>
+   <main className="account-content">
+    {tab==="overview"&&<><div className="account-stat-grid"><div><span>ORDERS</span><strong>{stats.count}</strong></div><div><span>DELIVERED</span><strong>{stats.delivered}</strong></div><div><span>LIFETIME SPEND</span><strong>{money(stats.total)}</strong></div><div><span>GRID POINTS</span><strong>{Number(profile?.loyalty_points||0)}</strong></div></div><section className="account-panel account-rewards-strip"><div><span>THE OFF GRID REWARDS</span><h2>{Number(profile?.loyalty_points||0)} <em>POINTS.</em></h2><p>Earn 1 point for every ₹100 spent. 1 point = ₹1 at checkout.</p></div><button className="outline-btn" onClick={()=>setTab("rewards")}>VIEW REWARDS <ArrowRight size={15}/></button></section><section className="account-panel"><div className="account-panel-head"><div><span>RECENT ORDERS</span><h2>YOUR LATEST <em>BUYS.</em></h2></div><button className="text-button" onClick={()=>setTab("orders")}>VIEW ALL <ArrowRight size={15}/></button></div>{recent.length?<div className="account-mini-orders">{recent.map(o=><div key={o.id}><div><strong>OG{String(o.id).padStart(6,"0")}</strong><span>{o.created_at?new Date(o.created_at).toLocaleDateString("en-IN"):"—"}</span></div><p>{Array.isArray(o.items)?o.items.slice(0,2).map(i=>i.name).join(", "):"THE OFF GRID ORDER"}</p><b>{money(o.total)}</b><button onClick={()=>nav(`/track-order/${o.id}`)}>TRACK <ArrowRight size={14}/></button></div>)}</div>:<div className="account-empty"><Package size={25}/><h3>NO ORDERS YET.</h3><button className="orange-btn" onClick={()=>nav("/")}>START SHOPPING</button></div>}</section></>}
+    {tab==="orders"&&<section className="account-panel"><div className="account-panel-head"><div><span>ORDER HISTORY</span><h2>ALL YOUR <em>ORDERS.</em></h2></div><RefreshCw className={busy?"spin":""} size={18} onClick={refreshAccount}/></div>{orders.length?<div className="account-order-list">{orders.map(o=><article key={o.id}><div className="account-order-top"><div><strong>OG{String(o.id).padStart(6,"0")}</strong><span>{o.created_at?new Date(o.created_at).toLocaleDateString("en-IN"):"—"}</span></div><span className={`order-status ${o.status}`}>{String(o.status||"pending").toUpperCase()}</span></div><h3>{Array.isArray(o.items)&&o.items.length?o.items.map(i=>`${i.name}${i.quantity>1?` × ${i.quantity}`:""}`).join(", "):"THE OFF GRID ORDER"}</h3><div className="account-order-meta"><span>{money(o.total)}</span><span>{String(o.payment_method||"COD").toUpperCase()}</span>{o.points_earned>0&&<span>+{o.points_earned} POINTS</span>}</div><div className="account-order-actions">{o.status!=="cancelled"&&<button className="text-button" onClick={()=>nav(`/track-order/${o.id}`)}>TRACK ORDER <ArrowRight size={14}/></button>}{o.status==="pending"&&String(o.payment_method||"").toLowerCase()==="cod"&&<button className="text-button" onClick={()=>window.confirm("Cancel this order?")&&window.dispatchEvent(new CustomEvent("offgrid-cancel-order",{detail:o.id}))}>CANCEL ORDER</button>}</div></article>)}</div>:<div className="account-empty"><Package size={25}/><h3>NO ORDERS YET.</h3><button className="orange-btn" onClick={()=>nav("/")}>SHOP THE COLLECTION</button></div>}</section>}
+    {tab==="addresses"&&<><section className="account-panel"><div className="account-panel-head"><div><span>SAVED DELIVERY DETAILS</span><h2>YOUR <em>ADDRESSES.</em></h2></div><button className="orange-btn" onClick={()=>startAddress()}>ADD ADDRESS</button></div>{addresses.length?<div className="saved-address-grid">{addresses.map(a=><article key={a.id} className={a.is_default?"default":""}><div className="saved-address-top"><strong>{a.label}</strong>{a.is_default&&<span>DEFAULT</span>}</div><h3>{a.name}</h3><p>{a.phone}<br/>{a.address}<br/>{a.city}, {a.state} — {a.pincode}</p><div><button className="text-button" onClick={()=>startAddress(a)}>EDIT</button>{!a.is_default&&<button className="text-button" onClick={()=>makeDefault(a.id)}>SET DEFAULT</button>}<button className="text-button" onClick={()=>removeAddress(a.id)}>REMOVE</button></div></article>)}</div>:<div className="account-empty"><MapPin size={25}/><h3>NO SAVED ADDRESSES.</h3><p>Save an address once and checkout faster next time.</p></div>}</section>{(editing||address.label)||addresses.length===0?<section className="account-panel account-address-form"><div className="account-panel-head"><div><span>{editing?"EDIT ADDRESS":"NEW ADDRESS"}</span><h2>{editing?"UPDATE YOUR":"ADD A"} <em>ADDRESS.</em></h2></div></div><form onSubmit={saveAddress}><div className="account-form-grid"><input required placeholder="LABEL (HOME / WORK)" value={address.label} onChange={e=>setAddress({...address,label:e.target.value})}/><input required placeholder="FULL NAME" value={address.name} onChange={e=>setAddress({...address,name:e.target.value})}/><input required placeholder="PHONE" inputMode="numeric" maxLength={10} value={address.phone} onChange={e=>setAddress({...address,phone:e.target.value})}/><input required placeholder="PINCODE" inputMode="numeric" maxLength={6} value={address.pincode} onChange={e=>setAddress({...address,pincode:e.target.value})}/><input required className="account-form-wide" placeholder="ADDRESS" value={address.address} onChange={e=>setAddress({...address,address:e.target.value})}/><input required placeholder="CITY" value={address.city} onChange={e=>setAddress({...address,city:e.target.value})}/><input required placeholder="STATE" value={address.state} onChange={e=>setAddress({...address,state:e.target.value})}/><label className="account-default-check"><input type="checkbox" checked={Boolean(address.is_default)} onChange={e=>setAddress({...address,is_default:e.target.checked})}/> MAKE DEFAULT</label></div><div><button className="orange-btn" disabled={addressBusy}>{addressBusy?"SAVING...":"SAVE ADDRESS"}</button>{editing&&<button type="button" className="text-button" onClick={()=>{setEditing(null);setAddress(emptyAddress)}}>CANCEL</button>}</div></form></section>:null}</>}
+    {tab==="rewards"&&<section className="account-panel"><div className="account-panel-head"><div><span>LOYALTY PROGRAM</span><h2>STAY <em>OFF GRID.</em></h2></div><Star size={25}/></div><div className="rewards-hero"><strong>{Number(profile?.loyalty_points||0)}</strong><span>AVAILABLE GRID POINTS</span><p>Use points as ₹1 discounts at checkout. You earn 1 point per ₹100 spent.</p></div><div className="referral-card"><div><span>INVITE YOUR PEOPLE</span><h3>YOUR REFERRAL CODE</h3><strong>{profile?.referral_code||"—"}</strong><p>Share your code with friends. When a referred customer places their first qualifying order, you receive a 100-point bonus.</p></div><button className="orange-btn" onClick={copyReferral}><Copy size={15}/> COPY CODE</button></div><div className="reward-history"><span>REWARD HISTORY</span>{orders.filter(o=>Number(o.points_earned||0)>0).map(o=><div key={o.id}><span>ORDER OG{String(o.id).padStart(6,"0")}</span><b>+{o.points_earned} POINTS</b></div>)}</div></section>}
+    {tab==="profile"&&<section className="account-panel"><div className="account-panel-head"><div><span>PERSONAL DETAILS</span><h2>YOUR <em>PROFILE.</em></h2></div></div><div className="profile-details"><div><span>NAME</span><strong>{user.name}</strong></div><div><span>EMAIL</span><strong>{user.email}</strong></div><div><span>MEMBER SINCE</span><strong>{profile?.id?"THE OFF GRID MEMBER":"—"}</strong></div></div>{user.role==="admin"&&<button className="outline-btn" onClick={()=>nav("/admin")}>OPEN ADMIN PANEL</button>}</section>}
+    {tab==="wishlist"&&null}
+   </main>
+  </div>
+  <div className="account-mobile-actions"><button onClick={()=>nav("/wishlist")}><Heart size={17}/> WISHLIST</button><button onClick={signOut}><LogOut size={17}/> SIGN OUT</button></div>
  </div>;
 }
