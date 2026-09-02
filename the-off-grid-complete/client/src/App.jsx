@@ -15,6 +15,7 @@ import { api } from "./api";
 import PRODUCTS from "./data/products.js";
 import "./styles.css";
 import "./search-autocomplete.css";
+import "./homepage-merchandising.css";
 
 export default function App() {
   const location = useLocation();
