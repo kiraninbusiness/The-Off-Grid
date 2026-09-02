@@ -9,7 +9,7 @@ router.get('/:productId', async (req, res) => {
   const { productId } = req.params;
 
   const { rows } = await pool.query(
-    `SELECT r.id, r.rating, r.comment, r.created_at, u.name AS user_name
+    `SELECT r.id, r.rating, r.comment, r.created_at, r.verified_purchase, u.name AS user_name
      FROM reviews r
      JOIN users u ON u.id = r.user_id
      WHERE r.product_id = $1
@@ -42,13 +42,26 @@ router.post('/:productId', auth, async (req, res) => {
     return res.status(400).json({ message: 'Rating must be between 1 and 5' });
   }
 
+  const purchase = await pool.query(
+    `SELECT 1
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE oi.product_id = $1
+       AND o.user_id = $2
+       AND o.status = 'delivered'
+     LIMIT 1`,
+    [productId, req.user.id]
+  );
+
+  const verifiedPurchase = purchase.rows.length > 0;
+
   const { rows } = await pool.query(
-    `INSERT INTO reviews (product_id, user_id, rating, comment)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO reviews (product_id, user_id, rating, comment, verified_purchase)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (product_id, user_id)
-     DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, created_at = NOW()
-     RETURNING id, rating, comment, created_at`,
-    [productId, req.user.id, ratingNum, comment.slice(0, 1000)]
+     DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, verified_purchase = EXCLUDED.verified_purchase, created_at = NOW()
+     RETURNING id, rating, comment, verified_purchase, created_at`,
+    [productId, req.user.id, ratingNum, comment.slice(0, 1000), verifiedPurchase]
   );
 
   res.status(201).json({

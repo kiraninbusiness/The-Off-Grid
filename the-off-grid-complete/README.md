@@ -18,13 +18,15 @@ This package is a clean replacement project for the current The Off Grid clothin
 - Category filtering
 - Sorting
 - Checkout
-- Cash on Delivery flow
-- Online-payment placeholder ready for Razorpay integration
-- Order creation/history
-- Order cancellation
-- Order tracking
-- Customer account
-- Product reviews + star ratings
+- Real backend order creation for COD and online payments
+- Razorpay Checkout + server-side signature verification
+- Safe online-payment cancellation/failure stock restoration
+- Backend/PostgreSQL order history and direct order lookup
+- Order cancellation with stock/coupon/loyalty restoration
+- Order tracking backed by the API
+- Customer account authentication
+- Backend product reviews + star ratings
+- Verified Purchase review badge when the customer has a delivered order
 - Newsletter form
 - Mobile navigation
 - Responsive UI
@@ -59,7 +61,24 @@ The storefront works without the API because product/cart/order/review persisten
 
 ## Production payment
 
-The checkout intentionally does NOT contain fake Razorpay credentials. For live online payments, connect your Razorpay Key ID/secret and server-side order creation/signature verification in the checkout flow.
+The checkout now uses Razorpay when `VITE_RAZORPAY_KEY_ID` is configured in the frontend. Keep `RAZORPAY_KEY_SECRET` on the backend only.
+
+Frontend `.env` example:
+
+```
+VITE_API_URL=https://your-backend.example.com/api
+VITE_RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxx
+```
+
+Backend `.env` example:
+
+```
+DATABASE_URL=...
+JWT_SECRET=...
+CLIENT_URL=https://your-frontend.example.com
+RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxx
+RAZORPAY_KEY_SECRET=your_secret
+```
 
 ## Important
 

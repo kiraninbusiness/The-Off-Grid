@@ -119,6 +119,20 @@ router.post('/create', auth, async (req, res) => {
     });
   }
 
+  const cleanShipping = {
+    name: String(shipping.name || '').trim(),
+    phone: String(shipping.phone || '').replace(/\D/g, ''),
+    email: String(shipping.email || '').trim().toLowerCase(),
+    address: String(shipping.address || '').trim(),
+    city: String(shipping.city || '').trim(),
+    state: String(shipping.state || '').trim(),
+    pincode: String(shipping.pincode || '').replace(/\D/g, '')
+  };
+
+  if (!cleanShipping.name || !/^\d{10}$/.test(cleanShipping.phone) || !/^\S+@\S+\.\S+$/.test(cleanShipping.email) || !cleanShipping.address || !cleanShipping.city || !cleanShipping.state || !/^\d{6}$/.test(cleanShipping.pincode)) {
+    return res.status(400).json({ message: 'Please provide valid delivery details.' });
+  }
+
   /*
     ONLINE PAYMENT REQUIRES RAZORPAY
   */
@@ -295,20 +309,28 @@ router.post('/create', auth, async (req, res) => {
           shipping_name,
           shipping_phone,
           shipping_address,
+          shipping_email,
+          shipping_city,
+          shipping_state,
+          shipping_pincode,
           payment_method,
           discount,
           points_redeemed,
           coupon_code,
           coupon_discount
         )
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         RETURNING *`,
         [
           req.user.id,
           total,
-          shipping.name || '',
-          shipping.phone || '',
-          shipping.address || '',
+          cleanShipping.name,
+          cleanShipping.phone,
+          cleanShipping.address,
+          cleanShipping.email,
+          cleanShipping.city,
+          cleanShipping.state,
+          cleanShipping.pincode,
           payment_method,
           discount,
           pointsToRedeem,
@@ -338,15 +360,19 @@ router.post('/create', auth, async (req, res) => {
           product_id,
           name,
           price,
-          quantity
+          quantity,
+          selected_size,
+          selected_color
         )
-        VALUES($1,$2,$3,$4,$5)`,
+        VALUES($1,$2,$3,$4,$5,$6,$7)`,
         [
           order.id,
           p.id,
           p.name,
           p.price,
-          quantity
+          quantity,
+          item.selectedSize || null,
+          p.color || null
         ]
       );
 
@@ -458,7 +484,7 @@ router.get('/mine', auth, async (req, res) => {
   const orderIds = rows.map((o) => o.id);
 
   const itemsResult = await pool.query(
-    `SELECT order_id, product_id, name, price, quantity
+    `SELECT order_id, product_id, name, price, quantity, selected_size, selected_color
      FROM order_items
      WHERE order_id = ANY($1::int[])`,
     [orderIds]
@@ -479,6 +505,71 @@ router.get('/mine', auth, async (req, res) => {
   }));
 
   res.json(withItems);
+});
+
+
+/*
+  Restore stock and customer benefits for an unpaid/cancelled order.
+  This is deliberately idempotent: callers must hold the order row lock
+  and only invoke it while the order is still cancellable.
+*/
+async function restoreOrderBenefits(client, order) {
+  const itemsResult = await client.query(
+    `SELECT product_id, quantity
+     FROM order_items
+     WHERE order_id = $1`,
+    [order.id]
+  );
+
+  for (const item of itemsResult.rows) {
+    await client.query(
+      `UPDATE products SET stock = stock + $1 WHERE id = $2`,
+      [Number(item.quantity), Number(item.product_id)]
+    );
+  }
+
+  if (Number(order.points_redeemed) > 0) {
+    await client.query(
+      `UPDATE users
+       SET loyalty_points = loyalty_points + $1
+       WHERE id = $2`,
+      [Number(order.points_redeemed), Number(order.user_id)]
+    );
+  }
+
+  if (order.coupon_code) {
+    await client.query(
+      `UPDATE coupons
+       SET used_count = GREATEST(0, used_count - 1)
+       WHERE code = $1`,
+      [order.coupon_code]
+    );
+  }
+}
+
+
+/*
+  CUSTOMER — GET ONE ORDER
+*/
+router.get('/:id', auth, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM orders WHERE id = $1 AND user_id = $2`,
+    [req.params.id, req.user.id]
+  );
+
+  if (!rows.length) {
+    return res.status(404).json({ message: 'Order not found' });
+  }
+
+  const items = await pool.query(
+    `SELECT order_id, product_id, name, price, quantity, selected_size, selected_color
+     FROM order_items
+     WHERE order_id = $1
+     ORDER BY id`,
+    [req.params.id]
+  );
+
+  res.json({ ...rows[0], items: items.rows });
 });
 
 
@@ -534,35 +625,7 @@ router.patch(
         orderResult.rows[0];
 
 
-      const itemsResult =
-        await client.query(
-          `SELECT
-             product_id,
-             quantity
-           FROM order_items
-           WHERE order_id = $1`,
-          [order.id]
-        );
-
-
-      /*
-        RESTORE STOCK
-      */
-      for (
-        const item
-        of itemsResult.rows
-      ) {
-
-        await client.query(
-          `UPDATE products
-           SET stock = stock + $1
-           WHERE id = $2`,
-          [
-            Number(item.quantity),
-            Number(item.product_id)
-          ]
-        );
-      }
+      await restoreOrderBenefits(client, order);
 
 
       /*
@@ -689,35 +752,7 @@ router.patch(
       /*
         GET ORDER ITEMS
       */
-      const itemsResult =
-        await client.query(
-          `SELECT
-             product_id,
-             quantity
-           FROM order_items
-           WHERE order_id = $1`,
-          [order.id]
-        );
-
-
-      /*
-        RESTORE STOCK
-      */
-      for (
-        const item
-        of itemsResult.rows
-      ) {
-
-        await client.query(
-          `UPDATE products
-           SET stock = stock + $1
-           WHERE id = $2`,
-          [
-            Number(item.quantity),
-            Number(item.product_id)
-          ]
-        );
-      }
+      await restoreOrderBenefits(client, order);
 
 
       /*
@@ -810,8 +845,8 @@ router.patch(
     } = req.body;
 
 
-    const { rows } =
-      await pool.query(
+      const { rows } =
+        await client.query(
         `UPDATE orders
          SET
            status =
@@ -881,7 +916,6 @@ router.post(
   '/verify-payment',
   auth,
   async (req, res) => {
-
     const {
       orderId,
       razorpay_order_id,
@@ -889,159 +923,99 @@ router.post(
       razorpay_signature
     } = req.body;
 
-
-    if (
-      !process.env.RAZORPAY_KEY_SECRET
-    ) {
-      return res.status(503).json({
-        message:
-          'Razorpay is not configured'
-      });
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(503).json({ message: 'Razorpay is not configured' });
     }
 
+    const client = await pool.connect();
 
-    /*
-      Get the customer's order
-    */
-    const orderResult =
-      await pool.query(
+    try {
+      await client.query('BEGIN');
+
+      const orderResult = await client.query(
         `SELECT *
          FROM orders
          WHERE id = $1
-           AND user_id = $2`,
-        [
-          orderId,
-          req.user.id
-        ]
+           AND user_id = $2
+         FOR UPDATE`,
+        [orderId, req.user.id]
       );
 
+      if (!orderResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
 
-    if (!orderResult.rows.length) {
-      return res.status(404).json({
-        message:
-          'Order not found'
-      });
-    }
+      const order = orderResult.rows[0];
 
+      if (order.status === 'cancelled') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'This order has already been cancelled.' });
+      }
 
-    const order =
-      orderResult.rows[0];
+      if (order.payment_method !== 'online') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'This order is not an online payment order.' });
+      }
 
+      if (order.razorpay_order_id !== razorpay_order_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Razorpay order mismatch' });
+      }
 
-    /*
-      Make sure the Razorpay order matches
-      our database order.
-    */
-    if (
-      order.razorpay_order_id !==
-      razorpay_order_id
-    ) {
-      return res.status(400).json({
-        message:
-          'Razorpay order mismatch'
-      });
-    }
+      if (order.payment_status === 'paid') {
+        await client.query('COMMIT');
+        return res.json(order);
+      }
 
-
-    /*
-      If payment was already verified,
-      simply return the order.
-    */
-    if (
-      order.payment_status === 'paid'
-    ) {
-      return res.json(
-        order
-      );
-    }
-
-
-    /*
-      CREATE EXPECTED SIGNATURE
-    */
-    const expected =
-      crypto
-        .createHmac(
-          'sha256',
-          process.env.RAZORPAY_KEY_SECRET
-        )
-        .update(
-          `${razorpay_order_id}|${razorpay_payment_id}`
-        )
+      const expected = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest('hex');
 
+      const providedSignature = String(razorpay_signature || '');
+      const signaturesMatch =
+        providedSignature.length === expected.length &&
+        crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(providedSignature));
 
-    /*
-      VERIFY SIGNATURE
-    */
-    if (
-      expected !==
-      razorpay_signature
-    ) {
+      if (!signaturesMatch) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Invalid payment signature' });
+      }
 
-      return res.status(400).json({
-        message:
-          'Invalid payment signature'
-      });
-    }
-
-
-    /*
-      MARK PAYMENT AS PAID
-    */
-    const { rows } =
-      await pool.query(
+      const updated = await client.query(
         `UPDATE orders
-         SET
-           payment_status = 'paid',
-           status = 'processing'
+         SET payment_status = 'paid',
+             status = 'processing'
          WHERE id = $1
            AND user_id = $2
            AND payment_status <> 'paid'
+           AND status <> 'cancelled'
          RETURNING *`,
-        [
-          orderId,
-          req.user.id
-        ]
+        [orderId, req.user.id]
       );
 
-
-    if (rows.length) {
-
-      const client = await pool.connect();
-
-      try {
-        await client.query('BEGIN');
-        await awardLoyaltyPoints(client, orderId);
-        await client.query('COMMIT');
-      } catch (e) {
+      if (!updated.rows.length) {
         await client.query('ROLLBACK');
-        console.error('POINTS AWARD ERROR:', e.message);
-      } finally {
-        client.release();
+        return res.status(409).json({ message: 'Order could not be marked as paid.' });
       }
-    }
 
+      await awardLoyaltyPoints(client, orderId);
+      await client.query('COMMIT');
 
-    if (!rows.length) {
-
-      const latest =
-        await pool.query(
-          `SELECT *
-           FROM orders
-           WHERE id = $1`,
-          [orderId]
-        );
-
-      return res.json(
-        latest.rows[0]
+      const finalOrder = await pool.query(
+        `SELECT * FROM orders WHERE id = $1 AND user_id = $2`,
+        [orderId, req.user.id]
       );
+
+      res.json(finalOrder.rows[0]);
+    } catch (e) {
+      try { await client.query('ROLLBACK'); } catch {}
+      console.error('PAYMENT VERIFY ERROR:', e.message);
+      res.status(500).json({ message: 'Could not verify payment' });
+    } finally {
+      client.release();
     }
-
-
-    res.json(
-      rows[0]
-    );
   }
 );
 

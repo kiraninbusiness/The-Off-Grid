@@ -40,6 +40,10 @@ created_at TIMESTAMPTZ DEFAULT NOW()
       shipping_name TEXT,
       shipping_phone TEXT,
       shipping_address TEXT,
+      shipping_email TEXT,
+      shipping_city TEXT,
+      shipping_state TEXT,
+      shipping_pincode TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS order_items(
@@ -48,7 +52,9 @@ created_at TIMESTAMPTZ DEFAULT NOW()
       product_id INTEGER REFERENCES products(id),
       name TEXT NOT NULL,
       price INTEGER NOT NULL,
-      quantity INTEGER NOT NULL
+      quantity INTEGER NOT NULL,
+      selected_size TEXT,
+      selected_color TEXT
     );
     CREATE TABLE IF NOT EXISTS reviews(
       id SERIAL PRIMARY KEY,
@@ -56,6 +62,7 @@ created_at TIMESTAMPTZ DEFAULT NOW()
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
       comment TEXT DEFAULT '',
+      verified_purchase BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(product_id, user_id)
     );
@@ -66,9 +73,16 @@ created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'cod'");
+  await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_email TEXT");
+  await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_city TEXT");
+  await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_state TEXT");
+  await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_pincode TEXT");
   await pool.query(
   "ALTER TABLE products ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}'"
 );
+  await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_size TEXT");
+  await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_color TEXT");
+  await pool.query("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN NOT NULL DEFAULT FALSE");
   await pool.query(`
   ALTER TABLE users
   ADD COLUMN IF NOT EXISTS reset_token TEXT,

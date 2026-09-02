@@ -99,42 +99,57 @@ export default function App() {
   /* =========================================================
      ORDERS
 
-     FIX: there was previously no orders state anywhere in the
-     app at all, even though Checkout, Orders, Account and
-     TrackOrder all expected one. Placing an order had nowhere
-     to go, "My Orders" crashed (orders.length on undefined),
-     and order tracking could never find anything.
+     Orders are now sourced from the backend/PostgreSQL when a
+     customer is signed in. localStorage is no longer the source
+     of truth for permanent orders.
   ========================================================= */
 
-  const [orders, setOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("offgrid_orders");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("offgrid_orders", JSON.stringify(orders));
-    } catch {}
-  }, [orders]);
+    let cancelled = false;
+
+    if (!user) {
+      setOrders([]);
+      return () => { cancelled = true; };
+    }
+
+    setOrdersLoading(true);
+    api("/orders/mine")
+      .then((data) => {
+        if (!cancelled && Array.isArray(data)) {
+          setOrders(data);
+        }
+      })
+      .catch((error) => {
+        console.error("Unable to load orders", error);
+        if (!cancelled) setOrders([]);
+      })
+      .finally(() => {
+        if (!cancelled) setOrdersLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [user]);
 
   const addOrder = (order) => {
     setOrders((current) => [order, ...current]);
   };
 
-  const cancelOrder = (id) => {
-    setOrders((current) =>
-      current.map((order) =>
-        String(order.id) === String(id) &&
-        order.status !== "delivered" &&
-        order.status !== "cancelled"
-          ? { ...order, status: "cancelled" }
-          : order
-      )
-    );
+  const cancelOrder = async (id) => {
+    try {
+      const response = await api(`/orders/${id}/cancel`, { method: "PATCH" });
+      setOrders((current) =>
+        current.map((order) =>
+          String(order.id) === String(id)
+            ? { ...order, ...response.order, status: "cancelled" }
+            : order
+        )
+      );
+    } catch (error) {
+      window.alert(error.message || "This order cannot be cancelled.");
+    }
   };
 
   /* =========================================================
@@ -220,12 +235,14 @@ export default function App() {
     setCart((current) => {
       const existing = current.find(
         (item) =>
-          String(item.id) === String(product.id)
+          String(item.id) === String(product.id) &&
+          String(item.selectedSize || "") === String(product.selectedSize || "")
       );
 
       if (existing) {
         return current.map((item) =>
-          String(item.id) === String(product.id)
+          String(item.id) === String(product.id) &&
+          String(item.selectedSize || "") === String(product.selectedSize || "")
             ? {
                 ...item,
                 qty: Number(item.qty || 1) + 1,
@@ -424,6 +441,7 @@ export default function App() {
       <Order
         orders={orders}
         onCancel={cancelOrder}
+        loading={ordersLoading}
       />
     );
   }

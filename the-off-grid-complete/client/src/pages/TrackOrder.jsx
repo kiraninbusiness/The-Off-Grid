@@ -1,58 +1,99 @@
-import React from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { CheckCircle2, Clock3, Package, Truck, XCircle } from "lucide-react";
+import { api } from "../api";
 
-/*
-  IMPORTANT FIX:
-  This page used useParams() to read the order id, but the app never
-  renders it inside a <Route path="/track-order/:id"> — App.jsx just
-  checks location.pathname.startsWith(...) and renders this component
-  directly. useParams() always returned {}, so no order could ever be
-  found. We now parse the id from the pathname the same way App.jsx
-  parses product ids. It also never received an `orders` list before,
-  which would have crashed the page the moment it tried to search it.
-*/
+const steps = ["pending", "processing", "shipped", "delivered"];
+
 export default function TrackOrder({ orders = [] }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const id = location.pathname.split("/track-order/")[1]?.split("/")[0];
-  const o = orders.find((x) => String(x.id) === String(id));
+  const existing = orders.find((item) => String(item.id) === String(id));
+  const [order, setOrder] = useState(existing || null);
+  const [loading, setLoading] = useState(!existing);
+  const [error, setError] = useState("");
 
-  const steps = ["pending", "processing", "shipped", "delivered"];
-  const cur = o ? steps.indexOf(o.status) : -1;
+  useEffect(() => {
+    let cancelled = false;
+
+    if (existing) {
+      setOrder(existing);
+      setLoading(false);
+      return undefined;
+    }
+
+    if (!id) {
+      setLoading(false);
+      return undefined;
+    }
+
+    setLoading(true);
+    api(`/orders/${id}`)
+      .then((data) => {
+        if (!cancelled) setOrder(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Order not found");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [id, existing]);
+
+  const current = order ? steps.indexOf(order.status) : -1;
+  const displayId = order ? `OG${String(order.id).padStart(6, "0")}` : id;
 
   return (
     <div className="page track-page">
       <div className="page-head">
         <span>THE OFF GRID / TRACKING</span>
-        <h1>
-          TRACK <em>YOUR ORDER.</em>
-        </h1>
+        <h1>TRACK <em>YOUR ORDER.</em></h1>
       </div>
 
-      {o ? (
+      {loading ? (
+        <div className="empty-box"><h2>LOADING ORDER...</h2></div>
+      ) : order ? (
         <div className="track-card">
-          <h2>{o.id}</h2>
+          <div className="track-card-head">
+            <div>
+              <small>ORDER</small>
+              <h2>{displayId}</h2>
+            </div>
+            <span className={`order-status ${order.status}`}>
+              {order.status === "cancelled" ? <XCircle size={15} /> : <Clock3 size={15} />}
+              {String(order.status || "pending").toUpperCase()}
+            </span>
+          </div>
 
-          {o.status === "cancelled" ? (
-            <p className="notify-me-error">This order was cancelled.</p>
+          {order.status === "cancelled" ? (
+            <p className="notify-me-error">This order was cancelled and its reserved stock was released.</p>
           ) : (
             <div className="tracking-steps">
-              {steps.map((s, i) => (
-                <div className={i <= cur ? "done" : ""} key={s}>
-                  <b>{i + 1}</b>
-                  <span>{s}</span>
+              {steps.map((status, index) => (
+                <div className={index <= current ? "done" : ""} key={status}>
+                  <b>
+                    {index < current ? <CheckCircle2 size={15} /> : index === current ? <Package size={15} /> : <Truck size={15} />}
+                  </b>
+                  <span>{status}</span>
                 </div>
               ))}
             </div>
           )}
 
-          <p>
-            Shipping to {o.customer?.city}, {o.customer?.state} ·{" "}
-            {o.customer?.pincode}
-          </p>
+          <div className="track-order-meta">
+            <p>Shipping to {order.shipping_city || order.customer?.city || "—"}, {order.shipping_state || order.customer?.state || "—"} · {order.shipping_pincode || order.customer?.pincode || "—"}</p>
+            <p>Payment: {String(order.payment_method || order.payment || "cod").toUpperCase()} · {String(order.payment_status || "pending").toUpperCase()}</p>
+          </div>
+
+          <button className="text-button" type="button" onClick={() => navigate("/orders")}>BACK TO ORDERS</button>
         </div>
       ) : (
         <div className="empty-box">
-          <h2>ORDER NOT FOUND.</h2>
+          <h2>{error || "ORDER NOT FOUND."}</h2>
+          <button className="orange-btn" type="button" onClick={() => navigate("/orders")}>VIEW ORDERS</button>
         </div>
       )}
     </div>
