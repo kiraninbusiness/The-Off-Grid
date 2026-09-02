@@ -4,6 +4,7 @@ import { ArrowLeft, Minus, Plus, Trash2, ShieldCheck, Tag, LockKeyhole } from "l
 import { api } from "../api";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const FREE_SHIPPING_THRESHOLD = 1499;
 
 const loadRazorpay = () =>
   new Promise((resolve, reject) => {
@@ -61,9 +62,11 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   );
 
   // Keep this aligned with the backend source of truth.
-  const shipping = total >= 1499 ? 0 : 79;
+  const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : 79;
   const discount = Number(coupon?.discount || 0);
   const grand = Math.max(0, total + shipping - discount);
+  const shippingGap = Math.max(0, FREE_SHIPPING_THRESHOLD - total);
+  const shippingProgress = Math.min(100, Math.round((total / FREE_SHIPPING_THRESHOLD) * 100));
 
   const change = (index, delta) => {
     setCart((current) =>
@@ -418,6 +421,16 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             {discount > 0 && <span>DISCOUNT <b>-{money(discount)}</b></span>}
             <strong>TOTAL <b>{money(grand)}</b></strong>
           </div>
+
+          {cart.length > 0 && (
+            <div className="free-shipping-progress" aria-live="polite">
+              <div className="free-shipping-progress-head">
+                <span>{shippingGap > 0 ? `ADD ${money(shippingGap)} MORE FOR FREE SHIPPING` : "YOU'VE UNLOCKED FREE SHIPPING"}</span>
+                <strong>{shippingProgress}%</strong>
+              </div>
+              <div className="free-shipping-progress-track"><span style={{ width: `${shippingProgress}%` }} /></div>
+            </div>
+          )}
 
           <button className="product-detail-add" disabled={loading || !cart.length}>
             {loading ? (method === "ONLINE" ? "OPENING PAYMENT..." : "PLACING ORDER...") : method === "ONLINE" ? `PAY ${money(grand)}` : "PLACE COD ORDER"}
