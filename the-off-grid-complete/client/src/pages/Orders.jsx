@@ -1,5 +1,0 @@
-import React from "react";
-import {Link} from "react-router-dom";
-export default function Orders({orders,onCancel}) {
- return <div className="page"><div className="page-head"><span>THE OFF GRID / ORDERS</span><h1>YOUR <em>ORDERS.</em></h1></div>{orders.length?<div className="orders-list">{orders.map(o=><article className="order-card" key={o.id}><div><strong>{o.id}</strong><span>{new Date(o.date).toLocaleDateString("en-IN")}</span></div><h3>{o.items.map(x=>x.name).join(", ")}</h3><p>₹{Number(o.total).toLocaleString("en-IN")} · {o.payment}</p><span className={`order-status ${o.status}`}>{o.status.toUpperCase()}</span>{o.status!=="cancelled"&&o.status!=="delivered"&&<button className="text-button" onClick={()=>onCancel(o.id)}>CANCEL ORDER</button>}</article>)}</div>:<div className="empty-box"><h2>NO ORDERS YET.</h2><Link className="orange-btn" to="/">START SHOPPING</Link></div>}</div>
-}

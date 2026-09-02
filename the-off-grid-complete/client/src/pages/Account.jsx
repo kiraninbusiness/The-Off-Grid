@@ -1,8 +1,0 @@
-import React,{useState} from "react";
-import {Link,useNavigate} from "react-router-dom";
-export default function Account({user,setUser,orders}) {
- const nav=useNavigate(),[mode,setMode]=useState(user?"profile":"login"),[f,setF]=useState({name:"",email:"",phone:""});
- const login=e=>{e.preventDefault();const u={name:f.name||f.email.split("@")[0],email:f.email,phone:f.phone};localStorage.setItem("offgrid_user",JSON.stringify(u));setUser(u);setMode("profile")};
- if(mode==="profile")return <div className="page account-page"><div className="page-head"><span>THE OFF GRID / ACCOUNT</span><h1>WELCOME, <em>{user?.name||"YOU"}.</em></h1></div><div className="account-grid"><div><h2>ACCOUNT DETAILS</h2><p>{user?.email}</p><p>{user?.phone||"Phone not added"}</p><button className="text-button" onClick={()=>{localStorage.removeItem("offgrid_user");setUser(null);setMode("login")}}>SIGN OUT</button></div><div><h2>ORDER HISTORY</h2><p>{orders.length} order{orders.length===1?"":"s"}</p><button className="orange-btn" onClick={()=>nav("/orders")}>VIEW ORDERS</button></div></div></div>;
- return <div className="page account-page"><div className="page-head"><span>THE OFF GRID / ACCOUNT</span><h1>GET <em>IN.</em></h1></div><form className="login-form" onSubmit={login}><input required placeholder="NAME" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/><input required type="email" placeholder="EMAIL" value={f.email} onChange={e=>setF({...f,email:e.target.value})}/><input placeholder="PHONE" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/><button className="orange-btn">CONTINUE</button></form></div>
-}
