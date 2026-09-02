@@ -1,182 +1,178 @@
-export const PRODUCTS = [
-  {
-    "id": 1,
-    "name": "ZENITH OVERSIZED TEE",
-    "price": 1599,
-    "old_price": 1999,
-    "category": "T-SHIRTS",
-    "gender": "UNISEX",
-    "color": "CHARCOAL",
-    "size": "S / M / L / XL",
-    "fit": "OVERSIZED",
-    "stock": 12,
-    "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=90",
-    "description": "Heavyweight oversized cotton tee designed for everyday wear.",
-    "condition": "NEW"
-  },
-  {
-    "id": 2,
-    "name": "LUNA LINEN SHIRT",
-    "price": 2499,
-    "old_price": 2999,
-    "category": "SHIRTS",
-    "gender": "UNISEX",
-    "color": "OFF WHITE",
-    "size": "S / M / L / XL",
-    "fit": "RELAXED",
-    "stock": 8,
-    "image": "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=90",
-    "description": "Relaxed linen shirt with a clean silhouette and lightweight feel.",
-    "condition": "NEW"
-  },
-  {
-    "id": 3,
-    "name": "TERRA CARGO PANTS",
-    "price": 2799,
-    "old_price": 3299,
-    "category": "BOTTOMS",
-    "gender": "UNISEX",
-    "color": "OLIVE",
-    "size": "28 / 30 / 32 / 34 / 36",
-    "fit": "RELAXED",
-    "stock": 10,
-    "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90",
-    "description": "Utility-inspired cargo pants with a relaxed streetwear fit.",
-    "condition": "NEW"
-  },
-  {
-    "id": 4,
-    "name": "SIGNATURE HOODIE",
-    "price": 3299,
-    "old_price": 3999,
-    "category": "HOODIES",
-    "gender": "UNISEX",
-    "color": "BONE",
-    "size": "S / M / L / XL",
-    "fit": "OVERSIZED",
-    "stock": 15,
-    "image": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1200&q=90",
-    "description": "Premium heavyweight hoodie with an oversized silhouette.",
-    "condition": "BESTSELLER"
-  },
-  {
-    "id": 5,
-    "name": "RAYON BOMBER JACKET",
-    "price": 3999,
-    "old_price": 4999,
-    "category": "JACKETS",
-    "gender": "UNISEX",
-    "color": "BLACK",
-    "size": "S / M / L / XL",
-    "fit": "REGULAR",
-    "stock": 6,
-    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=90",
-    "description": "Minimal bomber jacket with a structured modern silhouette.",
-    "condition": "NEW"
-  },
-  {
-    "id": 6,
-    "name": "CLASSIC OFF GRID CAP",
-    "price": 999,
-    "old_price": 1299,
-    "category": "ACCESSORIES",
-    "gender": "UNISEX",
-    "color": "BLACK",
-    "size": "ONE SIZE",
-    "fit": "ADJUSTABLE",
-    "stock": 20,
-    "image": "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=1200&q=90",
-    "description": "Minimal six-panel cap finished with The Off Grid branding.",
-    "condition": "NEW"
-  },
-  {
-    "id": 7,
-    "name": "CORE RIBBED TANK",
-    "price": 1299,
-    "old_price": 1599,
-    "category": "TANK TOPS",
-    "gender": "UNISEX",
-    "color": "BLACK",
-    "size": "S / M / L / XL",
-    "fit": "SLIM",
-    "stock": 14,
-    "image": "https://images.unsplash.com/photo-1618354691373-d851c5c3c990?auto=format&fit=crop&w=1200&q=90",
-    "description": "Clean ribbed tank designed for layering or standalone wear.",
-    "condition": "NEW"
-  },
-  {
-    "id": 8,
-    "name": "GRID RUNNER SNEAKERS",
-    "price": 4499,
-    "old_price": 5499,
-    "category": "FOOTWEAR",
-    "gender": "UNISEX",
-    "color": "WHITE / GREY",
-    "size": "6 / 7 / 8 / 9 / 10 / 11",
-    "fit": "REGULAR",
-    "stock": 9,
-    "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=90",
-    "description": "Everyday sneakers built around a clean technical streetwear aesthetic.",
-    "condition": "NEW"
-  },
-  {
-    "id": 9,
-    "name": "SHADOW UTILITY VEST",
-    "price": 2899,
-    "old_price": 3499,
-    "category": "JACKETS",
-    "gender": "UNISEX",
-    "color": "GRAPHITE",
-    "size": "S / M / L / XL",
-    "fit": "RELAXED",
-    "stock": 7,
-    "image": "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=90",
-    "description": "Utility vest with multiple pockets and a contemporary streetwear cut.",
-    "condition": "NEW"
-  },
-  {
-    "id": 10,
-    "name": "MONOCHROME OVERSHIRT",
-    "price": 2699,
-    "old_price": 3199,
-    "category": "SHIRTS",
-    "gender": "UNISEX",
-    "color": "GREY",
-    "size": "S / M / L / XL",
-    "fit": "RELAXED",
-    "stock": 11,
-    "image": "https://images.unsplash.com/photo-1603252110481-7ba873bf42ab?auto=format&fit=crop&w=1200&q=90",
-    "description": "Structured overshirt designed to work as a light outer layer.",
-    "condition": "NEW"
-  },
-  {
-    "id": 11,
-    "name": "VOID WIDE LEG DENIM",
-    "price": 2999,
-    "old_price": 3699,
-    "category": "BOTTOMS",
-    "gender": "UNISEX",
-    "color": "WASHED BLACK",
-    "size": "28 / 30 / 32 / 34 / 36",
-    "fit": "WIDE LEG",
-    "stock": 8,
-    "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90",
-    "description": "Wide-leg denim with a relaxed profile and washed finish.",
-    "condition": "NEW"
-  },
-  {
-    "id": 12,
-    "name": "NIGHT SHIFT TEE",
-    "price": 1499,
-    "old_price": 1899,
-    "category": "T-SHIRTS",
-    "gender": "UNISEX",
-    "color": "WASHED BLACK",
-    "size": "S / M / L / XL",
-    "fit": "OVERSIZED",
-    "stock": 18,
-    "image": "https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1200&q=90",
-    "description": "Relaxed everyday tee with a vintage-inspired washed finish.",
-    "condition": "BESTSELLER"
+import { Router } from 'express';
+import { pool } from '../db.js';
+import { auth, admin } from '../middleware/auth.js';
+
+const router = Router();
+
+/*
+  GET /api/products
+  Lists products with optional filters — this endpoint powers the shop
+  grid, search, and category/color/fit filters on the storefront.
+  Query params (all optional): category, gender, color, fit, q (search),
+  sort (price_asc | price_high | name | newest), min, max.
+*/
+router.get('/', async (req, res) => {
+  try {
+    const { category, gender, color, fit, q, sort, min, max } = req.query;
+    const where = [];
+    const values = [];
+
+    if (category && category.toUpperCase() !== 'ALL') {
+      values.push(category);
+      where.push(`LOWER(category) = LOWER($${values.length})`);
+    }
+    if (gender && gender.toUpperCase() !== 'ALL') {
+      values.push(gender);
+      where.push(`LOWER(gender) = LOWER($${values.length})`);
+    }
+    if (color) {
+      values.push(color);
+      where.push(`LOWER(color) = LOWER($${values.length})`);
+    }
+    if (fit) {
+      values.push(fit);
+      where.push(`LOWER(fit) = LOWER($${values.length})`);
+    }
+    if (q) {
+      values.push(`%${q}%`);
+      where.push(`(name ILIKE $${values.length} OR description ILIKE $${values.length} OR category ILIKE $${values.length})`);
+    }
+    if (min) {
+      values.push(Number(min));
+      where.push(`price >= $${values.length}`);
+    }
+    if (max) {
+      values.push(Number(max));
+      where.push(`price <= $${values.length}`);
+    }
+
+    let orderBy = 'created_at DESC';
+    if (sort === 'price_asc') orderBy = 'price ASC';
+    else if (sort === 'price_high') orderBy = 'price DESC';
+    else if (sort === 'name') orderBy = 'name ASC';
+    else if (sort === 'newest') orderBy = 'created_at DESC';
+
+    const sql = `SELECT * FROM products ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY ${orderBy}`;
+    const { rows } = await pool.query(sql, values);
+    res.json(rows);
+  } catch (e) {
+    console.error('GET /products failed:', e);
+    res.status(500).json({ message: 'Unable to load products' });
   }
-];
+});
+
+// GET /api/products/:id — single product detail
+router.get('/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('GET /products/:id failed:', e);
+    res.status(500).json({ message: 'Unable to load product' });
+  }
+});
+
+// POST /api/products — create (admin only)
+router.post('/', auth, admin, async (req, res) => {
+  try {
+    const {
+      name, description = '', category, gender = 'Unisex', size,
+      condition = 'New Arrival', price, old_price = null, image,
+      images = [], stock = 1, color = null, fit = null
+    } = req.body;
+
+    if (!name || !category || !size || !price || !image) {
+      return res.status(400).json({ message: 'name, category, size, price and image are required' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO products
+        (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+       RETURNING *`,
+      [name, description, category, gender, size, condition, Number(price), old_price ? Number(old_price) : null,
+        image, Array.isArray(images) ? images : [], Number(stock) || 0, color, fit]
+    );
+
+    res.status(201).json(rows[0]);
+  } catch (e) {
+    console.error('POST /products failed:', e);
+    res.status(500).json({ message: 'Unable to create product' });
+  }
+});
+
+// PATCH /api/products/:id — update (admin only)
+router.patch('/:id', auth, admin, async (req, res) => {
+  try {
+    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit'];
+    const sets = [];
+    const values = [];
+
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        values.push(field === 'images' ? (Array.isArray(req.body.images) ? req.body.images : []) : req.body[field]);
+        sets.push(`${field} = $${values.length}`);
+      }
+    }
+
+    if (!sets.length) return res.status(400).json({ message: 'No fields to update' });
+
+    values.push(req.params.id);
+    const { rows } = await pool.query(
+      `UPDATE products SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`,
+      values
+    );
+
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    res.json(rows[0]);
+  } catch (e) {
+    console.error('PATCH /products/:id failed:', e);
+    res.status(500).json({ message: 'Unable to update product' });
+  }
+});
+
+// DELETE /api/products/:id — remove (admin only)
+router.delete('/:id', auth, admin, async (req, res) => {
+  try {
+    const { rows } = await pool.query('DELETE FROM products WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE /products/:id failed:', e);
+    res.status(500).json({ message: 'Unable to delete product' });
+  }
+});
+
+// POST /api/products/:id/notify — "notify me" waitlist for out-of-stock items
+router.post('/:id/notify', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
+
+    const { rows } = await pool.query('SELECT id, name FROM products WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS stock_alerts(
+        id SERIAL PRIMARY KEY,
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(product_id, email)
+      )`
+    );
+    await pool.query(
+      `INSERT INTO stock_alerts (product_id, email) VALUES ($1,$2)
+       ON CONFLICT (product_id, email) DO NOTHING`,
+      [req.params.id, email]
+    );
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('POST /products/:id/notify failed:', e);
+    res.status(500).json({ message: 'Unable to save alert' });
+  }
+});
+
+export default router;

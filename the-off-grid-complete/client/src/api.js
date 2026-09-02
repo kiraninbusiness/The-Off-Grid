@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export async function api(path, options = {}) {
   const token = localStorage.getItem("offgrid_token");
   const headers = { ...(options.body ? {"Content-Type":"application/json"} : {}), ...(options.headers||{}) };

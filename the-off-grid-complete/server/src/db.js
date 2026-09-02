@@ -119,12 +119,20 @@ created_at TIMESTAMPTZ DEFAULT NOW()
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){
     await pool.query(`INSERT INTO products
-      (name,description,category,gender,size,condition,price,old_price,image,stock)
+      (name,description,category,gender,size,condition,price,old_price,image,stock,color,fit)
       VALUES
-      ('Oversized Cargo Jacket','Utility-inspired jacket built for movement, not just looks.','Jackets','Unisex','M','New Arrival',1899,2499,'https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=900&q=85',5),
-      ('Graphic Tee — Off Grid','Heavyweight cotton tee with an original off-grid print.','Streetwear','Unisex','L','Bestseller',799,999,'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85',8),
-      ('Utility Overshirt','Lightweight overshirt built for layering, any season.','Essentials','Men','M','New Arrival',1299,1699,'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=900&q=85',6),
-      ('Relaxed Fit Trousers','Everyday trousers with room to move, tapered at the ankle.','Casual','Unisex','S','New Arrival',1599,1999,'https://images.unsplash.com/photo-1539008835657-9e8e9680c956?auto=format&fit=crop&w=900&q=85',4)
+      ('ZENITH OVERSIZED TEE','Heavyweight oversized cotton tee designed for everyday wear.','T-SHIRTS','UNISEX','S / M / L / XL','NEW',1599,1999,'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=90',12,'CHARCOAL','OVERSIZED'),
+      ('LUNA LINEN SHIRT','Relaxed linen shirt with a clean silhouette and lightweight feel.','SHIRTS','UNISEX','S / M / L / XL','NEW',2499,2999,'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=90',8,'OFF WHITE','RELAXED'),
+      ('TERRA CARGO PANTS','Utility-inspired cargo pants with a relaxed streetwear fit.','BOTTOMS','UNISEX','28 / 30 / 32 / 34 / 36','NEW',2799,3299,'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90',10,'OLIVE','RELAXED'),
+      ('SIGNATURE HOODIE','Premium heavyweight hoodie with an oversized silhouette.','HOODIES','UNISEX','S / M / L / XL','BESTSELLER',3299,3999,'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1200&q=90',15,'BONE','OVERSIZED'),
+      ('RAYON BOMBER JACKET','Minimal bomber jacket with a structured modern silhouette.','JACKETS','UNISEX','S / M / L / XL','NEW',3999,4999,'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=90',6,'BLACK','REGULAR'),
+      ('CLASSIC OFF GRID CAP','Minimal six-panel cap finished with The Off Grid branding.','ACCESSORIES','UNISEX','ONE SIZE','NEW',999,1299,'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=1200&q=90',20,'BLACK','ADJUSTABLE'),
+      ('CORE RIBBED TANK','Clean ribbed tank designed for layering or standalone wear.','TANK TOPS','UNISEX','S / M / L / XL','NEW',1299,1599,'https://images.unsplash.com/photo-1618354691373-d851c5c3c990?auto=format&fit=crop&w=1200&q=90',14,'BLACK','SLIM'),
+      ('GRID RUNNER SNEAKERS','Everyday sneakers built around a clean technical streetwear aesthetic.','FOOTWEAR','UNISEX','6 / 7 / 8 / 9 / 10 / 11','NEW',4499,5499,'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=90',9,'WHITE / GREY','REGULAR'),
+      ('SHADOW UTILITY VEST','Utility vest with multiple pockets and a contemporary streetwear cut.','JACKETS','UNISEX','S / M / L / XL','NEW',2899,3499,'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=90',7,'GRAPHITE','RELAXED'),
+      ('MONOCHROME OVERSHIRT','Structured overshirt designed to work as a light outer layer.','SHIRTS','UNISEX','S / M / L / XL','NEW',2699,3199,'https://images.unsplash.com/photo-1603252110481-7ba873bf42ab?auto=format&fit=crop&w=1200&q=90',11,'GREY','RELAXED'),
+      ('VOID WIDE LEG DENIM','Wide-leg denim with a relaxed profile and washed finish.','BOTTOMS','UNISEX','28 / 30 / 32 / 34 / 36','NEW',2999,3699,'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90',8,'WASHED BLACK','WIDE LEG'),
+      ('NIGHT SHIFT TEE','Relaxed everyday tee with a vintage-inspired washed finish.','T-SHIRTS','UNISEX','S / M / L / XL','BESTSELLER',1499,1899,'https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1200&q=90',18,'WASHED BLACK','OVERSIZED')
     `);
   }
 }
