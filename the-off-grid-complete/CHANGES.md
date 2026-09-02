@@ -37,3 +37,13 @@
 5. Email + WhatsApp notifications.
 6. Analytics/Meta Pixel/SEO.
 7. Premium THE OFF GRID brand redesign.
+
+## Phase 2 — Premium Product Experience
+
+- Added richer product metadata: multiple gallery images, color options, size arrays, material, fit notes, model notes and product detail bullets.
+- Upgraded ProductDetails with thumbnail gallery, image navigation, zoom overlay, color selection, improved size selection and fit guidance.
+- Upgraded product cards with second-image hover, color previews and stronger quick-view size selection.
+- Updated cart identity to distinguish product + size + color.
+- Passed selected color through checkout payload and persisted it on order items.
+- Upgraded SizeGuideModal to adapt its headings to the product category.
+- Added premium product-experience styling without replacing the existing storefront architecture.

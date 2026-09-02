@@ -372,7 +372,7 @@ router.post('/create', auth, async (req, res) => {
           p.price,
           quantity,
           item.selectedSize || null,
-          p.color || null
+          item.selectedColor || p.color || null
         ]
       );
 

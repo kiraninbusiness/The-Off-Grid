@@ -236,13 +236,15 @@ export default function App() {
       const existing = current.find(
         (item) =>
           String(item.id) === String(product.id) &&
-          String(item.selectedSize || "") === String(product.selectedSize || "")
+          String(item.selectedSize || "") === String(product.selectedSize || "") &&
+          String(item.selectedColor || "") === String(product.selectedColor || "")
       );
 
       if (existing) {
         return current.map((item) =>
           String(item.id) === String(product.id) &&
-          String(item.selectedSize || "") === String(product.selectedSize || "")
+          String(item.selectedSize || "") === String(product.selectedSize || "") &&
+          String(item.selectedColor || "") === String(product.selectedColor || "")
             ? {
                 ...item,
                 qty: Number(item.qty || 1) + 1,

@@ -114,6 +114,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
       productId: Number(item.id),
       quantity: Number(item.qty || 1),
       selectedSize: item.selectedSize || null,
+      selectedColor: item.selectedColor || null,
     }));
 
   const shippingPayload = {
@@ -343,12 +344,12 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             </div>
           ) : (
             cart.map((item, index) => (
-              <article className="checkout-item" key={`${item.id}-${item.selectedSize || ""}`}>
+              <article className="checkout-item" key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
                 <img src={item.image} alt={item.name} />
                 <div>
                   <small>{item.category}</small>
                   <h3>{item.name}</h3>
-                  {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}
+                  {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}{item.selectedColor && <p>COLOR: {item.selectedColor}</p>}
                   <strong>{money(item.price)}</strong>
                   <div className="quantity-line">
                     <button type="button" onClick={() => change(index, -1)}><Minus /></button>
