@@ -1,19 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  Heart,
-  ShoppingBag,
-  Menu,
-  X,
-  ArrowRight,
-  ArrowUpRight,
-  Instagram,
-  Youtube,
-  User,
-  Settings,
-} from "lucide-react";
+import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagram, Youtube, User, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-
 import ProductDetails from "./pages/ProductDetails";
 import ProductDiscovery from "./components/ProductDiscovery";
 import Checkout from "./pages/Checkout";
@@ -33,16 +20,10 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [cart, setCart] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("offgrid_cart")) || []; } catch { return []; }
-  });
-  const [wishlist, setWishlist] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; }
-  });
+  const [cart, setCart] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_cart")) || []; } catch { return []; } });
+  const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; } });
   const [products, setProducts] = useState(PRODUCTS);
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("offgrid_user")) || null; } catch { return null; }
-  });
+  const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_user")) || null; } catch { return null; } });
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [activeCategory, setActiveCategory] = useState("ALL");
@@ -53,71 +34,38 @@ export default function App() {
     let cancelled = false;
     if (!user) { setOrders([]); return () => { cancelled = true; }; }
     setOrdersLoading(true);
-    api("/orders/mine").then((data) => {
-      if (!cancelled && Array.isArray(data)) setOrders(data);
-    }).catch((error) => {
-      console.error("Unable to load orders", error);
-      if (!cancelled) setOrders([]);
-    }).finally(() => {
-      if (!cancelled) setOrdersLoading(false);
-    });
+    api("/orders/mine").then((data) => { if (!cancelled && Array.isArray(data)) setOrders(data); }).catch((error) => { console.error("Unable to load orders", error); if (!cancelled) setOrders([]); }).finally(() => { if (!cancelled) setOrdersLoading(false); });
     return () => { cancelled = true; };
   }, [user]);
-
-  useEffect(() => {
-    try { localStorage.setItem("offgrid_cart", JSON.stringify(cart)); } catch {}
-  }, [cart]);
-  useEffect(() => {
-    try { localStorage.setItem("offgrid_wishlist", JSON.stringify(wishlist)); } catch {}
-  }, [wishlist]);
-
-  useEffect(() => {
-    let cancelled = false;
-    api("/products").then((data) => {
-      if (!cancelled && Array.isArray(data) && data.length) setProducts(data);
-    }).catch(() => {}).finally(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  useEffect(() => { try { localStorage.setItem("offgrid_cart", JSON.stringify(cart)); } catch {} }, [cart]);
+  useEffect(() => { try { localStorage.setItem("offgrid_wishlist", JSON.stringify(wishlist)); } catch {} }, [wishlist]);
+  useEffect(() => { let cancelled = false; api("/products").then((data) => { if (!cancelled && Array.isArray(data) && data.length) setProducts(data); }).catch(() => {}); return () => { cancelled = true; }; }, []);
 
   const addOrder = (order) => setOrders((current) => [order, ...current]);
-
-  const cancelOrder = async (id) => {
-    try {
-      const response = await api(`/orders/${id}/cancel`, { method: "PATCH" });
-      setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order));
-    } catch (error) { window.alert(error.message || "This order cannot be cancelled."); }
-  };
-
-  const addCart = (product) => {
-    setCart((current) => {
-      const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || "");
-      const existing = current.find(same);
-      if (existing) return current.map((item) => same(item) ? { ...item, qty: Number(item.qty || 1) + 1 } : item);
-      return [...current, { ...product, qty: 1 }];
-    });
-  };
-
-  const clearCart = () => setCart([]);
+  const cancelOrder = async (id) => { try { const response = await api(`/orders/${id}/cancel`, { method: "PATCH" }); setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order)); } catch (error) { window.alert(error.message || "This order cannot be cancelled."); } };
+  const addCart = (product) => setCart((current) => { const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || ""); const existing = current.find(same); if (existing) return current.map((item) => same(item) ? { ...item, qty: Number(item.qty || 1) + 1 } : item); return [...current, { ...product, qty: 1 }]; });
   const toggleWishlist = (id) => setWishlist((current) => current.some((item) => String(item) === String(id)) ? current.filter((item) => String(item) !== String(id)) : [...current, id]);
+  const handleNewsletterSubmit = async (e) => { e.preventDefault(); const email = newsletterEmail.trim(); if (!email) return; setNewsletterStatus("loading"); try { await api("/newsletter", { method: "POST", body: JSON.stringify({ email }) }); setNewsletterStatus("success"); setNewsletterEmail(""); } catch { setNewsletterStatus("error"); } };
+  const scroll = (id) => { setMenu(false); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
 
-  const handleNewsletterSubmit = async (e) => {
-    e.preventDefault();
-    const email = newsletterEmail.trim();
-    if (!email) return;
-    setNewsletterStatus("loading");
-    try {
-      await api("/newsletter", { method: "POST", body: JSON.stringify({ email }) });
-      setNewsletterStatus("success");
-      setNewsletterEmail("");
-    } catch { setNewsletterStatus("error"); }
-  };
+  const searchSuggestions = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return [];
+    const scored = products.map((p) => {
+      const name = String(p.name || "").toLowerCase();
+      const category = String(p.category || "").toLowerCase();
+      const color = String(p.color || "").toLowerCase();
+      const haystack = [name, category, String(p.gender || ""), color, ...(Array.isArray(p.colors) ? p.colors : []), String(p.fit || ""), String(p.material || "")].join(" ").toLowerCase();
+      let score = haystack.includes(q) ? 1 : 0;
+      if (name.startsWith(q)) score += 4;
+      else if (name.includes(q)) score += 3;
+      if (category.startsWith(q)) score += 2;
+      return score ? { product: p, score } : null;
+    }).filter(Boolean).sort((a, b) => b.score - a.score || Number(b.product.id || 0) - Number(a.product.id || 0));
+    return scored.slice(0, 5).map((item) => item.product);
+  }, [products, searchText]);
 
-  const scroll = (id) => {
-    setMenu(false);
-    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-  };
-
-  const categories = ["ALL", "T-SHIRTS", "SHIRTS", "HOODIES", "BOTTOMS", "JACKETS", "TANK TOPS", "ACCESSORIES", "FOOTWEAR"];
+  const submitSearch = (value = searchText) => { const q = String(value || "").trim(); if (!q) return; setSearchText(q); setSearchOpen(false); setTimeout(() => scroll("shop"), 50); };
 
   if (location.pathname === "/checkout") return <Checkout cart={cart} setCart={setCart} user={user} onOrder={addOrder} />;
   if (location.pathname === "/order" || location.pathname === "/orders") return <Order orders={orders} onCancel={cancelOrder} loading={ordersLoading} />;
@@ -126,7 +74,6 @@ export default function App() {
   if (location.pathname === "/wishlist") return <Wishlist products={products} wishlist={wishlist} toggle={toggleWishlist} add={addCart} />;
   if (location.pathname.startsWith("/track-order/")) return <TrackOrder orders={orders} />;
   if (location.pathname === "/admin") return <Admin user={user} />;
-
   if (location.pathname.startsWith("/product/")) {
     const rawId = location.pathname.split("/product/")[1]?.split("/")[0];
     const product = products.find((item) => String(item.id) === String(rawId));
@@ -136,48 +83,28 @@ export default function App() {
     return <ProductDetails product={finalProduct} products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} user={user} />;
   }
 
-  return (
-    <div className="app">
-      <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>THE OFF GRID — EST. 2026</span><span>INDIA / WORLDWIDE</span></div>
-      <header className="navbar">
-        <button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button>
-        <nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav>
-        <button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF GRID</strong></button>
-        <div className="nav-right">
-          <button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button>
-          <button type="button" onClick={() => navigate("/account")} aria-label="Account"><User size={19} /></button>
-          {user?.role === "admin" && <button type="button" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}
-          <button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button>
-          <button type="button" onClick={() => cart.length ? navigate("/checkout") : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button>
-        </div>
-      </header>
+  return <div className="app">
+    <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>THE OFF GRID — EST. 2026</span><span>INDIA / WORLDWIDE</span></div>
+    <header className="navbar">
+      <button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button>
+      <nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav>
+      <button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF GRID</strong></button>
+      <div className="nav-right"><button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button><button type="button" onClick={() => navigate("/account")} aria-label="Account"><User size={19} /></button>{user?.role === "admin" && <button type="button" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}<button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button><button type="button" onClick={() => cart.length ? navigate("/checkout") : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button></div>
+    </header>
+    {menu && <div className="mobile-menu"><button type="button" className="mobile-close" onClick={() => setMenu(false)} aria-label="Close menu"><X size={28} /></button><div className="mobile-logo"><small>THE</small><strong>OFF GRID</strong></div><div className="mobile-links"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>OUR STORY</button><button type="button" onClick={() => scroll("journal")}>JOURNAL</button></div><p>NO RULES.<br />JUST STYLE.</p></div>}
+    {searchOpen && <div className="search-overlay"><button type="button" className="search-close" onClick={() => { setSearchOpen(false); setSearchText(""); }} aria-label="Close search"><X size={28} /></button><div className="search-inner"><span>SEARCH THE OFF GRID</span><form className="big-search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}><Search size={25} /><input autoFocus type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search products..." aria-label="Search products" /><button type="submit" aria-label="Submit search"><ArrowRight size={20} /></button></form>{searchText.trim() ? <div className="search-suggestions">{searchSuggestions.length ? <><div className="search-suggestions-label">PRODUCTS</div>{searchSuggestions.map((p) => <button key={p.id} type="button" className="search-suggestion" onClick={() => { setSearchOpen(false); setSearchText(""); navigate(`/product/${p.id}`); }}><img src={p.image} alt="" /><span><strong>{p.name}</strong><small>{p.category} · ₹{Number(p.price || 0).toLocaleString("en-IN")}</small></span><ArrowRight size={15} /></button>)}</> : <div className="search-no-results">NO PRODUCTS FOUND. TRY A DIFFERENT SEARCH.</div>}</div> : <div className="search-trending"><span>TRY</span><button type="button" onClick={() => setSearchText("tee")}>TEE</button><button type="button" onClick={() => setSearchText("hoodie")}>HOODIE</button><button type="button" onClick={() => setSearchText("cargo")}>CARGO</button><button type="button" onClick={() => setSearchText("jacket")}>JACKET</button></div>}<p>TYPE TO SEE LIVE PRODUCT SUGGESTIONS</p></div></div>}
 
-      {menu && <div className="mobile-menu"><button type="button" className="mobile-close" onClick={() => setMenu(false)} aria-label="Close menu"><X size={28} /></button><div className="mobile-logo"><small>THE</small><strong>OFF GRID</strong></div><div className="mobile-links"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>OUR STORY</button><button type="button" onClick={() => scroll("journal")}>JOURNAL</button></div><p>NO RULES.<br />JUST STYLE.</p></div>}
-
-      {searchOpen && <div className="search-overlay"><button type="button" className="search-close" onClick={() => { setSearchOpen(false); setSearchText(""); }} aria-label="Close search"><X size={28} /></button><div className="search-inner"><span>SEARCH THE OFF GRID</span><div className="big-search"><Search size={25} /><input autoFocus type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { setSearchOpen(false); setTimeout(() => scroll("shop"), 50); } }} placeholder="Search products..." /></div><p>TRY "TEE", "HOODIE", "CARGO" OR "JACKET"</p></div></div>}
-
-      <section className="hero" id="home"><img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1800&q=90" alt="The Off Grid collection" /><div className="hero-dark"></div><div className="hero-content"><span className="eyebrow">THE OFF GRID / 001</span><h1>WEAR<br /><i>YOUR</i><br />WAY<span>.</span></h1><p>Clothing for independent minds.<br />Clean silhouettes. Strong details.<br />Zero unnecessary rules.</p><div className="hero-buttons"><button type="button" className="orange-btn" onClick={() => scroll("shop")}>SHOP NEW ARRIVALS<ArrowRight size={18} /></button><button type="button" className="outline-btn" onClick={() => scroll("story")}>OUR STORY</button></div></div><div className="hero-bottom"><span>01</span><span>NOT MADE FOR EVERYONE.</span></div></section>
-      <div className="marquee"><div>NOT MADE FOR EVERYONE <span>✦</span> MADE FOR YOU <span>✦</span> OFF THE GRID <span>✦</span> NEW DROP <span>✦</span> NOT MADE FOR EVERYONE <span>✦</span></div></div>
-
-      <section className="story section" id="story"><div className="section-number">01 / THE OFF GRID</div><div className="story-grid"><h2>NOT MADE<br />FOR <em>EVERYONE.</em></h2><div><p>The Off Grid is an independent clothing label built around individuality. We believe your clothes should reflect your point of view — not somebody else's.</p><button type="button" className="under-btn" onClick={() => scroll("journal")}>DISCOVER OUR STORY<ArrowRight size={15} /></button></div></div><div className="benefits"><div><strong>01</strong><h3>FAST SHIPPING</h3><p>Across India</p></div><div><strong>02</strong><h3>QUALITY FIRST</h3><p>Every piece checked</p></div><div><strong>03</strong><h3>EASY RETURNS</h3><p>Simple & transparent</p></div></div></section>
-
-      <section className="categories section" id="categories"><div className="section-title"><div><span>EXPLORE</span><h2>FIND YOUR<br /><em>CATEGORY.</em></h2></div><div className="round-arrow">↓</div></div><div className="category-grid"><Category title="TEES" number="01" image={products[0]?.image || PRODUCTS[0]?.image} click={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }} /><Category title="SHIRTS" number="02" image={products[1]?.image || PRODUCTS[1]?.image} click={() => { setActiveCategory("SHIRTS"); scroll("shop"); }} /><Category title="BOTTOMS" number="03" image={products[2]?.image || PRODUCTS[2]?.image} click={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }} /><Category title="HOODIES" number="04" image={products[3]?.image || PRODUCTS[3]?.image} click={() => { setActiveCategory("HOODIES"); scroll("shop"); }} /></div></section>
-
-      <section className="shop section" id="shop">
-        <ProductDiscovery products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} initialCategory={activeCategory} searchText={searchText} />
-      </section>
-
-      <section className="statement"><span>03</span><h2>YOUR STYLE<br />DOESN'T NEED<br /><em>PERMISSION.</em></h2></section>
-      <section className="journal section" id="journal"><div className="journal-image"><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90" alt="The Off Grid editorial" loading="lazy" /></div><div className="journal-content"><span>THE JOURNAL / 001</span><h2>THE ART OF<br /><em>STANDING OUT.</em></h2><p>Trends disappear. Personal style stays. Build a wardrobe that feels like you.</p><button type="button" className="orange-btn" onClick={() => alert("The Off Grid Journal is coming soon.")}>READ JOURNAL<ArrowRight size={18} /></button></div></section>
-
-      <section className="newsletter"><div><span>JOIN THE OFF GRID</span><h2>GET IN.<br /><em>STAY DIFFERENT.</em></h2></div><form onSubmit={handleNewsletterSubmit}><label>EMAIL ADDRESS</label><div><input type="email" placeholder="you@example.com" value={newsletterEmail} onChange={(e) => { setNewsletterEmail(e.target.value); if (newsletterStatus !== "idle") setNewsletterStatus("idle"); }} required /><button type="submit" disabled={newsletterStatus === "loading"} aria-label="Subscribe"><ArrowRight /></button></div><small>{newsletterStatus === "success" ? "YOU'RE ON THE OFF GRID LIST." : newsletterStatus === "error" ? "SOMETHING WENT WRONG. TRY AGAIN." : "NEW DROPS. LIMITED EDITS. ZERO SPAM."}</small></form></section>
-
-      <footer><div className="footer-grid"><div className="footer-brand"><small>THE</small><strong>OFF GRID</strong><p>Independent clothing for independent minds.<br />Est. 2026 / India.</p></div><div><h4>SHOP</h4><button type="button" onClick={() => { setActiveCategory("ALL"); scroll("shop"); }}>NEW ARRIVALS</button><button type="button" onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}>TEES</button><button type="button" onClick={() => { setActiveCategory("SHIRTS"); scroll("shop"); }}>SHIRTS</button><button type="button" onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}>BOTTOMS</button></div><div><h4>INFO</h4><button type="button" onClick={() => alert("Shipping across India.")}>SHIPPING</button><button type="button" onClick={() => alert("Easy and transparent returns.")}>RETURNS</button><button type="button" onClick={() => alert("Contact: hello@theoffgrid.in")}>CONTACT</button><button type="button" onClick={() => alert("Privacy policy coming soon.")}>PRIVACY</button></div><div><h4>FOLLOW</h4><a href="https://instagram.com/theoffgrid.in" target="_blank" rel="noreferrer"><Instagram size={16} />INSTAGRAM</a><a href="https://youtube.com" target="_blank" rel="noreferrer"><Youtube size={16} />YOUTUBE</a><button type="button" onClick={() => alert("Pinterest coming soon.")}>PINTEREST</button></div></div><div className="footer-bottom"><span>© 2026 THE OFF GRID</span><span>MADE WITH INTENT.</span><span>INDIA</span></div></footer>
-      {cart.length > 0 && <button type="button" className="floating-bag" onClick={() => navigate("/checkout")}><ShoppingBag size={18} /><span>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)} {cart.reduce((t, i) => t + Number(i.qty || 1), 0) === 1 ? "ITEM" : "ITEMS"}</span><ArrowUpRight size={16} /></button>}
-    </div>
-  );
+    <section className="hero" id="home"><img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1800&q=90" alt="The Off Grid collection" /><div className="hero-dark"></div><div className="hero-content"><span className="eyebrow">THE OFF GRID / 001</span><h1>WEAR<br /><i>YOUR</i><br />WAY<span>.</span></h1><p>Clothing for independent minds.<br />Clean silhouettes. Strong details.<br />Zero unnecessary rules.</p><div className="hero-buttons"><button type="button" className="orange-btn" onClick={() => scroll("shop")}>SHOP NEW ARRIVALS<ArrowRight size={18} /></button><button type="button" className="outline-btn" onClick={() => scroll("story")}>OUR STORY</button></div></div><div className="hero-bottom"><span>01</span><span>NOT MADE FOR EVERYONE.</span></div></section>
+    <div className="marquee"><div>NOT MADE FOR EVERYONE <span>✦</span> MADE FOR YOU <span>✦</span> OFF THE GRID <span>✦</span> NEW DROP <span>✦</span> NOT MADE FOR EVERYONE <span>✦</span></div></div>
+    <section className="story section" id="story"><div className="section-number">01 / THE OFF GRID</div><div className="story-grid"><h2>NOT MADE<br />FOR <em>EVERYONE.</em></h2><div><p>The Off Grid is an independent clothing label built around individuality. We believe your clothes should reflect your point of view — not somebody else's.</p><button type="button" className="under-btn" onClick={() => scroll("journal")}>DISCOVER OUR STORY<ArrowRight size={15} /></button></div></div><div className="benefits"><div><strong>01</strong><h3>FAST SHIPPING</h3><p>Across India</p></div><div><strong>02</strong><h3>QUALITY FIRST</h3><p>Every piece checked</p></div><div><strong>03</strong><h3>EASY RETURNS</h3><p>Simple & transparent</p></div></div></section>
+    <section className="categories section" id="categories"><div className="section-title"><div><span>EXPLORE</span><h2>FIND YOUR<br /><em>CATEGORY.</em></h2></div><div className="round-arrow">↓</div></div><div className="category-grid"><Category title="TEES" number="01" image={products[0]?.image || PRODUCTS[0]?.image} click={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }} /><Category title="SHIRTS" number="02" image={products[1]?.image || PRODUCTS[1]?.image} click={() => { setActiveCategory("SHIRTS"); scroll("shop"); }} /><Category title="BOTTOMS" number="03" image={products[2]?.image || PRODUCTS[2]?.image} click={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }} /><Category title="HOODIES" number="04" image={products[3]?.image || PRODUCTS[3]?.image} click={() => { setActiveCategory("HOODIES"); scroll("shop"); }} /></div></section>
+    <section className="shop section" id="shop"><ProductDiscovery products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} initialCategory={activeCategory} searchText={searchText} /></section>
+    <section className="statement"><span>03</span><h2>YOUR STYLE<br />DOESN'T NEED<br /><em>PERMISSION.</em></h2></section>
+    <section className="journal section" id="journal"><div className="journal-image"><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90" alt="The Off Grid editorial" loading="lazy" /></div><div className="journal-content"><span>THE JOURNAL / 001</span><h2>THE ART OF<br /><em>STANDING OUT.</em></h2><p>Trends disappear. Personal style stays. Build a wardrobe that feels like you.</p><button type="button" className="orange-btn" onClick={() => alert("The Off Grid Journal is coming soon.")}>READ JOURNAL<ArrowRight size={18} /></button></div></section>
+    <section className="newsletter"><div><span>JOIN THE OFF GRID</span><h2>GET IN.<br /><em>STAY DIFFERENT.</em></h2></div><form onSubmit={handleNewsletterSubmit}><label>EMAIL ADDRESS</label><div><input type="email" placeholder="you@example.com" value={newsletterEmail} onChange={(e) => { setNewsletterEmail(e.target.value); if (newsletterStatus !== "idle") setNewsletterStatus("idle"); }} required /><button type="submit" disabled={newsletterStatus === "loading"} aria-label="Subscribe"><ArrowRight /></button></div><small>{newsletterStatus === "success" ? "YOU'RE ON THE OFF GRID LIST." : newsletterStatus === "error" ? "SOMETHING WENT WRONG. TRY AGAIN." : "NEW DROPS. LIMITED EDITS. ZERO SPAM."}</small></form></section>
+    <footer><div className="footer-grid"><div className="footer-brand"><small>THE</small><strong>OFF GRID</strong><p>Independent clothing for independent minds.<br />Est. 2026 / India.</p></div><div><h4>SHOP</h4><button type="button" onClick={() => { setActiveCategory("ALL"); scroll("shop"); }}>NEW ARRIVALS</button><button type="button" onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}>TEES</button><button type="button" onClick={() => { setActiveCategory("SHIRTS"); scroll("shop"); }}>SHIRTS</button><button type="button" onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}>BOTTOMS</button></div><div><h4>INFO</h4><button type="button" onClick={() => alert("Shipping across India.")}>SHIPPING</button><button type="button" onClick={() => alert("Easy and transparent returns.")}>RETURNS</button><button type="button" onClick={() => alert("Contact: hello@theoffgrid.in")}>CONTACT</button><button type="button" onClick={() => alert("Privacy policy coming soon.")}>PRIVACY</button></div><div><h4>FOLLOW</h4><a href="https://instagram.com/theoffgrid.in" target="_blank" rel="noreferrer"><Instagram size={16} />INSTAGRAM</a><a href="https://youtube.com" target="_blank" rel="noreferrer"><Youtube size={16} />YOUTUBE</a><button type="button" onClick={() => alert("Pinterest coming soon.")}>PINTEREST</button></div></div><div className="footer-bottom"><span>© 2026 THE OFF GRID</span><span>MADE WITH INTENT.</span><span>INDIA</span></div></footer>
+    {cart.length > 0 && <button type="button" className="floating-bag" onClick={() => navigate("/checkout")}><ShoppingBag size={18} /><span>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)} {cart.reduce((t, i) => t + Number(i.qty || 1), 0) === 1 ? "ITEM" : "ITEMS"}</span><ArrowUpRight size={16} /></button>}
+  </div>;
 }
 
-function Category({ title, number, image, click }) {
-  return <button type="button" className="category" onClick={click}>{image ? <img src={image} alt={title} loading="lazy" /> : <div className="category-image-placeholder" />}<div className="category-overlay"></div><div className="category-info"><small>{number}</small><h3>{title}</h3><span>SHOP NOW<ArrowRight size={15} /></span></div></button>;
-}
+function Category({ title, number, image, click }) { return <button type="button" className="category" onClick={click}>{image ? <img src={image} alt={title} loading="lazy" /> : <div className="category-image-placeholder" />}<div className="category-overlay"></div><div className="category-info"><small>{number}</small><h3>{title}</h3><span>SHOP NOW<ArrowRight size={15} /></span></div></button>; }
