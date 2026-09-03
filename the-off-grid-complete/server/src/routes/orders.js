@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
 import { checkCoupon } from './coupons.js';
+import { sendEmail, orderConfirmationEmail, orderStatusEmail } from '../services/email.js';
 
 const router = Router();
 
@@ -174,6 +175,28 @@ router.post('/create', auth, async (req, res) => {
     );
 
     /*
+      SKU-LEVEL VARIANT LOOKUP
+      If a product has variant rows (size+color -> stock), lock and
+      validate against the specific variant instead of the aggregate
+      products.stock column. Products with no variants fall back to
+      the old product-level stock check for backward compatibility.
+    */
+    const variantByKey = {};
+    for (const item of items) {
+      const productId = Number(item.productId);
+      if (!item.selectedSize) continue;
+      const variantResult = await client.query(
+        `SELECT * FROM product_variants
+         WHERE product_id = $1 AND size = $2 AND color = $3
+         FOR UPDATE`,
+        [productId, item.selectedSize, item.selectedColor || '']
+      );
+      if (variantResult.rows.length) {
+        variantByKey[`${productId}|${item.selectedSize}|${item.selectedColor || ''}`] = variantResult.rows[0];
+      }
+    }
+
+    /*
       CALCULATE SUBTOTAL
     */
     let subtotal = 0;
@@ -199,7 +222,16 @@ router.post('/create', auth, async (req, res) => {
         );
       }
 
-      if (quantity > Number(p.stock)) {
+      const variantKey = `${productId}|${item.selectedSize || ''}|${item.selectedColor || ''}`;
+      const variant = variantByKey[variantKey];
+
+      if (variant) {
+        if (quantity > Number(variant.stock)) {
+          throw new Error(
+            `Only ${variant.stock} available for ${p.name} (${variant.size}${variant.color ? ' / ' + variant.color : ''})`
+          );
+        }
+      } else if (quantity > Number(p.stock)) {
         throw new Error(
           `Only ${p.stock} available for ${p.name}`
         );
@@ -383,6 +415,16 @@ router.post('/create', auth, async (req, res) => {
         the stock will be restored by the
         payment-cancel endpoint below.
       */
+      const variantKey = `${p.id}|${item.selectedSize || ''}|${item.selectedColor || ''}`;
+      const variant = variantByKey[variantKey];
+
+      if (variant) {
+        await client.query(
+          `UPDATE product_variants SET stock = stock - $1 WHERE id = $2`,
+          [quantity, variant.id]
+        );
+      }
+
       await client.query(
         `UPDATE products
          SET stock = stock - $1
@@ -437,6 +479,14 @@ router.post('/create', auth, async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Order confirmation email — fire and forget, never blocks the response
+    const emailItems = items.map((item) => ({
+      name: byId[Number(item.productId)]?.name || '',
+      quantity: Number(item.quantity),
+      price: byId[Number(item.productId)]?.price || 0
+    }));
+    const { subject, html } = orderConfirmationEmail({ ...order, items: emailItems });
+    sendEmail({ to: cleanShipping.email, subject, html }).catch((e) => console.error('order email failed:', e.message));
 
     res.status(201).json({
       order
@@ -515,7 +565,7 @@ router.get('/mine', auth, async (req, res) => {
 */
 async function restoreOrderBenefits(client, order) {
   const itemsResult = await client.query(
-    `SELECT product_id, quantity
+    `SELECT product_id, quantity, selected_size, selected_color
      FROM order_items
      WHERE order_id = $1`,
     [order.id]
@@ -526,6 +576,15 @@ async function restoreOrderBenefits(client, order) {
       `UPDATE products SET stock = stock + $1 WHERE id = $2`,
       [Number(item.quantity), Number(item.product_id)]
     );
+
+    if (item.selected_size) {
+      await client.query(
+        `UPDATE product_variants
+         SET stock = stock + $1
+         WHERE product_id = $2 AND size = $3 AND color = $4`,
+        [Number(item.quantity), Number(item.product_id), item.selected_size, item.selected_color || '']
+      );
+    }
   }
 
   if (Number(order.points_redeemed) > 0) {
@@ -844,9 +903,14 @@ router.patch(
       payment_status
     } = req.body;
 
+    const client = await pool.connect();
 
-      const { rows } =
-        await client.query(
+    let updatedOrder;
+
+    try {
+      await client.query('BEGIN');
+
+      const { rows } = await client.query(
         `UPDATE orders
          SET
            status =
@@ -856,7 +920,10 @@ router.patch(
              COALESCE(
                $2,
                payment_status
-             )
+             ),
+
+           delivered_at =
+             CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END
 
          WHERE id = $3
 
@@ -868,43 +935,48 @@ router.patch(
         ]
       );
 
+      if (!rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({
+          message:
+            'Order not found'
+        });
+      }
 
-    if (!rows.length) {
-      return res.status(404).json({
-        message:
-          'Order not found'
-      });
+      updatedOrder = rows[0];
+
+      /*
+        Award points for COD orders once they're
+        actually delivered. Online orders already
+        get points at payment verification.
+      */
+      if (
+        status === 'delivered' &&
+        updatedOrder.payment_method === 'cod'
+      ) {
+        await awardLoyaltyPoints(client, updatedOrder.id);
+      }
+
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('ORDER STATUS UPDATE ERROR:', e.message);
+      return res.status(500).json({ message: 'Could not update order status' });
+    } finally {
+      client.release();
     }
 
-
-    /*
-      Award points for COD orders once they're
-      actually delivered. Online orders already
-      get points at payment verification.
-    */
-    if (
-      status === 'delivered' &&
-      rows[0].payment_method === 'cod'
-    ) {
-
-      const client = await pool.connect();
-
-      try {
-        await client.query('BEGIN');
-        await awardLoyaltyPoints(client, rows[0].id);
-        await client.query('COMMIT');
-      } catch (e) {
-        await client.query('ROLLBACK');
-        console.error('POINTS AWARD ERROR:', e.message);
-      } finally {
-        client.release();
+    // Status update email — fire and forget
+    if (status && ['processing', 'shipped', 'delivered', 'cancelled'].includes(status)) {
+      const customer = await pool.query('SELECT shipping_email FROM orders WHERE id = $1', [updatedOrder.id]);
+      const email = customer.rows[0]?.shipping_email;
+      if (email) {
+        const { subject, html } = orderStatusEmail(updatedOrder);
+        sendEmail({ to: email, subject, html }).catch((e) => console.error('status email failed:', e.message));
       }
     }
 
-
-    res.json(
-      rows[0]
-    );
+    res.json(updatedOrder);
   }
 );
 

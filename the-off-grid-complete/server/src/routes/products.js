@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
+import { notifyRestock } from './variants.js';
 
 const router = Router();
 
@@ -52,7 +53,16 @@ router.get('/', async (req, res) => {
     else if (sort === 'name') orderBy = 'name ASC';
     else if (sort === 'newest') orderBy = 'created_at DESC';
 
-    const sql = `SELECT * FROM products ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY ${orderBy}`;
+    const sql = `
+      SELECT p.*,
+        COALESCE(
+          (SELECT json_agg(v ORDER BY v.size, v.color) FROM product_variants v WHERE v.product_id = p.id),
+          '[]'
+        ) AS variants
+      FROM products p
+      ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+      ORDER BY ${orderBy}
+    `;
     const { rows } = await pool.query(sql, values);
     res.json(rows);
   } catch (e) {
@@ -64,7 +74,15 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id — single product detail
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query(
+      `SELECT p.*,
+        COALESCE(
+          (SELECT json_agg(v ORDER BY v.size, v.color) FROM product_variants v WHERE v.product_id = p.id),
+          '[]'
+        ) AS variants
+       FROM products p WHERE p.id = $1`,
+      [req.params.id]
+    );
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
     res.json(rows[0]);
   } catch (e) {
@@ -109,6 +127,9 @@ router.patch('/:id', auth, admin, async (req, res) => {
     const sets = [];
     const values = [];
 
+    const before = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
+    const wasOut = before.rows.length && Number(before.rows[0].stock) === 0;
+
     for (const field of fields) {
       if (req.body[field] !== undefined) {
         values.push(field === 'images' ? (Array.isArray(req.body.images) ? req.body.images : []) : req.body[field]);
@@ -125,6 +146,12 @@ router.patch('/:id', auth, admin, async (req, res) => {
     );
 
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+
+    // Product came back in stock — notify anyone on the waitlist (fire and forget)
+    if (wasOut && Number(rows[0].stock) > 0) {
+      notifyRestock(rows[0].id).catch((e) => console.error('restock notify failed:', e.message));
+    }
+
     res.json(rows[0]);
   } catch (e) {
     console.error('PATCH /products/:id failed:', e);

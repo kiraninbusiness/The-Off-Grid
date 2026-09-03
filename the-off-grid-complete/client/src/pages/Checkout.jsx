@@ -44,6 +44,11 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const [coupon, setCoupon] = useState(null);
   const [couponStatus, setCouponStatus] = useState("idle");
   const [couponMsg, setCouponMsg] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+  const [redeemPoints, setRedeemPoints] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -55,6 +60,51 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     }
   }, [user]);
 
+  // Load saved addresses + loyalty balance so returning customers can check out
+  // by picking a saved address instead of retyping it every time.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    Promise.all([api("/profile/addresses"), api("/auth/me")])
+      .then(([addrs, me]) => {
+        if (cancelled) return;
+        const list = Array.isArray(addrs) ? addrs : [];
+        setSavedAddresses(list);
+        setLoyaltyPoints(Number(me?.loyalty_points) || 0);
+        const def = list.find((a) => a.is_default) || list[0];
+        if (def) {
+          setSelectedAddressId(def.id);
+          setForm((current) => ({
+            ...current,
+            name: def.name,
+            phone: def.phone,
+            address: def.address,
+            city: def.city,
+            state: def.state,
+            pincode: def.pincode,
+          }));
+        } else {
+          setShowManualForm(true);
+        }
+      })
+      .catch(() => setShowManualForm(true));
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const pickAddress = (addr) => {
+    setSelectedAddressId(addr.id);
+    setShowManualForm(false);
+    setForm((current) => ({
+      ...current,
+      name: addr.name,
+      phone: addr.phone,
+      address: addr.address,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+    }));
+  };
+
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0),
     [cart]
@@ -62,7 +112,10 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
 
   // Keep this aligned with the backend source of truth.
   const shipping = total >= 1499 ? 0 : 79;
-  const discount = Number(coupon?.discount || 0);
+  const couponDiscount = Number(coupon?.discount || 0);
+  const maxRedeemable = Math.max(0, Math.min(loyaltyPoints, total - couponDiscount));
+  const pointsDiscount = redeemPoints ? maxRedeemable : 0;
+  const discount = couponDiscount + pointsDiscount;
   const grand = Math.max(0, total + shipping - discount);
 
   const change = (index, delta) => {
@@ -144,6 +197,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
         shipping: shippingPayload,
         payment_method: "cod",
         coupon_code: coupon?.code || "",
+        redeem_points: pointsDiscount,
       }),
     });
 
@@ -181,6 +235,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
         shipping: shippingPayload,
         payment_method: "online",
         coupon_code: coupon?.code || "",
+        redeem_points: pointsDiscount,
       }),
     });
 
@@ -365,7 +420,32 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
 
         <form className="checkout-form" onSubmit={submit}>
           <h2>DELIVERY</h2>
-          {["name", "phone", "email", "address", "city", "state", "pincode"].map((key) => (
+
+          {savedAddresses.length > 0 && (
+            <div className="checkout-saved-addresses">
+              {savedAddresses.map((addr) => (
+                <button
+                  type="button"
+                  key={addr.id}
+                  className={`checkout-address-card ${selectedAddressId === addr.id && !showManualForm ? "active" : ""}`}
+                  onClick={() => pickAddress(addr)}
+                >
+                  <strong>{addr.label}{addr.is_default ? " · DEFAULT" : ""}</strong>
+                  <span>{addr.name} · {addr.phone}</span>
+                  <span>{addr.address}, {addr.city}, {addr.state} — {addr.pincode}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className={`checkout-address-card checkout-address-new ${showManualForm ? "active" : ""}`}
+                onClick={() => { setShowManualForm(true); setSelectedAddressId(null); }}
+              >
+                + USE A DIFFERENT ADDRESS
+              </button>
+            </div>
+          )}
+
+          {(showManualForm || !savedAddresses.length) && ["name", "phone", "email", "address", "city", "state", "pincode"].map((key) => (
             <input
               key={key}
               required
@@ -410,12 +490,28 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             </div>
           )}
           {couponStatus === "error" && <p className="notify-me-error">{couponMsg}</p>}
+
+          {loyaltyPoints > 0 && (
+            <>
+              <h2>GRID POINTS</h2>
+              <label className="checkout-points-row">
+                <input
+                  type="checkbox"
+                  checked={redeemPoints}
+                  onChange={(e) => setRedeemPoints(e.target.checked)}
+                />
+                <span>Use {maxRedeemable} of your {loyaltyPoints} points (₹{maxRedeemable} off)</span>
+              </label>
+            </>
+          )}
+
           {error && <p className="notify-me-error">{error}</p>}
 
           <div className="order-total">
             <span>SUBTOTAL <b>{money(total)}</b></span>
             <span>SHIPPING <b>{shipping ? money(shipping) : "FREE"}</b></span>
-            {discount > 0 && <span>DISCOUNT <b>-{money(discount)}</b></span>}
+            {couponDiscount > 0 && <span>COUPON <b>-{money(couponDiscount)}</b></span>}
+            {pointsDiscount > 0 && <span>POINTS <b>-{money(pointsDiscount)}</b></span>}
             <strong>TOTAL <b>{money(grand)}</b></strong>
           </div>
 

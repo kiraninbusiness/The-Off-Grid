@@ -129,6 +129,60 @@ export async function initDb(){
     );
     CREATE INDEX IF NOT EXISTS customer_addresses_user_idx ON customer_addresses(user_id);
   `);
+  // Stock alerts ("notify me when back in stock")
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stock_alerts(
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      notified BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(product_id, email)
+    );
+  `);
+  await pool.query("ALTER TABLE stock_alerts ADD COLUMN IF NOT EXISTS notified BOOLEAN NOT NULL DEFAULT FALSE");
+
+  // Returns / exchanges
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS returns(
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      order_item_id INTEGER REFERENCES order_items(id) ON DELETE SET NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL DEFAULT 'return',
+      reason TEXT NOT NULL DEFAULT '',
+      exchange_size TEXT,
+      exchange_color TEXT,
+      status TEXT NOT NULL DEFAULT 'requested',
+      refund_amount INTEGER,
+      admin_notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS returns_user_idx ON returns(user_id);
+    CREATE INDEX IF NOT EXISTS returns_order_idx ON returns(order_id);
+  `);
+
+  // Review moderation
+  await pool.query("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE");
+
+  // Delivery timestamp — needed for return-window calculations
+  await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ");
+
+  // SKU-level variant inventory (size + color combination stock)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS product_variants(
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      size TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '',
+      stock INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(product_id, size, color)
+    );
+    CREATE INDEX IF NOT EXISTS product_variants_product_idx ON product_variants(product_id);
+  `);
+
   await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6)) WHERE referral_code IS NULL`);
   if(process.env.ADMIN_EMAIL){ await pool.query("UPDATE users SET role='admin' WHERE email=$1",[process.env.ADMIN_EMAIL.toLowerCase()]); }
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');

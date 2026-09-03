@@ -7,6 +7,7 @@ import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
 import Success from "./pages/Success";
 import Account from "./pages/Account";
+import ResetPassword from "./pages/ResetPassword";
 import Wishlist from "./pages/Wishlist";
 import TrackOrder from "./pages/TrackOrder";
 import Admin from "./pages/Admin";
@@ -59,6 +60,7 @@ export default function App() {
   if (location.pathname === "/order" || location.pathname === "/orders") return <Order orders={orders} onCancel={cancelOrder} loading={ordersLoading} />;
   if (location.pathname === "/order-success" || location.pathname === "/success") return <Success />;
   if (location.pathname === "/account") return <Account user={user} setUser={setUser} orders={orders} />;
+  if (location.pathname === "/reset-password") return <ResetPassword />;
   if (location.pathname === "/wishlist") return <Wishlist products={products} wishlist={wishlist} toggle={toggleWishlist} add={addCart} />;
   if (location.pathname.startsWith("/track-order/")) return <TrackOrder orders={orders} />;
   if (location.pathname === "/admin") return <Admin user={user} />;

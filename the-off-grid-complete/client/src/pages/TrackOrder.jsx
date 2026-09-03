@@ -86,6 +86,7 @@ export default function TrackOrder({ orders = [] }) {
           <div className="track-order-meta">
             <p>Shipping to {order.shipping_city || order.customer?.city || "—"}, {order.shipping_state || order.customer?.state || "—"} · {order.shipping_pincode || order.customer?.pincode || "—"}</p>
             <p>Payment: {String(order.payment_method || order.payment || "cod").toUpperCase()} · {String(order.payment_status || "pending").toUpperCase()}</p>
+            {order.delivered_at && <p>Delivered on {new Date(order.delivered_at).toLocaleDateString("en-IN")} · eligible for return/exchange for 10 days from delivery</p>}
           </div>
 
           <button className="text-button" type="button" onClick={() => navigate("/orders")}>BACK TO ORDERS</button>

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { pool } from '../db.js';
 import { auth } from '../middleware/auth.js';
+import { sendEmail, passwordResetEmail } from '../services/email.js';
 
 const router = Router();
 
@@ -227,22 +228,15 @@ router.post('/forgot-password', async (req, res) => {
     const resetLink =
       `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    console.log('=================================');
-    console.log('PASSWORD RESET LINK');
-    console.log(resetLink);
-    console.log('=================================');
-
-
     /*
       EMAIL SENDING
-
-      We will connect your email service in the
-      next step.
-
-      For now the reset link is printed in the
-      server logs so we can test the complete
-      password-reset system first.
+      Sends the reset link via SMTP if configured (see
+      server/src/services/email.js). If SMTP isn't configured yet,
+      the link is printed to the server console instead, so the flow
+      still works end-to-end in development.
     */
+    const { subject, html } = passwordResetEmail(resetLink);
+    await sendEmail({ to: user.email, subject, html });
 
     res.json({
       message:

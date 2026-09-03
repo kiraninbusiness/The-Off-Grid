@@ -21,6 +21,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { api } from "../api";
+import AdminExtras from "../components/AdminExtras";
 
 const empty = {
   name: "",
@@ -2362,6 +2363,8 @@ export default function Admin({ user }) {
         </div>
 
       </section>
+
+      <AdminExtras user={user} />
 
     </main>
   );

@@ -12,7 +12,7 @@ router.get('/:productId', async (req, res) => {
     `SELECT r.id, r.rating, r.comment, r.created_at, r.verified_purchase, u.name AS user_name
      FROM reviews r
      JOIN users u ON u.id = r.user_id
-     WHERE r.product_id = $1
+     WHERE r.product_id = $1 AND r.hidden = FALSE
      ORDER BY r.created_at DESC`,
     [productId]
   );

@@ -9,6 +9,9 @@ import reviews from './routes/reviews.js';
 import coupons from './routes/coupons.js';
 import newsletter from './routes/newsletter.js';
 import profile from './routes/profile.js';
+import variants from './routes/variants.js';
+import returns from './routes/returns.js';
+import adminRoutes from './routes/admin.js';
 
 const app=express();
 app.use(cors({origin:process.env.CLIENT_URL||'http://localhost:5173'}));
@@ -21,6 +24,9 @@ app.use('/api/reviews',reviews);
 app.use('/api/coupons',coupons);
 app.use('/api/newsletter',newsletter);
 app.use('/api/profile',profile);
+app.use('/api/products',variants);
+app.use('/api/returns',returns);
+app.use('/api/admin',adminRoutes);
 
 const port=process.env.PORT||5000;
 initDb().then(()=>app.listen(port,()=>console.log(`API running on http://localhost:${port}`)))
