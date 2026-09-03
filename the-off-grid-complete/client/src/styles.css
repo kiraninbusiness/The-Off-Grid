@@ -285,3 +285,104 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-
 .admin-extras{margin-top:10px}.admin-extras-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}.admin-extras-tabs button{display:flex;align-items:center;gap:7px;border:1px solid var(--line);padding:10px 14px;font-size:9px;letter-spacing:1.1px}.admin-extras-tabs button.active{background:#111;color:#fff}.admin-extras-tabs button b{background:var(--orange);color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:8px;display:grid;place-items:center;padding:0 3px}.admin-extras-tabs button.active b{background:#fff;color:#111}
 .admin-return-card{grid-template-columns:1fr}.admin-return-actions{gap:10px;align-items:center}.admin-return-actions select{border:1px solid var(--line);padding:9px 10px;font-size:10px}.admin-return-actions input{flex:1;border:1px solid var(--line);padding:9px 10px;font-size:10px}
 .admin-customer-card{grid-template-columns:1fr}.admin-customer-expanded{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;font-size:11px}.admin-customer-expanded h4{font-size:9px;letter-spacing:1px;margin:10px 0 6px}.admin-customer-expanded p{margin:3px 0;color:#555}
+
+/* ===== ROUND 3 ADDITIONS ===== */
+
+/* Checkout: saved addresses + gift card + points */
+.checkout-saved-addresses{display:grid;gap:10px;margin:15px 0}
+.checkout-address-card{border:1px solid var(--line);padding:15px;text-align:left;display:grid;gap:4px}
+.checkout-address-card strong{font-size:10px;letter-spacing:1px}
+.checkout-address-card span{font-size:11px;color:#666}
+.checkout-address-card.active{border-color:var(--orange);background:#fff8f5}
+.checkout-address-new{color:var(--orange);font-size:10px;letter-spacing:1px}
+.checkout-points-row{display:flex;align-items:center;gap:10px;font-size:11px;margin:12px 0;cursor:pointer}
+.checkout-points-row input{width:auto}
+
+/* Returns / exchanges */
+.return-request-form{border:1px solid var(--line);padding:18px;margin-top:15px;display:grid;gap:10px}
+.return-request-form input,.return-request-form textarea{border:1px solid var(--line);padding:12px;background:none;outline:0;font-size:12px;font-family:inherit;width:100%}
+.return-request-form>div{display:flex;gap:10px}
+.order-status.return-status-requested{background:#fff3d6}
+.order-status.return-status-approved{background:#dfeaff}
+.order-status.return-status-rejected{background:#f6dada}
+.order-status.return-status-received{background:#e6e6ff}
+.order-status.return-status-refunded,.order-status.return-status-exchanged{background:#dff5df}
+
+/* Product Details: sold-out sizes + variant stock + video */
+.product-size-buttons button.size-sold-out{opacity:.35;text-decoration:line-through;cursor:not-allowed}
+.variant-stock-ok{font-size:9px;color:#2a7a2a;letter-spacing:1px;margin-top:6px}
+.variant-stock-out{font-size:9px;color:var(--orange);letter-spacing:1px;margin-top:6px}
+.product-gallery-video video{width:100%;height:100%;object-fit:cover}
+.video-thumb-badge{font-size:16px}
+
+/* Admin extras: tabs + new panels */
+.admin-extras{margin-top:40px}
+.admin-extras-tabs{display:flex;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:15px;margin-bottom:20px}
+.admin-extras-tabs button{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;padding:9px 14px;border:1px solid var(--line)}
+.admin-extras-tabs button.active{background:#111;color:#fff}
+.admin-extras-tabs button b{background:var(--orange);color:#fff;font-size:9px;border-radius:50%;min-width:16px;height:16px;display:grid;place-items:center;padding:0 3px}
+.admin-return-actions{display:flex;gap:10px;margin-top:10px}
+.admin-return-actions select,.admin-return-actions input{border:1px solid var(--line);padding:10px;font-size:11px;background:none}
+.admin-return-actions input{flex:1}
+.admin-customer-expanded{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;font-size:11px;color:#555}
+.admin-customer-expanded h4{font-size:9px;letter-spacing:1px;margin:10px 0 5px}
+.admin-inventory-note{margin-bottom:15px}
+.admin-variant-editor{border-top:1px solid var(--line);margin-top:12px;padding-top:15px}
+.admin-variant-editor h4{font-size:10px;letter-spacing:1px;margin-bottom:12px}
+.admin-variant-rows{display:grid;gap:8px;margin-bottom:10px}
+.admin-variant-row{display:grid;grid-template-columns:1fr 1fr 90px 40px;gap:8px}
+.admin-variant-row input{border:1px solid var(--line);padding:9px;font-size:11px;background:none}
+.admin-variant-actions{display:flex;gap:10px;margin-top:15px}
+.admin-combo-form{display:grid;grid-template-columns:2fr 1fr 100px 140px auto;gap:10px;border:1px solid var(--line);background:#fff;padding:18px;margin-bottom:20px;align-items:center}
+.admin-combo-form input{border:1px solid var(--line);padding:11px;font-size:11px;background:none}
+.admin-abandoned-actions{border:1px solid var(--line);background:#fff;padding:20px;margin-bottom:20px;display:grid;gap:12px}
+
+/* Gift card purchase page */
+.giftcard-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:40px;max-width:1100px}
+.giftcard-form{background:#fff;padding:35px;display:grid;gap:12px}
+.giftcard-form h2{font-family:"Space Grotesk";font-size:18px;margin-top:10px}
+.giftcard-amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.giftcard-amounts button{border:1px solid var(--line);padding:14px 0;font-size:12px}
+.giftcard-amounts button.active{background:#111;color:#fff}
+.giftcard-form input,.giftcard-form textarea{border:1px solid var(--line);padding:13px;background:none;outline:0;font-size:12px;font-family:inherit;width:100%}
+.giftcard-success{border:1px solid var(--orange);color:var(--orange);padding:20px;margin-bottom:20px}
+.giftcard-success h3{font-family:"Space Grotesk";font-size:20px;margin-bottom:8px}
+.giftcard-history{background:#fff;padding:25px}
+.giftcard-history h3{font-size:10px;letter-spacing:1px;margin-bottom:15px}
+.giftcard-history>div{border-top:1px solid var(--line);padding:12px 0;display:grid;gap:3px}
+.giftcard-history strong{font-size:12px}
+.giftcard-history span{font-size:10px;color:#777}
+
+/* Floating WhatsApp support button */
+.floating-whatsapp{position:fixed;left:25px;bottom:25px;background:#25d366;color:#fff;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+
+/* Lookbook / editorial page */
+.lookbook-page{background:var(--paper)}
+.lookbook-hero{padding:100px 7% 60px;max-width:800px}
+.lookbook-hero span{font-size:10px;letter-spacing:1.8px;color:var(--orange)}
+.lookbook-hero h1{font-family:"Space Grotesk";font-size:clamp(50px,8vw,110px);line-height:.85;letter-spacing:-4px;margin:20px 0}
+.lookbook-hero p{color:#666;font-size:13px;max-width:480px}
+.lookbook-story{display:grid;grid-template-columns:1.1fr .9fr;gap:6vw;padding:60px 7%;align-items:center}
+.lookbook-story.reverse{grid-template-columns:.9fr 1.1fr;direction:rtl}
+.lookbook-story.reverse>*{direction:ltr}
+.lookbook-story-image{height:520px;background:#ddd;overflow:hidden}
+.lookbook-story-image img{width:100%;height:100%;object-fit:cover}
+.lookbook-story-copy span{font-size:10px;letter-spacing:1.8px;color:var(--orange)}
+.lookbook-story-copy h2{font-family:"Space Grotesk";font-size:clamp(32px,4.5vw,54px);line-height:.95;letter-spacing:-2px;margin:15px 0}
+.lookbook-story-copy p{color:#666;line-height:1.7;max-width:420px}
+.lookbook-grid-section{padding:90px 7%;border-top:1px solid var(--line)}
+.lookbook-grid-section h2{font-family:"Space Grotesk";font-size:32px;margin-bottom:30px}
+.lookbook-product-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.lookbook-product-card{display:block}
+.lookbook-product-card img{width:100%;height:220px;object-fit:cover}
+.lookbook-product-card span{display:block;font-size:10px;margin-top:8px}
+
+@media(max-width:900px){
+  .checkout-address-card{padding:12px}
+  .admin-variant-row{grid-template-columns:1fr}
+  .admin-combo-form{grid-template-columns:1fr}
+  .giftcard-layout{grid-template-columns:1fr}
+  .giftcard-amounts{grid-template-columns:repeat(2,1fr)}
+  .lookbook-story,.lookbook-story.reverse{grid-template-columns:1fr;direction:ltr}
+  .lookbook-product-grid{grid-template-columns:repeat(2,1fr)}
+}

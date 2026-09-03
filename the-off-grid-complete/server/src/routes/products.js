@@ -53,6 +53,39 @@ router.get('/', async (req, res) => {
     else if (sort === 'name') orderBy = 'name ASC';
     else if (sort === 'newest') orderBy = 'created_at DESC';
 
+    /*
+      PAGINATION (opt-in, backward compatible)
+      Passing ?page=1&limit=24 returns {items,total,page,pages}
+      instead of a bare array. No page param -> unchanged behaviour
+      (full array), which is what the current storefront relies on
+      for its client-side filtering. Wire this up on the frontend
+      once the catalogue is large enough that shipping every product
+      up front stops making sense — the API is ready for it now.
+    */
+    const page = req.query.page ? Math.max(1, Number(req.query.page)) : null;
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 24));
+
+    if (page) {
+      const countSql = `SELECT COUNT(*)::int AS total FROM products p ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`;
+      const countResult = await pool.query(countSql, values);
+      const total = countResult.rows[0].total;
+
+      const pagedValues = [...values, limit, (page - 1) * limit];
+      const sql = `
+        SELECT p.*,
+          COALESCE(
+            (SELECT json_agg(v ORDER BY v.size, v.color) FROM product_variants v WHERE v.product_id = p.id),
+            '[]'
+          ) AS variants
+        FROM products p
+        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+        ORDER BY ${orderBy}
+        LIMIT $${pagedValues.length - 1} OFFSET $${pagedValues.length}
+      `;
+      const { rows } = await pool.query(sql, pagedValues);
+      return res.json({ items: rows, total, page, pages: Math.ceil(total / limit) });
+    }
+
     const sql = `
       SELECT p.*,
         COALESCE(
@@ -97,7 +130,7 @@ router.post('/', auth, admin, async (req, res) => {
     const {
       name, description = '', category, gender = 'Unisex', size,
       condition = 'New Arrival', price, old_price = null, image,
-      images = [], stock = 1, color = null, fit = null
+      images = [], stock = 1, color = null, fit = null, video = null
     } = req.body;
 
     if (!name || !category || !size || !price || !image) {
@@ -106,11 +139,11 @@ router.post('/', auth, admin, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO products
-        (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit, video)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [name, description, category, gender, size, condition, Number(price), old_price ? Number(old_price) : null,
-        image, Array.isArray(images) ? images : [], Number(stock) || 0, color, fit]
+        image, Array.isArray(images) ? images : [], Number(stock) || 0, color, fit, video]
     );
 
     res.status(201).json(rows[0]);
@@ -123,7 +156,7 @@ router.post('/', auth, admin, async (req, res) => {
 // PATCH /api/products/:id — update (admin only)
 router.patch('/:id', auth, admin, async (req, res) => {
   try {
-    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit'];
+    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video'];
     const sets = [];
     const values = [];
 

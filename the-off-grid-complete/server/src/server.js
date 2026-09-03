@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {initDb} from './db.js';
 import auth from './routes/auth.js';
 import products from './routes/products.js';
@@ -12,10 +14,17 @@ import profile from './routes/profile.js';
 import variants from './routes/variants.js';
 import returns from './routes/returns.js';
 import adminRoutes from './routes/admin.js';
+import upload from './routes/upload.js';
+import giftcards from './routes/giftcards.js';
+import cart from './routes/cart.js';
+import combos from './routes/combos.js';
+import abandoned from './routes/abandoned.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 app.use(cors({origin:process.env.CLIENT_URL||'http://localhost:5173'}));
 app.use(express.json({limit:'1mb'}));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/api/health',(req,res)=>res.json({ok:true}));
 app.use('/api/auth',auth);
 app.use('/api/products',products);
@@ -27,6 +36,11 @@ app.use('/api/profile',profile);
 app.use('/api/products',variants);
 app.use('/api/returns',returns);
 app.use('/api/admin',adminRoutes);
+app.use('/api/upload',upload);
+app.use('/api/gift-cards',giftcards);
+app.use('/api/cart',cart);
+app.use('/api/combos',combos);
+app.use('/api/admin/abandoned-carts',abandoned);
 
 const port=process.env.PORT||5000;
 initDb().then(()=>app.listen(port,()=>console.log(`API running on http://localhost:${port}`)))

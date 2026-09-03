@@ -105,7 +105,8 @@ router.post('/create', auth, async (req, res) => {
     shipping = {},
     payment_method = 'cod',
     redeem_points = 0,
-    coupon_code = ''
+    coupon_code = '',
+    gift_card_code = ''
   } = req.body;
 
   if (!['cod', 'online'].includes(payment_method)) {
@@ -193,6 +194,36 @@ router.post('/create', auth, async (req, res) => {
       );
       if (variantResult.rows.length) {
         variantByKey[`${productId}|${item.selectedSize}|${item.selectedColor || ''}`] = variantResult.rows[0];
+      }
+    }
+
+    /*
+      COMBO / BUNDLE DEALS
+      Auto-applies the single best-value active combo deal (e.g. "any 3
+      T-SHIRTS for ₹1999") based on whichever deal the current cart
+      qualifies for and saves the customer the most money. Computed
+      server-side from the cart contents — never trusts client input.
+    */
+    let comboDiscount = 0;
+    let appliedCombo = null;
+    const comboDealsResult = await client.query('SELECT * FROM combo_deals WHERE active = TRUE');
+
+    for (const deal of comboDealsResult.rows) {
+      const matchingItems = items.filter((item) => {
+        const p = byId[Number(item.productId)];
+        return p && String(p.category).toLowerCase() === String(deal.category).toLowerCase();
+      });
+      const totalQty = matchingItems.reduce((sum, item) => sum + Number(item.quantity), 0);
+      const totalValue = matchingItems.reduce((sum, item) => sum + Number(byId[Number(item.productId)].price) * Number(item.quantity), 0);
+      const bundleCount = Math.floor(totalQty / Number(deal.quantity));
+      if (bundleCount <= 0) continue;
+
+      const avgUnitPrice = totalValue / totalQty;
+      const dealDiscount = Math.max(0, bundleCount * (avgUnitPrice * Number(deal.quantity) - Number(deal.bundle_price)));
+
+      if (dealDiscount > comboDiscount) {
+        comboDiscount = Math.round(dealDiscount);
+        appliedCombo = deal;
       }
     }
 
@@ -308,10 +339,41 @@ router.post('/create', auth, async (req, res) => {
       )
     );
 
+    /*
+      GIFT CARD
+      Locked so two simultaneous orders can't both spend down the
+      same balance past zero. Applied after coupon + points, capped
+      to whatever's left of the order total.
+    */
+    let giftCard = null;
+    let giftCardDiscount = 0;
+    const normalizedGiftCode = String(gift_card_code || '').trim().toUpperCase();
+
+    if (normalizedGiftCode) {
+      const giftResult = await client.query(
+        'SELECT * FROM gift_cards WHERE code = $1 FOR UPDATE',
+        [normalizedGiftCode]
+      );
+      giftCard = giftResult.rows[0] || null;
+
+      if (!giftCard || !giftCard.active) {
+        throw new Error('Gift card not found or inactive');
+      }
+      if (giftCard.expires_at && new Date(giftCard.expires_at) < new Date()) {
+        throw new Error('Gift card has expired');
+      }
+      if (Number(giftCard.balance) <= 0) {
+        throw new Error('Gift card has no remaining balance');
+      }
+
+      const remainingAfterOtherDiscounts = Math.max(0, subtotal - couponDiscount - pointsToRedeem);
+      giftCardDiscount = Math.min(Number(giftCard.balance), remainingAfterOtherDiscounts);
+    }
+
     const discount = pointsToRedeem;
 
     const total =
-      subtotal + shippingCharge - couponDiscount - discount;
+      subtotal + shippingCharge - couponDiscount - discount - giftCardDiscount - comboDiscount;
 
     if (couponRow) {
       await client.query(
@@ -349,9 +411,12 @@ router.post('/create', auth, async (req, res) => {
           discount,
           points_redeemed,
           coupon_code,
-          coupon_discount
+          coupon_discount,
+          gift_card_code,
+          gift_card_discount,
+          combo_discount
         )
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
         RETURNING *`,
         [
           req.user.id,
@@ -367,10 +432,24 @@ router.post('/create', auth, async (req, res) => {
           discount,
           pointsToRedeem,
           couponRow ? couponRow.code : null,
-          couponDiscount
+          couponDiscount,
+          giftCard ? giftCard.code : null,
+          giftCardDiscount,
+          comboDiscount
         ]
       )
     ).rows[0];
+
+    if (giftCard && giftCardDiscount > 0) {
+      await client.query(
+        'UPDATE gift_cards SET balance = balance - $1 WHERE id = $2',
+        [giftCardDiscount, giftCard.id]
+      );
+      await client.query(
+        'INSERT INTO gift_card_redemptions (gift_card_id, order_id, amount) VALUES ($1,$2,$3)',
+        [giftCard.id, order.id, giftCardDiscount]
+      );
+    }
 
 
     /*
@@ -602,6 +681,17 @@ async function restoreOrderBenefits(client, order) {
        SET used_count = GREATEST(0, used_count - 1)
        WHERE code = $1`,
       [order.coupon_code]
+    );
+  }
+
+  if (order.gift_card_code && Number(order.gift_card_discount) > 0) {
+    await client.query(
+      `UPDATE gift_cards SET balance = balance + $1 WHERE code = $2`,
+      [Number(order.gift_card_discount), order.gift_card_code]
+    );
+    await client.query(
+      `DELETE FROM gift_card_redemptions WHERE order_id = $1`,
+      [order.id]
     );
   }
 }

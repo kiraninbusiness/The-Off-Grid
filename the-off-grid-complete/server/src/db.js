@@ -113,6 +113,7 @@ export async function initDb(){
   `);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT, ADD COLUMN IF NOT EXISTS coupon_discount INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS color TEXT, ADD COLUMN IF NOT EXISTS fit TEXT`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS video TEXT`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_addresses(
       id SERIAL PRIMARY KEY,
@@ -168,6 +169,67 @@ export async function initDb(){
 
   // Delivery timestamp — needed for return-window calculations
   await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ");
+
+  // Gift cards
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gift_cards(
+      id SERIAL PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      initial_value INTEGER NOT NULL,
+      balance INTEGER NOT NULL,
+      purchased_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      recipient_email TEXT NOT NULL,
+      recipient_name TEXT,
+      message TEXT,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ
+    );
+    CREATE TABLE IF NOT EXISTS gift_card_redemptions(
+      id SERIAL PRIMARY KEY,
+      gift_card_id INTEGER NOT NULL REFERENCES gift_cards(id) ON DELETE CASCADE,
+      order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+      amount INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gift_card_code TEXT, ADD COLUMN IF NOT EXISTS gift_card_discount INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS combo_discount INTEGER NOT NULL DEFAULT 0`);
+
+  // Server-side cart & wishlist — synced across devices for logged-in users
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cart_items(
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      selected_size TEXT,
+      selected_color TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      abandoned_email_sent BOOLEAN NOT NULL DEFAULT FALSE,
+      UNIQUE(user_id, product_id, selected_size, selected_color)
+    );
+    CREATE TABLE IF NOT EXISTS wishlist_items(
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, product_id)
+    );
+  `);
+
+  // Combo / bundle deals — e.g. "any 3 tees for ₹1999"
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS combo_deals(
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      category TEXT,
+      quantity INTEGER NOT NULL,
+      bundle_price INTEGER NOT NULL,
+      active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 
   // SKU-level variant inventory (size + color combination stock)
   await pool.query(`

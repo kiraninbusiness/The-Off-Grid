@@ -44,6 +44,10 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const [coupon, setCoupon] = useState(null);
   const [couponStatus, setCouponStatus] = useState("idle");
   const [couponMsg, setCouponMsg] = useState("");
+  const [giftCardCode, setGiftCardCode] = useState("");
+  const [giftCard, setGiftCard] = useState(null);
+  const [giftCardStatus, setGiftCardStatus] = useState("idle");
+  const [giftCardMsg, setGiftCardMsg] = useState("");
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [showManualForm, setShowManualForm] = useState(false);
@@ -115,7 +119,9 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const couponDiscount = Number(coupon?.discount || 0);
   const maxRedeemable = Math.max(0, Math.min(loyaltyPoints, total - couponDiscount));
   const pointsDiscount = redeemPoints ? maxRedeemable : 0;
-  const discount = couponDiscount + pointsDiscount;
+  const remainingAfterPointsAndCoupon = Math.max(0, total + shipping - couponDiscount - pointsDiscount);
+  const giftCardDiscount = giftCard ? Math.min(giftCard.balance, remainingAfterPointsAndCoupon) : 0;
+  const discount = couponDiscount + pointsDiscount + giftCardDiscount;
   const grand = Math.max(0, total + shipping - discount);
 
   const change = (index, delta) => {
@@ -162,6 +168,34 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     setCouponMsg("");
   };
 
+  const applyGiftCard = async (e) => {
+    e.preventDefault();
+    if (!giftCardCode.trim()) return;
+
+    setGiftCardStatus("loading");
+    setGiftCardMsg("");
+
+    try {
+      const res = await api("/gift-cards/check", {
+        method: "POST",
+        body: JSON.stringify({ code: giftCardCode.trim() }),
+      });
+      setGiftCard(res);
+      setGiftCardStatus("success");
+    } catch (err) {
+      setGiftCard(null);
+      setGiftCardStatus("error");
+      setGiftCardMsg(err.message || "Invalid gift card code");
+    }
+  };
+
+  const removeGiftCard = () => {
+    setGiftCard(null);
+    setGiftCardCode("");
+    setGiftCardStatus("idle");
+    setGiftCardMsg("");
+  };
+
   const backendItems = () =>
     cart.map((item) => ({
       productId: Number(item.id),
@@ -198,6 +232,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
         payment_method: "cod",
         coupon_code: coupon?.code || "",
         redeem_points: pointsDiscount,
+        gift_card_code: giftCard?.code || "",
       }),
     });
 
@@ -216,7 +251,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     };
 
     onOrder?.(displayOrder);
-    setCart([]);
+    setCart([]); api("/cart", { method: "DELETE" }).catch(() => {});
     nav("/success", { state: { order: displayOrder } });
   };
 
@@ -236,6 +271,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
         payment_method: "online",
         coupon_code: coupon?.code || "",
         redeem_points: pointsDiscount,
+        gift_card_code: giftCard?.code || "",
       }),
     });
 
@@ -308,7 +344,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             };
 
             onOrder?.(displayOrder);
-            setCart([]);
+            setCart([]); api("/cart", { method: "DELETE" }).catch(() => {});
             finishResolve();
             nav("/success", { state: { order: displayOrder } });
           } catch (err) {
@@ -491,6 +527,30 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
           )}
           {couponStatus === "error" && <p className="notify-me-error">{couponMsg}</p>}
 
+          <h2>GIFT CARD</h2>
+          {giftCard ? (
+            <div className="coupon-applied">
+              <span><Tag size={13} /> {giftCard.code} · ₹{giftCard.balance} available</span>
+              <button type="button" onClick={removeGiftCard}>REMOVE</button>
+            </div>
+          ) : (
+            <div className="coupon-row">
+              <input
+                value={giftCardCode}
+                placeholder="ENTER GIFT CARD CODE"
+                onChange={(e) => {
+                  setGiftCardCode(e.target.value.toUpperCase());
+                  if (giftCardStatus === "error") {
+                    setGiftCardStatus("idle");
+                    setGiftCardMsg("");
+                  }
+                }}
+              />
+              <button type="button" onClick={applyGiftCard} disabled={giftCardStatus === "loading"}>{giftCardStatus === "loading" ? "..." : "APPLY"}</button>
+            </div>
+          )}
+          {giftCardStatus === "error" && <p className="notify-me-error">{giftCardMsg}</p>}
+
           {loyaltyPoints > 0 && (
             <>
               <h2>GRID POINTS</h2>
@@ -512,6 +572,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             <span>SHIPPING <b>{shipping ? money(shipping) : "FREE"}</b></span>
             {couponDiscount > 0 && <span>COUPON <b>-{money(couponDiscount)}</b></span>}
             {pointsDiscount > 0 && <span>POINTS <b>-{money(pointsDiscount)}</b></span>}
+            {giftCardDiscount > 0 && <span>GIFT CARD <b>-{money(giftCardDiscount)}</b></span>}
             <strong>TOTAL <b>{money(grand)}</b></strong>
           </div>
 

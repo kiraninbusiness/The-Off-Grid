@@ -11,6 +11,8 @@ import ResetPassword from "./pages/ResetPassword";
 import Wishlist from "./pages/Wishlist";
 import TrackOrder from "./pages/TrackOrder";
 import Admin from "./pages/Admin";
+import GiftCards from "./pages/GiftCards";
+import Lookbook from "./pages/Lookbook";
 import { api } from "./api";
 import PRODUCTS from "./data/products.js";
 import "./styles.css";
@@ -37,11 +39,36 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("offgrid_wishlist", JSON.stringify(wishlist)); } catch {} }, [wishlist]);
   useEffect(() => { let cancelled = false; api("/products").then((data) => { if (!cancelled && Array.isArray(data) && data.length) setProducts(data); }).catch(() => {}); return () => { cancelled = true; }; }, []);
 
+  // Merge the guest (localStorage) cart & wishlist into the server-side
+  // versions once on login/register, so a cart started on one device
+  // shows up on another. Runs once per user id.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const mergedCart = await api("/cart/merge", { method: "POST", body: JSON.stringify({ items: cart }) });
+        const mergedWishlist = await api("/cart/wishlist/merge", { method: "POST", body: JSON.stringify({ ids: wishlist }) });
+        if (cancelled) return;
+        if (Array.isArray(mergedCart)) {
+          setCart(mergedCart.map((row) => ({
+            id: row.product_id, name: row.name, price: row.price, image: row.image,
+            category: row.category, stock: row.stock, qty: row.quantity,
+            selectedSize: row.selected_size, selectedColor: row.selected_color,
+          })));
+        }
+        if (Array.isArray(mergedWishlist)) setWishlist(mergedWishlist);
+      } catch (e) { console.error("Cart/wishlist sync failed", e); }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   const addOrder = (order) => setOrders((current) => [order, ...current]);
   const cancelOrder = async (id) => { try { const response = await api(`/orders/${id}/cancel`, { method: "PATCH" }); setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order)); } catch (error) { window.alert(error.message || "This order cannot be cancelled."); } };
   useEffect(() => { const handler = (event) => { if (event?.detail != null) cancelOrder(event.detail); }; window.addEventListener("offgrid-cancel-order", handler); return () => window.removeEventListener("offgrid-cancel-order", handler); }, []);
-  const addCart = (product) => setCart((current) => { const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || ""); const existing = current.find(same); if (existing) return current.map((item) => same(item) ? { ...item, qty: Number(item.qty || 1) + 1 } : item); return [...current, { ...product, qty: 1 }]; });
-  const toggleWishlist = (id) => setWishlist((current) => current.some((item) => String(item) === String(id)) ? current.filter((item) => String(item) !== String(id)) : [...current, id]);
+  const addCart = (product) => { setCart((current) => { const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || ""); const existing = current.find(same); if (existing) return current.map((item) => same(item) ? { ...item, qty: Number(item.qty || 1) + 1 } : item); return [...current, { ...product, qty: 1 }]; }); if (user?.id) { const qty = (cart.find((item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || ""))?.qty || 0) + 1; api("/cart/item", { method: "PUT", body: JSON.stringify({ product_id: product.id, quantity: qty, selected_size: product.selectedSize || null, selected_color: product.selectedColor || null }) }).catch(() => {}); } };
+  const toggleWishlist = (id) => { const liked = wishlist.some((item) => String(item) === String(id)); setWishlist((current) => liked ? current.filter((item) => String(item) !== String(id)) : [...current, id]); if (user?.id) { api(`/cart/wishlist/${id}`, { method: liked ? "DELETE" : "PUT" }).catch(() => {}); } };
   const handleNewsletterSubmit = async (e) => { e.preventDefault(); const email = newsletterEmail.trim(); if (!email) return; setNewsletterStatus("loading"); try { await api("/newsletter", { method: "POST", body: JSON.stringify({ email }) }); setNewsletterStatus("success"); setNewsletterEmail(""); } catch { setNewsletterStatus("error"); } };
   const scroll = (id) => { setMenu(false); setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); };
 
@@ -64,6 +91,8 @@ export default function App() {
   if (location.pathname === "/wishlist") return <Wishlist products={products} wishlist={wishlist} toggle={toggleWishlist} add={addCart} />;
   if (location.pathname.startsWith("/track-order/")) return <TrackOrder orders={orders} />;
   if (location.pathname === "/admin") return <Admin user={user} />;
+  if (location.pathname === "/gift-cards") return <GiftCards user={user} />;
+  if (location.pathname === "/lookbook") return <Lookbook products={products} />;
   if (location.pathname.startsWith("/product/")) { const rawId = location.pathname.split("/product/")[1]?.split("/")[0]; const product = products.find((item) => String(item.id) === String(rawId)); const localProduct = PRODUCTS.find((item) => String(item.id) === String(rawId)); const finalProduct = product || localProduct; if (!finalProduct) return <div className="product-not-found-page"><div className="product-not-found-inner"><span>THE OFF GRID</span><h1>PRODUCT NOT<br />FOUND</h1><p>We couldn't find the product you're looking for.</p><button type="button" onClick={() => navigate("/")}>BACK TO SHOP</button></div></div>; return <ProductDetails product={finalProduct} products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} user={user} />; }
 
   return <div className="app">
@@ -78,8 +107,9 @@ export default function App() {
     <section className="statement"><span>03</span><h2>YOUR STYLE<br />DOESN'T NEED<br /><em>PERMISSION.</em></h2></section>
     <section className="journal section" id="journal"><div className="journal-image"><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90" alt="The Off Grid journal" /></div><div className="journal-content"><span>04 / JOURNAL</span><h2>THE OFF GRID<br /><em>STATE OF MIND.</em></h2><p>Style is not about following a formula. It's about building a uniform that feels like you.</p><button type="button" className="under-btn">READ THE JOURNAL <ArrowUpRight size={15} /></button></div></section>
     <section className="newsletter"><div><span>05 / STAY IN THE LOOP</span><h2>DON'T MISS<br /><em>THE DROP.</em></h2></div><form onSubmit={handleNewsletterSubmit}><label>EMAIL ADDRESS</label><div><input type="email" required placeholder="YOUR EMAIL" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} /><button type="submit" disabled={newsletterStatus === "loading"}><ArrowRight /></button></div>{newsletterStatus === "success" && <small>YOU'RE ON THE LIST.</small>}{newsletterStatus === "error" && <small>COULD NOT SUBSCRIBE. TRY AGAIN.</small>}</form></section>
-    <footer><div className="footer-grid"><div className="footer-brand"><small>THE</small><strong>OFF GRID</strong><p>Independent clothing for independent minds.</p></div><div><h4>SHOP</h4><button onClick={() => scroll("shop")}>ALL PRODUCTS</button><button onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}>TEES</button><button onClick={() => { setActiveCategory("SHIRTS"); scroll("shop"); }}>SHIRTS</button><button onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}>BOTTOMS</button></div><div><h4>ACCOUNT</h4><button onClick={() => navigate("/account")}>MY ACCOUNT</button><button onClick={() => navigate("/orders")}>ORDERS</button><button onClick={() => navigate("/wishlist")}>WISHLIST</button></div><div><h4>FOLLOW</h4><a href="https://instagram.com/theoffgrid.in" target="_blank" rel="noreferrer"><Instagram size={16}/> INSTAGRAM</a><a href="https://youtube.com" target="_blank" rel="noreferrer"><Youtube size={16}/> YOUTUBE</a></div></div><div className="footer-bottom"><span>© 2026 THE OFF GRID</span><span>MADE FOR YOU.</span></div></footer>
+    <footer><div className="footer-grid"><div className="footer-brand"><small>THE</small><strong>OFF GRID</strong><p>Independent clothing for independent minds.</p></div><div><h4>SHOP</h4><button onClick={() => scroll("shop")}>ALL PRODUCTS</button><button onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}>TEES</button><button onClick={() => { setActiveCategory("SHIRTS"); scroll("shop"); }}>SHIRTS</button><button onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}>BOTTOMS</button></div><div><h4>ACCOUNT</h4><button onClick={() => navigate("/account")}>MY ACCOUNT</button><button onClick={() => navigate("/orders")}>ORDERS</button><button onClick={() => navigate("/wishlist")}>WISHLIST</button><button onClick={() => navigate("/gift-cards")}>GIFT CARDS</button></div><div><h4>MORE</h4><button onClick={() => navigate("/lookbook")}>LOOKBOOK</button><a href="https://instagram.com/theoffgrid.in" target="_blank" rel="noreferrer"><Instagram size={16}/> INSTAGRAM</a><a href="https://youtube.com" target="_blank" rel="noreferrer"><Youtube size={16}/> YOUTUBE</a></div></div><div className="footer-bottom"><span>© 2026 THE OFF GRID</span><span>MADE FOR YOU.</span></div></footer>
     {cart.length > 0 && <button className="floating-bag" type="button" onClick={() => navigate("/checkout")}><ShoppingBag size={17}/> BAG · {cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</button>}
+    <a className="floating-whatsapp" href="https://wa.me/919999999999?text=Hi%2C%20I%20have%20a%20question%20about%20my%20order" target="_blank" rel="noreferrer" aria-label="Chat with us on WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M17.6 6.3A8.86 8.86 0 0 0 12.05 3.8a8.94 8.94 0 0 0-7.7 13.4L3 21l3.9-1.3a8.9 8.9 0 0 0 5.14 1.6h.01a8.94 8.94 0 0 0 8.94-8.94A8.86 8.86 0 0 0 17.6 6.3ZM12.05 19.5a7.4 7.4 0 0 1-3.78-1.03l-.27-.16-2.32.77.78-2.27-.17-.29a7.44 7.44 0 1 1 13.83-3.85 7.45 7.45 0 0 1-7.44 6.83Zm4.08-5.57c-.22-.11-1.32-.65-1.53-.73-.2-.08-.35-.11-.5.11-.15.22-.58.73-.71.87-.13.15-.26.16-.48.05-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.69-1.65-.18-.44-.37-.38-.5-.38-.13 0-.28-.02-.43-.02-.15 0-.39.06-.6.28-.2.22-.79.77-.79 1.87 0 1.1.81 2.17.92 2.32.11.15 1.6 2.44 3.88 3.42.54.23.97.37 1.3.48.55.17 1.04.15 1.44.09.44-.07 1.32-.54 1.5-1.06.19-.52.19-.96.13-1.06-.06-.09-.2-.15-.42-.26Z"/></svg></a>
   </div>;
 }
 
