@@ -130,6 +130,7 @@ export default function Orders({ orders = [], onCancel, loading = false }) {
                   {order.status !== "cancelled" && (
                     <Link className="text-button" to={`/track-order/${order.id}`}>TRACK ORDER</Link>
                   )}
+                  <Link className="text-button" to={`/invoice/${order.id}`}>VIEW INVOICE</Link>
                   {order.status === "pending" && payment === "COD" && (
                     <button className="text-button" onClick={() => onCancel(order.id)}>CANCEL ORDER</button>
                   )}

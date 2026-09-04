@@ -5,6 +5,7 @@ import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
 import { checkCoupon } from './coupons.js';
 import { sendEmail, orderConfirmationEmail, orderStatusEmail } from '../services/email.js';
+import { logStockMovement } from './variants.js';
 
 const router = Router();
 
@@ -16,7 +17,7 @@ const router = Router();
   Guarded by points_awarded so it can never
   run twice for the same order.
 */
-async function awardLoyaltyPoints(client, orderId) {
+export async function awardLoyaltyPoints(client, orderId) {
 
   const orderResult = await client.query(
     `SELECT id, user_id, total
@@ -513,6 +514,11 @@ router.post('/create', auth, async (req, res) => {
           p.id
         ]
       );
+
+      await logStockMovement(client, {
+        productId: p.id, variantId: variant?.id || null, change: -quantity,
+        reason: 'order_placed', reference: `order #${order.id}`
+      });
     }
 
 
@@ -642,7 +648,7 @@ router.get('/mine', auth, async (req, res) => {
   This is deliberately idempotent: callers must hold the order row lock
   and only invoke it while the order is still cancellable.
 */
-async function restoreOrderBenefits(client, order) {
+export async function restoreOrderBenefits(client, order) {
   const itemsResult = await client.query(
     `SELECT product_id, quantity, selected_size, selected_color
      FROM order_items
@@ -656,14 +662,22 @@ async function restoreOrderBenefits(client, order) {
       [Number(item.quantity), Number(item.product_id)]
     );
 
+    let variantId = null;
     if (item.selected_size) {
-      await client.query(
+      const v = await client.query(
         `UPDATE product_variants
          SET stock = stock + $1
-         WHERE product_id = $2 AND size = $3 AND color = $4`,
+         WHERE product_id = $2 AND size = $3 AND color = $4
+         RETURNING id`,
         [Number(item.quantity), Number(item.product_id), item.selected_size, item.selected_color || '']
       );
+      variantId = v.rows[0]?.id || null;
     }
+
+    await logStockMovement(client, {
+      productId: Number(item.product_id), variantId, change: Number(item.quantity),
+      reason: 'order_cancelled_or_restored', reference: `order #${order.id}`
+    });
   }
 
   if (Number(order.points_redeemed) > 0) {
@@ -1148,13 +1162,14 @@ router.post(
       const updated = await client.query(
         `UPDATE orders
          SET payment_status = 'paid',
-             status = 'processing'
+             status = 'processing',
+             razorpay_payment_id = $3
          WHERE id = $1
            AND user_id = $2
            AND payment_status <> 'paid'
            AND status <> 'cancelled'
          RETURNING *`,
-        [orderId, req.user.id]
+        [orderId, req.user.id, razorpay_payment_id]
       );
 
       if (!updated.rows.length) {

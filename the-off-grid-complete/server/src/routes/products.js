@@ -104,16 +104,20 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/products/:id — single product detail
+// GET /api/products/:id — single product detail. Accepts either a
+// numeric id or a slug (e.g. /products/oversized-black-tee-14), so the
+// same endpoint serves both /product/:id and the pretty /product/:id/:slug
+// frontend route.
 router.get('/:id', async (req, res) => {
   try {
+    const isNumeric = /^\d+$/.test(req.params.id);
     const { rows } = await pool.query(
       `SELECT p.*,
         COALESCE(
           (SELECT json_agg(v ORDER BY v.size, v.color) FROM product_variants v WHERE v.product_id = p.id),
           '[]'
         ) AS variants
-       FROM products p WHERE p.id = $1`,
+       FROM products p WHERE ${isNumeric ? 'p.id = $1' : 'p.slug = $1'}`,
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
@@ -124,13 +128,23 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+function slugify(name, id) {
+  const base = String(name || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  return id ? `${base}-${id}` : base;
+}
+
 // POST /api/products — create (admin only)
 router.post('/', auth, admin, async (req, res) => {
   try {
     const {
       name, description = '', category, gender = 'Unisex', size,
       condition = 'New Arrival', price, old_price = null, image,
-      images = [], stock = 1, color = null, fit = null, video = null
+      images = [], stock = 1, color = null, fit = null, video = null,
+      meta_title = null, meta_description = null,
+      material = null, care_instructions = null, model_details = null
     } = req.body;
 
     if (!name || !category || !size || !price || !image) {
@@ -139,14 +153,19 @@ router.post('/', auth, admin, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO products
-        (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit, video)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit, video, meta_title, meta_description, material, care_instructions, model_details)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [name, description, category, gender, size, condition, Number(price), old_price ? Number(old_price) : null,
-        image, Array.isArray(images) ? images : [], Number(stock) || 0, color, fit, video]
+        image, Array.isArray(images) ? images : [], Number(stock) || 0, color, fit, video, meta_title, meta_description,
+        material, care_instructions, model_details]
     );
 
-    res.status(201).json(rows[0]);
+    // Slug depends on the new row's id, so it's set right after insert.
+    const slug = slugify(name, rows[0].id);
+    const withSlug = await pool.query('UPDATE products SET slug = $1 WHERE id = $2 RETURNING *', [slug, rows[0].id]);
+
+    res.status(201).json(withSlug.rows[0]);
   } catch (e) {
     console.error('POST /products failed:', e);
     res.status(500).json({ message: 'Unable to create product' });
@@ -156,7 +175,7 @@ router.post('/', auth, admin, async (req, res) => {
 // PATCH /api/products/:id — update (admin only)
 router.patch('/:id', auth, admin, async (req, res) => {
   try {
-    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video'];
+    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video', 'meta_title', 'meta_description', 'slug', 'material', 'care_instructions', 'model_details'];
     const sets = [];
     const values = [];
 
@@ -205,28 +224,39 @@ router.delete('/:id', auth, admin, async (req, res) => {
 });
 
 // POST /api/products/:id/notify — "notify me" waitlist for out-of-stock items
+// Now SKU-aware: if the product has variants and the customer specifies a
+// size/color, they're only notified when THAT combination restocks —
+// not just when any size of the product comes back.
 router.post('/:id/notify', async (req, res) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
+    const size = req.body.size ? String(req.body.size).trim() : null;
+    const color = req.body.color ? String(req.body.color).trim() : '';
     if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ message: 'Invalid email' });
 
     const { rows } = await pool.query('SELECT id, name FROM products WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
 
-    await pool.query(
-      `CREATE TABLE IF NOT EXISTS stock_alerts(
-        id SERIAL PRIMARY KEY,
-        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        email TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(product_id, email)
-      )`
+    let variantId = null;
+    if (size) {
+      const v = await pool.query(
+        'SELECT id FROM product_variants WHERE product_id = $1 AND size = $2 AND color = $3',
+        [req.params.id, size, color]
+      );
+      variantId = v.rows[0]?.id || null;
+    }
+
+    const existing = await pool.query(
+      `SELECT id FROM stock_alerts WHERE product_id = $1 AND email = $2
+       AND (variant_id = $3 OR ($3::int IS NULL AND variant_id IS NULL))`,
+      [req.params.id, email, variantId]
     );
-    await pool.query(
-      `INSERT INTO stock_alerts (product_id, email) VALUES ($1,$2)
-       ON CONFLICT (product_id, email) DO NOTHING`,
-      [req.params.id, email]
-    );
+    if (!existing.rows.length) {
+      await pool.query(
+        'INSERT INTO stock_alerts (product_id, email, variant_id) VALUES ($1,$2,$3)',
+        [req.params.id, email, variantId]
+      );
+    }
 
     res.json({ success: true });
   } catch (e) {

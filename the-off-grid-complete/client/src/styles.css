@@ -386,3 +386,99 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-
   .lookbook-story,.lookbook-story.reverse{grid-template-columns:1fr;direction:ltr}
   .lookbook-product-grid{grid-template-columns:repeat(2,1fr)}
 }
+
+/* ===== INFO PAGES (legal/policy), FAQ, CONTACT ===== */
+.info-page-body{display:grid;gap:35px;max-width:820px}.info-page-body h3{font-family:"Space Grotesk";font-size:20px;letter-spacing:-.5px;margin:0 0 10px}.info-page-body p{color:#555;line-height:1.7;font-size:13px;max-width:700px}
+.faq-list{max-width:760px;display:grid;gap:0}.faq-item{border-top:1px solid var(--line)}.faq-item:last-child{border-bottom:1px solid var(--line)}.faq-item>button{width:100%;display:flex;justify-content:space-between;align-items:center;padding:22px 0;font-size:13px;text-align:left}.faq-item.open>button svg{transform:rotate(180deg)}.faq-item>button svg{transition:transform .2s}.faq-item>p{padding:0 0 22px;color:#666;font-size:12px;line-height:1.7;max-width:640px}
+.contact-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:50px;max-width:960px}.contact-details{display:grid;gap:22px;align-content:start}.contact-details>div,.contact-details>a{display:flex;gap:14px;align-items:flex-start}.contact-details span{display:block;font-size:9px;letter-spacing:1.2px;color:#777}.contact-details strong{display:block;font-size:13px;margin-top:4px;font-weight:500}.contact-form select{border:0;border-bottom:1px solid var(--line);padding:15px;background:none;outline:0}.contact-form textarea{border:0;border-bottom:1px solid var(--line);padding:15px;background:none;outline:0;resize:vertical;font-family:inherit}
+@media(max-width:900px){.contact-grid{grid-template-columns:1fr}}
+
+/* ===== INVOICE ===== */
+.invoice-page{max-width:900px;margin:0 auto;padding:50px 5% 100px}
+.invoice-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px}
+.invoice-sheet{background:#fff;border:1px solid var(--line);padding:50px}
+.invoice-head{display:flex;justify-content:space-between;gap:30px;border-bottom:2px solid #111;padding-bottom:25px;margin-bottom:25px}
+.invoice-brand{font-family:"Space Grotesk";font-size:22px;letter-spacing:-1px;display:block}
+.invoice-head p{font-size:11px;color:#777;line-height:1.6;margin-top:8px}
+.invoice-meta p{display:flex;justify-content:space-between;gap:20px;font-size:11px;margin:4px 0}
+.invoice-meta span{color:#777}
+.invoice-addresses{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:30px}
+.invoice-addresses span{font-size:9px;letter-spacing:1.2px;color:#777;display:block;margin-bottom:8px}
+.invoice-addresses p{font-size:12px;line-height:1.7}
+.invoice-table{width:100%;border-collapse:collapse;margin-bottom:25px}
+.invoice-table th,.invoice-table td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);font-size:11px}
+.invoice-table th{font-size:9px;letter-spacing:1px;color:#777}
+.invoice-totals{max-width:320px;margin-left:auto;display:grid;gap:8px}
+.invoice-totals p{display:flex;justify-content:space-between;font-size:12px;margin:0}
+.invoice-totals span{color:#777}
+.invoice-grand-total{border-top:2px solid #111;padding-top:10px;margin-top:6px;font-size:14px}
+.invoice-footnote{margin-top:35px;font-size:10px;color:#999;text-align:center}
+@media print{
+  .navbar,.topbar,.footer-grid,.footer-bottom,footer,.floating-bag,.floating-whatsapp,.no-print{display:none !important}
+  body{background:#fff}
+  .invoice-page{padding:0;max-width:none}
+  .invoice-sheet{border:none;padding:0}
+}
+
+/* ===== ROUND 4/5 ADDITIONS ===== */
+
+/* Admin product form: upload buttons + SEO block */
+.admin-upload-row{display:flex;gap:8px;align-items:flex-start}
+.admin-upload-row input,.admin-upload-row textarea{flex:1}
+.admin-upload-btn{border:1px solid var(--line);background:#fff;padding:0 14px;font-size:10px;letter-spacing:1px;white-space:nowrap;height:44px}
+.admin-seo-block{border:1px dashed var(--line);padding:16px;margin:15px 0;display:grid;gap:10px}
+.admin-seo-label{font-size:9px;letter-spacing:1px;color:#888}
+
+/* Variant editor: header row + wider grid for SKU/barcode/cost */
+.admin-variant-row{grid-template-columns:70px 90px 70px 1fr 1fr 80px 36px}
+.admin-variant-header{font-size:9px;letter-spacing:1px;color:#888;padding-bottom:4px}
+.admin-variant-header span{padding-left:2px}
+
+/* Inventory ledger */
+.admin-stock-ledger{display:grid;gap:6px;max-height:320px;overflow-y:auto}
+.admin-stock-ledger-row{display:grid;grid-template-columns:60px 50px 1fr 1.4fr;gap:10px;font-size:11px;padding:6px 0;border-bottom:1px solid var(--line)}
+.admin-stock-ledger-row .positive{color:#2a7a2a}
+.admin-stock-ledger-row .negative{color:var(--orange)}
+
+/* Refund row */
+.admin-refund-row{display:flex;gap:10px;margin-top:10px}
+.admin-refund-row input{flex:1;border:1px solid var(--line);padding:10px;font-size:11px;background:none}
+
+/* Account: profile edit + danger zone */
+.profile-edit-form{margin-top:10px}
+.account-danger-zone{border-top:1px solid var(--line);margin-top:25px;padding-top:20px}
+.danger-link{color:#b3261e}
+.danger-btn{background:#b3261e}
+.account-danger-zone form{display:grid;gap:12px;max-width:420px}
+.account-danger-zone form>div{display:flex;gap:10px}
+
+/* Analytics dashboard */
+.admin-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:30px}
+.admin-kpi-grid>div{background:#fff;border:1px solid var(--line);padding:18px}
+.admin-kpi-grid span{font-size:9px;letter-spacing:1px;color:#888;display:block;margin-bottom:6px}
+.admin-kpi-grid strong{font-family:"Space Grotesk";font-size:22px}
+.admin-analytics-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.admin-analytics-cols h4{font-size:10px;letter-spacing:1px;margin-bottom:12px;color:#888}
+.admin-analytics-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;padding:8px 0;border-bottom:1px solid var(--line)}
+
+@media(max-width:900px){
+  .admin-variant-row{grid-template-columns:1fr}
+  .admin-kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .admin-analytics-cols{grid-template-columns:1fr}
+  .admin-upload-row{flex-direction:column}
+}
+
+/* Exchange replacement shipment tracking */
+.admin-shipment-block{border:1px dashed var(--line);padding:14px;margin-top:12px;display:grid;gap:10px}
+.admin-shipment-status{font-size:9px;letter-spacing:1px;color:var(--orange)}
+.admin-shipment-row{display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:8px}
+.admin-shipment-row input{border:1px solid var(--line);padding:9px;font-size:11px;background:none}
+.admin-shipment-row button{border:1px solid var(--line);background:#fff;font-size:10px;padding:0 14px}
+.admin-shipment-actions{display:flex;gap:10px}
+.replacement-tracking{border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:11px}
+.replacement-tracking span{font-size:9px;letter-spacing:1px;color:var(--orange);display:block;margin-bottom:4px}
+.replacement-tracking a{color:var(--orange);text-decoration:underline}
+
+@media(max-width:900px){
+  .admin-shipment-row{grid-template-columns:1fr}
+}

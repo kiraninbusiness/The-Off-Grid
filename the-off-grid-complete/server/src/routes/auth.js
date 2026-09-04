@@ -373,5 +373,94 @@ router.get('/me', auth, async (req, res) => {
   });
 });
 
+/*
+  PATCH /api/auth/me — edit profile (name/email) and/or change password
+  in one endpoint. Password change requires the current password.
+*/
+router.patch('/me', auth, async (req, res) => {
+  const { name, email, current_password, new_password } = req.body;
+
+  const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+  const user = userResult.rows[0];
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  const sets = [];
+  const values = [];
+
+  if (name !== undefined) {
+    const trimmed = String(name).trim();
+    if (!trimmed) return res.status(400).json({ message: 'Name cannot be empty' });
+    values.push(trimmed);
+    sets.push(`name = $${values.length}`);
+  }
+
+  if (email !== undefined) {
+    const trimmed = String(email).trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) return res.status(400).json({ message: 'Enter a valid email' });
+    if (trimmed !== user.email) {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1 AND id <> $2', [trimmed, user.id]);
+      if (existing.rows.length) return res.status(409).json({ message: 'That email is already in use' });
+    }
+    values.push(trimmed);
+    sets.push(`email = $${values.length}`);
+  }
+
+  if (new_password) {
+    if (!current_password || !(await bcrypt.compare(current_password, user.password_hash))) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+    if (String(new_password).length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+    values.push(await bcrypt.hash(new_password, 12));
+    sets.push(`password_hash = $${values.length}`);
+  }
+
+  if (!sets.length) return res.status(400).json({ message: 'Nothing to update' });
+
+  values.push(req.user.id);
+  const { rows } = await pool.query(
+    `UPDATE users SET ${sets.join(', ')} WHERE id = $${values.length}
+     RETURNING id, name, email, role, loyalty_points, referral_code`,
+    values
+  );
+
+  res.json(rows[0]);
+});
+
+/*
+  DELETE /api/auth/me — self-service account deletion.
+  Requires the current password as confirmation. Orders are kept for
+  accounting/tax records (user_id set NULL rather than cascading
+  delete) — everything personal to the account (addresses, wishlist,
+  cart, reviews, sessions) is removed.
+*/
+router.delete('/me', auth, async (req, res) => {
+  const { password } = req.body;
+
+  const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+  const user = userResult.rows[0];
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  if (!password || !(await bcrypt.compare(password, user.password_hash))) {
+    return res.status(401).json({ message: 'Incorrect password' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE orders SET user_id = NULL WHERE user_id = $1', [req.user.id]);
+    await client.query('DELETE FROM users WHERE id = $1', [req.user.id]);
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('ACCOUNT DELETE ERROR:', e.message);
+    res.status(500).json({ message: 'Could not delete account. Some orders or records may still reference it.' });
+  } finally {
+    client.release();
+  }
+});
+
 
 export default router;

@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { productUrl } from "../utils/productUrl";
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
 export default function CompleteTheLook({ current, products = [], selectedSize = "" }) {
@@ -28,7 +29,7 @@ export default function CompleteTheLook({ current, products = [], selectedSize =
       <button className="complete-look-button" disabled={String(current?.size || "").includes("/") && !selectedSize} onClick={() => window.dispatchEvent(new CustomEvent("offgrid-add-look", { detail: look.map((p) => p.id === current.id ? { ...p, selectedSize: selectedSize || null } : p) }))}>{String(current?.size || "").includes("/") && !selectedSize ? "SELECT SIZE ABOVE" : "ADD FULL LOOK"}</button>
     </div>
     <div className="complete-look-grid">
-      {look.map((p, i) => <Link key={p.id} to={`/product/${p.id}`} className="complete-look-card">
+      {look.map((p, i) => <Link key={p.id} to={productUrl(p)} className="complete-look-card">
         <div className="complete-look-image"><img src={p.image} alt={p.name} loading="lazy" /><span>0{i + 1}</span></div>
         <h4>{p.name}</h4><p>{money(p.price)}</p>
       </Link>)}

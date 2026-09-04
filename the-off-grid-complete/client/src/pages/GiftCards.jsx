@@ -1,9 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Gift } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Gift } from "lucide-react";
 import { api } from "../api";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
+const loadRazorpay = () =>
+  new Promise((resolve, reject) => {
+    if (window.Razorpay) return resolve(true);
+    const existing = document.querySelector('script[data-razorpay="true"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve(true), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Could not load Razorpay")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.dataset.razorpay = "true";
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error("Could not load Razorpay checkout"));
+    document.body.appendChild(script);
+  });
 
 export default function GiftCards({ user }) {
   const nav = useNavigate();
@@ -26,20 +44,79 @@ export default function GiftCards({ user }) {
     api("/gift-cards/mine").then((data) => Array.isArray(data) && setMine(data)).catch(() => {});
   }, [user, done]);
 
+  /*
+    Gift cards now go through a real Razorpay payment before the card
+    is created/activated — previously this called /gift-cards/purchase
+    and the card was live immediately with no payment at all. This
+    mirrors the exact same order-payment flow used at checkout:
+    create a Razorpay order -> open the payment modal -> verify the
+    signed payment server-side -> only then is the card active.
+  */
   const submit = async (e) => {
     e.preventDefault();
     if (!user) { nav("/account"); return; }
+
+    const key = import.meta.env.VITE_RAZORPAY_KEY_ID;
+    if (!key) {
+      setErr("Online payment is not configured yet — please try again later.");
+      return;
+    }
+
     setErr("");
     setBusy(true);
+
     try {
-      const card = await api("/gift-cards/purchase", {
+      await loadRazorpay();
+
+      const pending = await api("/gift-cards/purchase", {
         method: "POST",
-        body: JSON.stringify({ amount, recipient_email: recipientEmail.trim(), recipient_name: recipientName.trim(), message: message.trim() }),
+        body: JSON.stringify({
+          amount,
+          recipient_email: recipientEmail.trim(),
+          recipient_name: recipientName.trim(),
+          message: message.trim(),
+        }),
       });
-      setDone(card);
-      setRecipientEmail("");
-      setRecipientName("");
-      setMessage("");
+
+      await new Promise((resolve, reject) => {
+        const rzp = new window.Razorpay({
+          key,
+          amount: Math.round(pending.amount * 100),
+          currency: "INR",
+          name: "THE OFF GRID",
+          description: `Gift card for ${recipientEmail.trim()}`,
+          order_id: pending.razorpay_order_id,
+          prefill: { name: user?.name, email: user?.email },
+          theme: { color: "#111111" },
+          handler: async (payment) => {
+            try {
+              const card = await api("/gift-cards/verify-payment", {
+                method: "POST",
+                body: JSON.stringify({
+                  giftCardId: pending.giftCardId,
+                  razorpay_order_id: payment.razorpay_order_id,
+                  razorpay_payment_id: payment.razorpay_payment_id,
+                  razorpay_signature: payment.razorpay_signature,
+                }),
+              });
+              setDone(card);
+              setRecipientEmail("");
+              setRecipientName("");
+              setMessage("");
+              resolve();
+            } catch (err) {
+              reject(new Error(err.message || "Payment verification failed. Please contact support before retrying."));
+            }
+          },
+          modal: {
+            ondismiss: () => reject(new Error("Payment was cancelled — no gift card was created.")),
+          },
+        });
+        rzp.on("payment.failed", (response) => {
+          reject(new Error(response?.error?.description || "Payment failed. No gift card was created."));
+        });
+        rzp.open();
+      });
     } catch (e) {
       setErr(e.message || "Could not purchase gift card.");
     } finally {
@@ -72,7 +149,7 @@ export default function GiftCards({ user }) {
           {!user && <p className="notify-me-error">Sign in to purchase a gift card.</p>}
 
           <button className="orange-btn" disabled={busy}>
-            <Gift size={16} /> {busy ? "SENDING..." : `SEND ${money(amount)} GIFT CARD`}
+            <Gift size={16} /> {busy ? "PROCESSING..." : `PAY & SEND ${money(amount)} GIFT CARD`}
           </button>
         </form>
 

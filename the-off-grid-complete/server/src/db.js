@@ -184,8 +184,7 @@ export async function initDb(){
       active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       expires_at TIMESTAMPTZ
-    );
-    CREATE TABLE IF NOT EXISTS gift_card_redemptions(
+    );    CREATE TABLE IF NOT EXISTS gift_card_redemptions(
       id SERIAL PRIMARY KEY,
       gift_card_id INTEGER NOT NULL REFERENCES gift_cards(id) ON DELETE CASCADE,
       order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
@@ -195,6 +194,48 @@ export async function initDb(){
   `);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gift_card_code TEXT, ADD COLUMN IF NOT EXISTS gift_card_discount INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS combo_discount INTEGER NOT NULL DEFAULT 0`);
+
+  /*
+    GIFT CARD PAYMENT GATING (P0 fix)
+    A gift card row is now created in a pending/inactive state with a
+    Razorpay order attached — it only becomes active (and only then
+    is the recipient emailed) once /gift-cards/verify-payment confirms
+    a real, signature-verified Razorpay payment. Previously a gift
+    card was created and emailed immediately on request, with no
+    payment step at all.
+  */
+  await pool.query(`
+    ALTER TABLE gift_cards
+      ADD COLUMN IF NOT EXISTS payment_status TEXT NOT NULL DEFAULT 'paid',
+      ADD COLUMN IF NOT EXISTS razorpay_order_id TEXT,
+      ADD COLUMN IF NOT EXISTS razorpay_payment_id TEXT,
+      ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'online'
+  `);
+
+  /*
+    REAL RAZORPAY REFUNDS + WEBHOOK RECONCILIATION
+    orders.razorpay_payment_id was verified at checkout but never
+    actually stored — without it there's nothing to call Razorpay's
+    Refund API against. returns gets the columns needed to record a
+    real refund transaction (not just a status label).
+  */
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id TEXT`);
+
+  /* ===== ROUND 7: replacement shipment lifecycle for exchanges ===== */
+  await pool.query(`
+    ALTER TABLE returns
+      ADD COLUMN IF NOT EXISTS replacement_status TEXT,
+      ADD COLUMN IF NOT EXISTS replacement_courier TEXT,
+      ADD COLUMN IF NOT EXISTS replacement_awb TEXT,
+      ADD COLUMN IF NOT EXISTS replacement_tracking_url TEXT,
+      ADD COLUMN IF NOT EXISTS replacement_shipped_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS replacement_delivered_at TIMESTAMPTZ
+  `);
+  await pool.query(`
+    ALTER TABLE returns
+      ADD COLUMN IF NOT EXISTS razorpay_refund_id TEXT,
+      ADD COLUMN IF NOT EXISTS refund_settled_at TIMESTAMPTZ
+  `);
 
   // Server-side cart & wishlist — synced across devices for logged-in users
   await pool.query(`
@@ -245,7 +286,113 @@ export async function initDb(){
     CREATE INDEX IF NOT EXISTS product_variants_product_idx ON product_variants(product_id);
   `);
 
+  // SKU/barcode/cost fields on each size+color variant — becomes useful once
+  // you're shipping enough orders that "the black medium tee" isn't precise
+  // enough on a packing slip.
+  await pool.query(`
+    ALTER TABLE product_variants
+      ADD COLUMN IF NOT EXISTS sku TEXT,
+      ADD COLUMN IF NOT EXISTS barcode TEXT,
+      ADD COLUMN IF NOT EXISTS cost_price INTEGER
+  `);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS product_variants_sku_idx ON product_variants(sku) WHERE sku IS NOT NULL AND sku <> ''`);
+
+  /*
+    SEO — slug, meta title/description, canonical support.
+    /product/:id keeps working exactly as before (nothing that already
+    links to it breaks); the frontend additionally accepts and generates
+    /product/:id/:slug for real, readable, indexable URLs, and reads
+    meta_title/meta_description for that product's <title>/meta tags
+    and JSON-LD structured data.
+  */
+  await pool.query(`
+    ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS slug TEXT,
+      ADD COLUMN IF NOT EXISTS meta_title TEXT,
+      ADD COLUMN IF NOT EXISTS meta_description TEXT
+  `);
+  await pool.query(`
+    UPDATE products SET slug =
+      LOWER(REGEXP_REPLACE(REGEXP_REPLACE(name, '[^a-zA-Z0-9]+', '-', 'g'), '(^-|-$)', '', 'g')) || '-' || id
+    WHERE slug IS NULL
+  `);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_slug_idx ON products(slug)`);
+
+  /*
+    INVENTORY MOVEMENT LOG — lightweight ledger of every stock change
+    and why it happened (order placed, order cancelled/restored, return
+    received, manual admin adjustment). Not a full PIM inventory system,
+    but enough to answer "why is this at 12 units" without guessing.
+  */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stock_movements(
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      variant_id INTEGER REFERENCES product_variants(id) ON DELETE SET NULL,
+      change INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      reference TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS stock_movements_product_idx ON stock_movements(product_id);
+  `);
+
   await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6)) WHERE referral_code IS NULL`);
+
+  /* ===== ROUND 5 ADDITIONS ===== */
+
+  // Product fields the admin form never actually exposed
+  await pool.query(`
+    ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS material TEXT,
+      ADD COLUMN IF NOT EXISTS care_instructions TEXT,
+      ADD COLUMN IF NOT EXISTS model_details TEXT
+  `);
+
+  // Gift card resend tracking
+  await pool.query(`ALTER TABLE gift_cards ADD COLUMN IF NOT EXISTS resent_count INTEGER NOT NULL DEFAULT 0`);
+
+  // SKU-level stock alerts (was product-level only — restocking any
+  // size used to email everyone waiting on any size of that product)
+  await pool.query(`ALTER TABLE stock_alerts ADD COLUMN IF NOT EXISTS variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE`);
+
+  /*
+    STOCK ALERT UNIQUENESS FIX
+    The original UNIQUE(product_id, email) constraint predates
+    variant-specific alerts, and never got widened when variant_id
+    was added above — it still blocks a customer from subscribing to
+    "Black Tee / M" and "Black Tee / L" separately, since both rows
+    share the same product_id + email. Replaced with an index on
+    (product_id, email, variant) where "variant" collapses a NULL
+    variant_id (a plain product-wide alert, not tied to one size) to
+    0 — Postgres treats NULL as distinct from itself in a unique
+    constraint, so without this a customer could otherwise queue up
+    unlimited duplicate product-wide alerts too.
+  */
+  await pool.query(`
+    DO $$
+    DECLARE c_name text;
+    BEGIN
+      SELECT conname INTO c_name
+      FROM pg_constraint
+      WHERE conrelid = 'stock_alerts'::regclass
+        AND contype = 'u'
+        AND conkey = (
+          SELECT array_agg(attnum ORDER BY attnum)
+          FROM pg_attribute
+          WHERE attrelid = 'stock_alerts'::regclass
+            AND attname IN ('product_id','email')
+        );
+      IF c_name IS NOT NULL THEN
+        EXECUTE format('ALTER TABLE stock_alerts DROP CONSTRAINT %I', c_name);
+      END IF;
+    END $$;
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS stock_alerts_product_email_variant_idx
+    ON stock_alerts (product_id, email, COALESCE(variant_id, 0))
+  `);
+
   if(process.env.ADMIN_EMAIL){ await pool.query("UPDATE users SET role='admin' WHERE email=$1",[process.env.ADMIN_EMAIL.toLowerCase()]); }
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){

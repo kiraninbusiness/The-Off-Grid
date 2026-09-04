@@ -9,6 +9,8 @@ import DeliveryCheck from "../components/DeliveryCheck";
 import CompleteTheLook from "../components/CompleteTheLook";
 import {api} from "../api";
 import {PRODUCTS} from "../data/products.js";
+import {productUrl} from "../utils/productUrl";
+import {useSeo} from "../utils/useSeo";
 
 const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
 const colorClass=(c)=>String(c||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
@@ -17,6 +19,36 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const nav=useNavigate();
  const [qty,setQty]=useState(1),[size,setSize]=useState(""),[color,setColor]=useState(product?.color||""),[guide,setGuide]=useState(false),[zoom,setZoom]=useState(false),[imageIndex,setImageIndex]=useState(0);
  const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle");
+
+ useSeo(product ? {
+  title: product.meta_title || `${product.name} | THE OFF GRID`,
+  description: product.meta_description || (product.description ? String(product.description).slice(0, 155) : `Shop ${product.name} at THE OFF GRID — ${product.category}, ₹${product.price}.`),
+  canonical: `${window.location.origin}${productUrl(product)}`,
+  image: product.image,
+  jsonLd: {
+   "@context": "https://schema.org/",
+   "@type": "Product",
+   name: product.name,
+   description: product.description || product.name,
+   image: [product.image, ...(Array.isArray(product.images) ? product.images : [])].filter(Boolean),
+   brand: { "@type": "Brand", name: "THE OFF GRID" },
+   ...(product.rating_count > 0 ? {
+    aggregateRating: {
+     "@type": "AggregateRating",
+     ratingValue: product.rating_average,
+     reviewCount: product.rating_count
+    }
+   } : {}),
+   offers: {
+    "@type": "Offer",
+    priceCurrency: "INR",
+    price: product.price,
+    availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    url: `${window.location.origin}${productUrl(product)}`
+   }
+  }
+ } : {});
+
  useEffect(()=>{if(product)trackRecentlyViewed(product.id)},[product?.id]);
  useEffect(()=>{setSize("");setColor(product?.color||"");setImageIndex(0);setQty(1)},[product?.id]);
  useEffect(()=>{
@@ -43,7 +75,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const discount=product.old_price?Math.round((Number(product.old_price)-Number(product.price))/Number(product.old_price)*100):0;
  const related=products.filter(p=>String(p.id)!==String(product.id)).sort((a,b)=>(a.category===product.category?0:1)-(b.category===product.category?0:1)).slice(0,3);
  const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,selectedSize:size||null,selectedColor:color||null});nav("/checkout")};
- const notifyMe=async e=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(notifyEmail.trim())){setNotifyStatus("error");return}setNotifyStatus("loading");try{await api(`/products/${product.id}/notify`,{method:"POST",body:JSON.stringify({email:notifyEmail.trim()})});setNotifyStatus("success")}catch{setNotifyStatus("error")}};
+ const notifyMe=async e=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(notifyEmail.trim())){setNotifyStatus("error");return}setNotifyStatus("loading");try{await api(`/products/${product.id}/notify`,{method:"POST",body:JSON.stringify({email:notifyEmail.trim(),size:size||null,color:color||null})});setNotifyStatus("success")}catch{setNotifyStatus("error")}};
  const prev=()=>setImageIndex(i=>(i-1+images.length)%images.length),next=()=>setImageIndex(i=>(i+1)%images.length);
  return <div className="product-details-page">
   <header className="product-details-header"><button className="product-back" onClick={()=>nav(-1)}><ArrowLeft size={18}/> BACK TO SHOP</button><Link to="/" className="product-details-logo"><small>THE</small><strong>OFF GRID</strong></Link><span>PRODUCT / {String(product.id).padStart(2,"0")}</span></header>
@@ -59,7 +91,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
     {sizes.length>0&&<div className="product-size-section"><div className="product-size-title"><span>SELECT SIZE</span><button className="link-like" onClick={()=>setGuide(true)}><Ruler size={13}/> SIZE GUIDE</button></div><div className="product-size-buttons">{sizes.map(s=><button key={s} disabled={sizeSoldOut(s)} className={`${size===s?"active":""} ${sizeSoldOut(s)?"size-sold-out":""}`} onClick={()=>setSize(s)}>{s}</button>)}</div><p className="fit-helper">{product.fit} FIT · {product.model||"Check the size guide for measurements"}</p>{hasVariants&&size&&<p className={selectedVariantStock>0?"variant-stock-ok":"variant-stock-out"}>{selectedVariantStock>0?`${selectedVariantStock} left in ${size}${color?` / ${color}`:""}`:`${size}${color?` / ${color}`:""} is out of stock`}</p>}</div>}
     <div className="product-buy-row"><div className="product-quantity"><button onClick={()=>setQty(q=>Math.max(1,q-1))}><Minus size={15}/></button><span>{qty}</span><button onClick={()=>setQty(q=>Math.min(maxQty,q+1))}><Plus size={15}/></button></div><button className={`product-detail-wishlist ${liked?"active":""}`} onClick={()=>toggle(product.id)}><Heart fill={liked?"currentColor":"none"}/></button></div>
     <button className="product-detail-add" disabled={!product.stock||(hasVariants&&size&&selectedVariantStock<=0)} onClick={addNow}>{product.stock&&!(hasVariants&&size&&selectedVariantStock<=0)?"ADD TO BAG":"SOLD OUT"}<ShoppingBag size={19}/></button><p className="product-stock">{product.stock<=5&&product.stock>0?`ONLY ${product.stock} LEFT`:product.stock?`${product.stock} AVAILABLE`:`CURRENTLY OUT OF STOCK`}</p>
-    {!product.stock&&<form className="notify-me" onSubmit={notifyMe}><div className="notify-me-title"><Bell size={15}/><span>NOTIFY ME WHEN BACK IN STOCK</span></div>{notifyStatus==="success"?<p className="notify-me-success">You're on the list — we'll email you the moment it's back.</p>:<><div className="notify-me-row"><input type="email" placeholder="YOUR EMAIL" value={notifyEmail} onChange={e=>{setNotifyEmail(e.target.value);if(notifyStatus==="error")setNotifyStatus("idle")}}/><button type="submit" disabled={notifyStatus==="loading"}>{notifyStatus==="loading"?"...":"NOTIFY ME"}</button></div>{notifyStatus==="error"&&<p className="notify-me-error">Enter a valid email address.</p>}</>}</form>}
+    {(!product.stock||(hasVariants&&size&&selectedVariantStock<=0))&&<form className="notify-me" onSubmit={notifyMe}><div className="notify-me-title"><Bell size={15}/><span>NOTIFY ME WHEN {size?`${size}${color?` / ${color}`:""}`:"BACK"} IS IN STOCK</span></div>{notifyStatus==="success"?<p className="notify-me-success">You're on the list — we'll email you the moment it's back.</p>:<><div className="notify-me-row"><input type="email" placeholder="YOUR EMAIL" value={notifyEmail} onChange={e=>{setNotifyEmail(e.target.value);if(notifyStatus==="error")setNotifyStatus("idle")}}/><button type="submit" disabled={notifyStatus==="loading"}>{notifyStatus==="loading"?"...":"NOTIFY ME"}</button></div>{notifyStatus==="error"&&<p className="notify-me-error">Enter a valid email address.</p>}</>}</form>}
     <DeliveryCheck/>
     <div className="product-benefits"><div><Truck/><b>FAST SHIPPING<small>Across India</small></b></div><div><ShieldCheck/><b>QUALITY FIRST<small>Every piece checked</small></b></div><div><RotateCcw/><b>EASY RETURNS<small>Simple & transparent</small></b></div></div>
    </div>

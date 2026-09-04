@@ -18,11 +18,22 @@ import upload from './routes/upload.js';
 import giftcards from './routes/giftcards.js';
 import cart from './routes/cart.js';
 import combos from './routes/combos.js';
-import abandoned from './routes/abandoned.js';
+import abandoned, { startAbandonedCartScheduler } from './routes/abandoned.js';
+import webhooks from './routes/webhooks.js';
+import contact from './routes/contact.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app=express();
 app.use(cors({origin:process.env.CLIENT_URL||'http://localhost:5173'}));
+
+/*
+  Razorpay webhooks MUST be mounted before express.json() and parsed as
+  a raw Buffer — the webhook signature is computed over the exact raw
+  request bytes, and JSON-parsing + re-serializing would change them,
+  breaking every signature check. See routes/webhooks.js for details.
+*/
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhooks);
+
 app.use(express.json({limit:'1mb'}));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.get('/api/health',(req,res)=>res.json({ok:true}));
@@ -41,7 +52,8 @@ app.use('/api/gift-cards',giftcards);
 app.use('/api/cart',cart);
 app.use('/api/combos',combos);
 app.use('/api/admin/abandoned-carts',abandoned);
+app.use('/api/contact',contact);
 
 const port=process.env.PORT||5000;
-initDb().then(()=>app.listen(port,()=>console.log(`API running on http://localhost:${port}`)))
+initDb().then(()=>app.listen(port,()=>{console.log(`API running on http://localhost:${port}`);startAbandonedCartScheduler();}))
 .catch(e=>{console.error(e);process.exit(1)});

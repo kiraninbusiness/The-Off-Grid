@@ -120,11 +120,12 @@ export function orderStatusEmail(order) {
   };
 }
 
-export function backInStockEmail(productName, productUrl) {
+export function backInStockEmail(productName, productUrl, variantLabel = null) {
+  const displayName = variantLabel ? `${productName} — ${variantLabel}` : productName;
   return {
-    subject: `${productName} is back in stock`,
+    subject: `${displayName} is back in stock`,
     html: wrap('Back in stock', `
-      <p><strong>${productName}</strong> is back in stock — grab it before it sells out again.</p>
+      <p><strong>${productName}</strong>${variantLabel ? ` in <strong>${variantLabel}</strong>` : ''} is back in stock — grab it before it sells out again.</p>
       <p><a href="${productUrl}" style="background:#111;color:#fff;padding:12px 20px;text-decoration:none;display:inline-block">SHOP NOW</a></p>
     `)
   };

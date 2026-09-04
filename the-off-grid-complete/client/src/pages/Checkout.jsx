@@ -129,12 +129,37 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
       current.map((item, i) => {
         if (i !== index) return item;
         const max = Math.max(1, Number(item.stock || 99));
-        return {
-          ...item,
-          qty: Math.max(1, Math.min(max, Number(item.qty || 1) + delta)),
-        };
+        const nextQty = Math.max(1, Math.min(max, Number(item.qty || 1) + delta));
+        // Sync to the server cart for logged-in users — previously this
+        // only updated local state, so a quantity change made at
+        // Checkout never reached the server and a second device could
+        // still see the old quantity.
+        if (user?.id) {
+          api("/cart/item", {
+            method: "PUT",
+            body: JSON.stringify({
+              product_id: item.id,
+              quantity: nextQty,
+              selected_size: item.selectedSize || null,
+              selected_color: item.selectedColor || null,
+            }),
+          }).catch(() => {});
+        }
+        return { ...item, qty: nextQty };
       })
     );
+  };
+
+  const removeItem = (index) => {
+    setCart((current) => {
+      const item = current[index];
+      // Same gap as quantity changes above — removing a line item here
+      // now also deletes it from the server cart, not just locally.
+      if (user?.id && item?.cartItemId) {
+        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => {});
+      }
+      return current.filter((_, i) => i !== index);
+    });
   };
 
   const applyCoupon = async (e) => {
@@ -446,7 +471,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
                     <button type="button" onClick={() => change(index, -1)}><Minus /></button>
                     <span>{item.qty || 1}</span>
                     <button type="button" onClick={() => change(index, 1)}><Plus /></button>
-                    <button type="button" onClick={() => setCart((current) => current.filter((_, i) => i !== index))}><Trash2 /></button>
+                    <button type="button" onClick={() => removeItem(index)}><Trash2 /></button>
                   </div>
                 </div>
               </article>

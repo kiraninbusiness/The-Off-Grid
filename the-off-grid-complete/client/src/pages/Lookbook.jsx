@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import PRODUCTS from "../data/products.js";
+import { productUrl } from "../utils/productUrl";
 
 const EDITORIALS = [
   {
@@ -57,7 +58,7 @@ export default function Lookbook({ products = PRODUCTS }) {
         <h2>FEATURED IN THIS DROP</h2>
         <div className="lookbook-product-grid">
           {featured.map((p) => (
-            <button type="button" key={p.id} onClick={() => nav(`/product/${p.id}`)} className="lookbook-product-card">
+            <button type="button" key={p.id} onClick={() => nav(productUrl(p))} className="lookbook-product-card">
               <img src={p.image} alt={p.name} />
               <span>{p.name}</span>
             </button>

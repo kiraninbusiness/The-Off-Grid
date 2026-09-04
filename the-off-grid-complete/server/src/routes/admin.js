@@ -84,4 +84,68 @@ router.get('/stock-alerts', async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/admin/analytics — revenue/order/product/customer KPIs
+router.get('/analytics', async (req, res) => {
+  const revenueByPeriod = await pool.query(`
+    SELECT
+      COALESCE(SUM(total) FILTER (WHERE created_at >= CURRENT_DATE AND status <> 'cancelled'), 0)::int AS today,
+      COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('week', NOW()) AND status <> 'cancelled'), 0)::int AS this_week,
+      COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('month', NOW()) AND status <> 'cancelled'), 0)::int AS this_month,
+      COALESCE(SUM(total) FILTER (WHERE created_at >= date_trunc('year', NOW()) AND status <> 'cancelled'), 0)::int AS this_year,
+      COUNT(*) FILTER (WHERE status <> 'cancelled')::int AS order_count,
+      COALESCE(AVG(total) FILTER (WHERE status <> 'cancelled'), 0)::int AS aov,
+      COUNT(*) FILTER (WHERE status = 'cancelled')::int AS cancelled_count,
+      COUNT(*)::int AS total_orders
+    FROM orders
+  `);
+
+  const bestProducts = await pool.query(`
+    SELECT p.id, p.name, SUM(oi.quantity)::int AS units_sold, SUM(oi.quantity * oi.price)::int AS revenue
+    FROM order_items oi
+    JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled'
+    JOIN products p ON p.id = oi.product_id
+    GROUP BY p.id, p.name
+    ORDER BY units_sold DESC
+    LIMIT 5
+  `);
+
+  const bestSizes = await pool.query(`
+    SELECT selected_size AS size, SUM(quantity)::int AS units_sold
+    FROM order_items oi JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled'
+    WHERE selected_size IS NOT NULL AND selected_size <> ''
+    GROUP BY selected_size ORDER BY units_sold DESC LIMIT 5
+  `);
+
+  const bestColors = await pool.query(`
+    SELECT selected_color AS color, SUM(quantity)::int AS units_sold
+    FROM order_items oi JOIN orders o ON o.id = oi.order_id AND o.status <> 'cancelled'
+    WHERE selected_color IS NOT NULL AND selected_color <> ''
+    GROUP BY selected_color ORDER BY units_sold DESC LIMIT 5
+  `);
+
+  const lowStock = await pool.query(`SELECT id, name, stock FROM products WHERE stock <= 5 ORDER BY stock ASC LIMIT 10`);
+
+  const customerStats = await pool.query(`
+    SELECT
+      COUNT(*) FILTER (WHERE created_at >= date_trunc('month', NOW()))::int AS new_this_month,
+      COUNT(*)::int AS total_customers
+    FROM users WHERE role <> 'admin'
+  `);
+
+  const repeatCustomers = await pool.query(`
+    SELECT COUNT(*)::int AS repeat_count FROM (
+      SELECT user_id FROM orders WHERE status <> 'cancelled' GROUP BY user_id HAVING COUNT(*) > 1
+    ) t
+  `);
+
+  res.json({
+    revenue: revenueByPeriod.rows[0],
+    best_products: bestProducts.rows,
+    best_sizes: bestSizes.rows,
+    best_colors: bestColors.rows,
+    low_stock: lowStock.rows,
+    customers: { ...customerStats.rows[0], repeat_customers: repeatCustomers.rows[0].repeat_count }
+  });
+});
+
 export default router;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Package,
   ShoppingBag,
@@ -20,7 +20,7 @@ import {
   Eye,
   RotateCcw
 } from "lucide-react";
-import { api } from "../api";
+import { api, apiUpload } from "../api";
 import AdminExtras from "../components/AdminExtras";
 
 const empty = {
@@ -36,7 +36,13 @@ const empty = {
   extraImages: "",
   stock: 1,
   color: "",
-  fit: ""
+  fit: "",
+  video: "",
+  material: "",
+  care_instructions: "",
+  model_details: "",
+  meta_title: "",
+  meta_description: ""
 };
 
 const money = (n) =>
@@ -187,6 +193,31 @@ export default function Admin({ user }) {
 
   const [loading, setLoading] =
     useState(false);
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageFileRef = useRef(null);
+  const extraImageFileRef = useRef(null);
+  const videoFileRef = useRef(null);
+
+  async function handleFileUpload(e, targetField) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingImage(true);
+    setErr("");
+    try {
+      const { url } = await apiUpload(file);
+      if (targetField === "extraImages") {
+        setF((cur) => ({ ...cur, extraImages: cur.extraImages ? `${cur.extraImages}\n${url}` : url }));
+      } else {
+        setF((cur) => ({ ...cur, [targetField]: url }));
+      }
+    } catch (e) {
+      setErr(e.message || "Upload failed.");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   /* ================================
      COUPON FORM STATE
@@ -598,7 +629,13 @@ export default function Admin({ user }) {
       color:
         product.color || "",
       fit:
-        product.fit || ""
+        product.fit || "",
+      video: product.video || "",
+      material: product.material || "",
+      care_instructions: product.care_instructions || "",
+      model_details: product.model_details || "",
+      meta_title: product.meta_title || "",
+      meta_description: product.meta_description || ""
     });
 
     setErr("");
@@ -1152,18 +1189,24 @@ export default function Admin({ user }) {
             <label>
               IMAGE URL
 
-              <input
-                required
-                type="url"
-                placeholder="https://..."
-                value={f.image}
-                onChange={(e) =>
-                  change(
-                    "image",
-                    e.target.value
-                  )
-                }
-              />
+              <div className="admin-upload-row">
+                <input
+                  required
+                  type="url"
+                  placeholder="https://..."
+                  value={f.image}
+                  onChange={(e) =>
+                    change(
+                      "image",
+                      e.target.value
+                    )
+                  }
+                />
+                <button type="button" className="admin-upload-btn" disabled={uploadingImage} onClick={() => imageFileRef.current?.click()}>
+                  {uploadingImage ? "..." : "UPLOAD"}
+                </button>
+                <input ref={imageFileRef} type="file" accept="image/*" hidden onChange={(e) => handleFileUpload(e, "image")} />
+              </div>
 
               {f.image && (
                 <div className="admin-image-preview">
@@ -1183,9 +1226,10 @@ export default function Admin({ user }) {
             <label>
               ADDITIONAL PHOTOS (OPTIONAL)
 
-              <textarea
-                placeholder={"One image URL per line\ne.g. back view, close-up of fabric"}
-                rows={3}
+              <div className="admin-upload-row">
+                <textarea
+                  placeholder={"One image URL per line\ne.g. back view, close-up of fabric"}
+                  rows={3}
                 value={f.extraImages}
                 onChange={(e) =>
                   change(
@@ -1194,7 +1238,58 @@ export default function Admin({ user }) {
                   )
                 }
               />
+                <button type="button" className="admin-upload-btn" disabled={uploadingImage} onClick={() => extraImageFileRef.current?.click()}>
+                  {uploadingImage ? "..." : "UPLOAD"}
+                </button>
+                <input ref={extraImageFileRef} type="file" accept="image/*" hidden onChange={(e) => handleFileUpload(e, "extraImages")} />
+              </div>
             </label>
+
+
+            <label>
+              VIDEO URL (OPTIONAL)
+
+              <div className="admin-upload-row">
+                <input
+                  type="url"
+                  placeholder="https://... (mp4/webm)"
+                  value={f.video}
+                  onChange={(e) => change("video", e.target.value)}
+                />
+                <button type="button" className="admin-upload-btn" disabled={uploadingImage} onClick={() => videoFileRef.current?.click()}>
+                  {uploadingImage ? "..." : "UPLOAD"}
+                </button>
+                <input ref={videoFileRef} type="file" accept="video/*" hidden onChange={(e) => handleFileUpload(e, "video")} />
+              </div>
+            </label>
+
+            <div className="admin-two">
+              <label>
+                MATERIAL (OPTIONAL)
+                <input placeholder="e.g. 240 GSM Cotton" value={f.material} onChange={(e) => change("material", e.target.value)} />
+              </label>
+              <label>
+                MODEL DETAILS (OPTIONAL)
+                <input placeholder="e.g. Model is 6'0, wearing size M" value={f.model_details} onChange={(e) => change("model_details", e.target.value)} />
+              </label>
+            </div>
+
+            <label>
+              CARE INSTRUCTIONS (OPTIONAL)
+              <textarea rows={2} placeholder="e.g. Machine wash cold, do not bleach, tumble dry low" value={f.care_instructions} onChange={(e) => change("care_instructions", e.target.value)} />
+            </label>
+
+            <div className="admin-seo-block">
+              <span className="admin-seo-label">SEO (OPTIONAL — falls back to product name/description if left blank)</span>
+              <label>
+                SEO TITLE
+                <input maxLength={70} placeholder={f.name ? `${f.name} | THE OFF GRID` : "SEO title"} value={f.meta_title} onChange={(e) => change("meta_title", e.target.value)} />
+              </label>
+              <label>
+                META DESCRIPTION
+                <textarea rows={2} maxLength={160} placeholder="Shown in Google search results — keep it under 160 characters" value={f.meta_description} onChange={(e) => change("meta_description", e.target.value)} />
+              </label>
+            </div>
 
 
             <div className="admin-two">

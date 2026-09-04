@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { RefreshCw, Trash2, EyeOff, Eye, Users, MessageSquareWarning, PackageSearch, Undo2, Gift, Layers, Mail, Boxes, Plus } from "lucide-react";
+import { RefreshCw, Trash2, EyeOff, Eye, Users, MessageSquareWarning, PackageSearch, Undo2, Gift, Layers, Mail, Boxes, Plus, TrendingUp } from "lucide-react";
 import { api } from "../api";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -11,13 +11,13 @@ function VariantEditor({ product, onClose, onSaved }) {
   const baseColors = (product.color ? [product.color] : [""]);
   const [rows, setRows] = useState(() => {
     if (Array.isArray(product.variants) && product.variants.length) return product.variants.map((v) => ({ ...v }));
-    return baseSizes.flatMap((size) => baseColors.map((color) => ({ size, color, stock: 0 })));
+    return baseSizes.flatMap((size) => baseColors.map((color) => ({ size, color, stock: 0, sku: "", barcode: "", cost_price: "" })));
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   const updateRow = (i, field, value) => setRows((cur) => cur.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
-  const addRow = () => setRows((cur) => [...cur, { size: "", color: "", stock: 0 }]);
+  const addRow = () => setRows((cur) => [...cur, { size: "", color: "", stock: 0, sku: "", barcode: "", cost_price: "" }]);
   const removeRow = (i) => setRows((cur) => cur.filter((_, idx) => idx !== i));
 
   const save = async () => {
@@ -26,7 +26,13 @@ function VariantEditor({ product, onClose, onSaved }) {
     try {
       await api(`/products/${product.id}/variants`, {
         method: "PUT",
-        body: JSON.stringify({ variants: rows.filter((r) => r.size).map((r) => ({ size: r.size, color: r.color || "", stock: Number(r.stock) || 0 })) }),
+        body: JSON.stringify({
+          variants: rows.filter((r) => r.size).map((r) => ({
+            size: r.size, color: r.color || "", stock: Number(r.stock) || 0,
+            sku: r.sku || "", barcode: r.barcode || "",
+            cost_price: r.cost_price === "" || r.cost_price == null ? null : Number(r.cost_price),
+          })),
+        }),
       });
       onSaved();
       onClose();
@@ -41,11 +47,17 @@ function VariantEditor({ product, onClose, onSaved }) {
     <div className="admin-variant-editor">
       <h4>SIZE / COLOR STOCK — {product.name}</h4>
       <div className="admin-variant-rows">
+        <div className="admin-variant-row admin-variant-header">
+          <span>Size</span><span>Color</span><span>Stock</span><span>SKU</span><span>Barcode</span><span>Cost ₹</span><span />
+        </div>
         {rows.map((r, i) => (
           <div className="admin-variant-row" key={i}>
             <input placeholder="SIZE" value={r.size} onChange={(e) => updateRow(i, "size", e.target.value)} />
-            <input placeholder="COLOR (optional)" value={r.color || ""} onChange={(e) => updateRow(i, "color", e.target.value)} />
+            <input placeholder="COLOR" value={r.color || ""} onChange={(e) => updateRow(i, "color", e.target.value)} />
             <input type="number" min="0" placeholder="STOCK" value={r.stock} onChange={(e) => updateRow(i, "stock", e.target.value)} />
+            <input placeholder="OG-TEE-BLK-M" value={r.sku || ""} onChange={(e) => updateRow(i, "sku", e.target.value)} />
+            <input placeholder="890XXXXXXXX" value={r.barcode || ""} onChange={(e) => updateRow(i, "barcode", e.target.value)} />
+            <input type="number" min="0" placeholder="650" value={r.cost_price ?? ""} onChange={(e) => updateRow(i, "cost_price", e.target.value)} />
             <button type="button" className="delete" onClick={() => removeRow(i)}><Trash2 size={14} /></button>
           </div>
         ))}
@@ -60,6 +72,34 @@ function VariantEditor({ product, onClose, onSaved }) {
   );
 }
 
+function StockLedger({ productId }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api(`/products/${productId}/stock-movements`)
+      .then((data) => setRows(Array.isArray(data) ? data : []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  if (loading) return <p className="muted">Loading history...</p>;
+  if (!rows.length) return <p className="muted">No inventory movement recorded yet.</p>;
+
+  return (
+    <div className="admin-stock-ledger">
+      {rows.map((r) => (
+        <div key={r.id} className="admin-stock-ledger-row">
+          <span>{new Date(r.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
+          <span className={r.change >= 0 ? "positive" : "negative"}>{r.change >= 0 ? `+${r.change}` : r.change}</span>
+          <span>{r.size ? `${r.size}${r.color ? " / " + r.color : ""}${r.sku ? ` (${r.sku})` : ""}` : "—"}</span>
+          <span className="muted">{r.reason.replace(/_/g, " ")}{r.reference ? ` · ${r.reference}` : ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminExtras({ user }) {
   const [tab, setTab] = useState("returns");
   const [returns, setReturns] = useState([]);
@@ -68,6 +108,9 @@ export default function AdminExtras({ user }) {
   const [stockAlerts, setStockAlerts] = useState([]);
   const [inventoryProducts, setInventoryProducts] = useState([]);
   const [editingVariantsFor, setEditingVariantsFor] = useState(null);
+  const [ledgerFor, setLedgerFor] = useState(null);
+  const [contactMessages, setContactMessages] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [giftCards, setGiftCards] = useState([]);
   const [combos, setCombos] = useState([]);
   const [comboForm, setComboForm] = useState({ title: "", category: "", quantity: "", bundle_price: "" });
@@ -85,7 +128,7 @@ export default function AdminExtras({ user }) {
     setLoading(true);
     setErr("");
     try {
-      const [r, c, rv, sa, ip, gc, cb] = await Promise.all([
+      const [r, c, rv, sa, ip, gc, cb, cm, an] = await Promise.all([
         api("/returns"),
         api("/admin/customers"),
         api("/admin/reviews"),
@@ -93,6 +136,8 @@ export default function AdminExtras({ user }) {
         api("/products"),
         api("/gift-cards"),
         api("/combos/all"),
+        api("/contact"),
+        api("/admin/analytics"),
       ]);
       setReturns(Array.isArray(r) ? r : []);
       setCustomers(Array.isArray(c) ? c : []);
@@ -101,6 +146,8 @@ export default function AdminExtras({ user }) {
       setInventoryProducts(Array.isArray(ip) ? ip : []);
       setGiftCards(Array.isArray(gc) ? gc : []);
       setCombos(Array.isArray(cb) ? cb : []);
+      setContactMessages(Array.isArray(cm) ? cm : []);
+      setAnalytics(an || null);
     } catch (e) {
       setErr(e.message || "Could not load admin data.");
     } finally {
@@ -116,6 +163,46 @@ export default function AdminExtras({ user }) {
       setReturns((cur) => cur.map((r) => (r.id === id ? updated : r)));
     } catch (e) {
       setErr(e.message || "Could not update request.");
+    }
+  };
+
+  const updateShipment = async (id, patch) => {
+    try {
+      const updated = await api(`/returns/${id}/shipment`, { method: "PATCH", body: JSON.stringify(patch) });
+      setReturns((cur) => cur.map((r) => (r.id === id ? updated : r)));
+    } catch (e) {
+      setErr(e.message || "Could not update shipment.");
+    }
+  };
+
+  const [refundingId, setRefundingId] = useState(null);
+  const issueRefund = async (ret, amount) => {
+    setRefundingId(ret.id);
+    setErr("");
+    try {
+      const updated = await api(`/returns/${ret.id}/refund`, {
+        method: "POST",
+        body: JSON.stringify({ refund_amount: amount ? Number(amount) : undefined }),
+      });
+      setReturns((cur) => cur.map((r) => (r.id === ret.id ? { ...r, ...updated } : r)));
+    } catch (e) {
+      setErr(e.message || "Could not issue refund.");
+    } finally {
+      setRefundingId(null);
+    }
+  };
+
+  const [resendingId, setResendingId] = useState(null);
+  const resendGiftCard = async (card) => {
+    setResendingId(card.id);
+    setErr("");
+    try {
+      const updated = await api(`/gift-cards/${card.id}/resend`, { method: "POST" });
+      setGiftCards((cur) => cur.map((g) => (g.id === card.id ? updated : g)));
+    } catch (e) {
+      setErr(e.message || "Could not resend gift card.");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -191,6 +278,15 @@ export default function AdminExtras({ user }) {
     }
   };
 
+  const resolveContact = async (id, resolved) => {
+    try {
+      const updated = await api(`/contact/${id}`, { method: "PATCH", body: JSON.stringify({ resolved }) });
+      setContactMessages((cur) => cur.map((m) => (m.id === id ? updated : m)));
+    } catch (e) {
+      setErr(e.message || "Could not update message.");
+    }
+  };
+
   const previewAbandoned = async () => {
     try {
       const rows = await api("/admin/abandoned-carts?hours_idle=2");
@@ -257,34 +353,85 @@ export default function AdminExtras({ user }) {
         <button type="button" className={tab === "abandoned" ? "active" : ""} onClick={() => setTab("abandoned")}>
           <Mail size={15} /> Abandoned Carts
         </button>
+        <button type="button" className={tab === "contact" ? "active" : ""} onClick={() => setTab("contact")}>
+          <MessageSquareWarning size={15} /> Messages <b>{contactMessages.filter((m) => !m.resolved).length}</b>
+        </button>
+        <button type="button" className={tab === "analytics" ? "active" : ""} onClick={() => setTab("analytics")}>
+          <TrendingUp size={15} /> Analytics
+        </button>
       </div>
 
       {tab === "returns" && (
         <div className="admin-product-list">
           {!returns.length && <div className="admin-empty"><p>No return or exchange requests yet.</p></div>}
-          {returns.map((r) => (
-            <article key={r.id} className="admin-product-card admin-return-card">
-              <div className="admin-product-details">
-                <div className="admin-product-title">
-                  <strong>{r.type === "exchange" ? "EXCHANGE" : "RETURN"} — OG{String(r.order_id).padStart(6, "0")}</strong>
-                  <span className={`order-status return-status-${r.status}`}>{r.status.toUpperCase()}</span>
+          {returns.map((r) => {
+            const eligibleForRefund = r.payment_method === "online" && r.payment_status === "paid" && r.status !== "refunded" && ["approved", "received"].includes(r.status);
+            return (
+              <article key={r.id} className="admin-product-card admin-return-card">
+                <div className="admin-product-details">
+                  <div className="admin-product-title">
+                    <strong>{r.type === "exchange" ? "EXCHANGE" : "RETURN"} — OG{String(r.order_id).padStart(6, "0")}</strong>
+                    <span className={`order-status return-status-${r.status}`}>{r.status.toUpperCase()}</span>
+                  </div>
+                  <p className="muted">{r.customer_name} · {r.customer_email}</p>
+                  <p>{r.reason}</p>
+                  {r.exchange_size && <p className="muted">Requested size: {r.exchange_size}</p>}
+                  {r.razorpay_refund_id && <p className="muted">Refunded via Razorpay · {r.razorpay_refund_id} · ₹{r.refund_amount}</p>}
+                  <div className="admin-product-actions admin-return-actions">
+                    <select value={r.status} onChange={(e) => updateReturn(r.id, { status: e.target.value })}>
+                      {RETURN_STATUSES.map((s) => <option key={s} value={s}>{s.toUpperCase()}</option>)}
+                    </select>
+                    <input
+                      placeholder="ADMIN NOTE (sent to customer)"
+                      defaultValue={r.admin_notes || ""}
+                      onBlur={(e) => { if (e.target.value !== (r.admin_notes || "")) updateReturn(r.id, { admin_notes: e.target.value }); }}
+                    />
+                  </div>
+                  {eligibleForRefund && (
+                    <div className="admin-refund-row">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder={`AMOUNT (default: full ₹${r.order_total})`}
+                        id={`refund-amount-${r.id}`}
+                      />
+                      <button
+                        type="button"
+                        className="orange-btn"
+                        disabled={refundingId === r.id}
+                        onClick={() => issueRefund(r, document.getElementById(`refund-amount-${r.id}`).value)}
+                      >
+                        {refundingId === r.id ? "PROCESSING..." : "ISSUE RAZORPAY REFUND"}
+                      </button>
+                    </div>
+                  )}
+                  {r.type === "exchange" && r.replacement_status && (
+                    <div className="admin-shipment-block">
+                      <span className="admin-shipment-status">REPLACEMENT: {r.replacement_status.toUpperCase()}</span>
+                      <div className="admin-shipment-row">
+                        <input placeholder="COURIER" defaultValue={r.replacement_courier || ""} id={`ship-courier-${r.id}`} />
+                        <input placeholder="AWB NUMBER" defaultValue={r.replacement_awb || ""} id={`ship-awb-${r.id}`} />
+                        <input placeholder="TRACKING URL" defaultValue={r.replacement_tracking_url || ""} id={`ship-url-${r.id}`} />
+                        <button type="button" onClick={() => updateShipment(r.id, {
+                          courier: document.getElementById(`ship-courier-${r.id}`).value,
+                          awb: document.getElementById(`ship-awb-${r.id}`).value,
+                          tracking_url: document.getElementById(`ship-url-${r.id}`).value,
+                        })}>SAVE</button>
+                      </div>
+                      <div className="admin-shipment-actions">
+                        {r.replacement_status === "reserved" && (
+                          <button type="button" className="orange-btn" onClick={() => updateShipment(r.id, { mark: "shipped" })}>MARK SHIPPED</button>
+                        )}
+                        {r.replacement_status === "shipped" && (
+                          <button type="button" className="orange-btn" onClick={() => updateShipment(r.id, { mark: "delivered" })}>MARK DELIVERED</button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="muted">{r.customer_name} · {r.customer_email}</p>
-                <p>{r.reason}</p>
-                {r.exchange_size && <p className="muted">Requested size: {r.exchange_size}</p>}
-                <div className="admin-product-actions admin-return-actions">
-                  <select value={r.status} onChange={(e) => updateReturn(r.id, { status: e.target.value })}>
-                    {RETURN_STATUSES.map((s) => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-                  </select>
-                  <input
-                    placeholder="ADMIN NOTE (sent to customer)"
-                    defaultValue={r.admin_notes || ""}
-                    onBlur={(e) => { if (e.target.value !== (r.admin_notes || "")) updateReturn(r.id, { admin_notes: e.target.value }); }}
-                  />
-                </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -376,9 +523,18 @@ export default function AdminExtras({ user }) {
                   <button type="button" onClick={() => setEditingVariantsFor(editingVariantsFor === p.id ? null : p.id)}>
                     {editingVariantsFor === p.id ? "Close" : "Manage Sizes/Stock"}
                   </button>
+                  <button type="button" onClick={() => setLedgerFor(ledgerFor === p.id ? null : p.id)}>
+                    {ledgerFor === p.id ? "Hide History" : "Inventory History"}
+                  </button>
                 </div>
                 {editingVariantsFor === p.id && (
                   <VariantEditor product={p} onClose={() => setEditingVariantsFor(null)} onSaved={load} />
+                )}
+                {ledgerFor === p.id && (
+                  <div className="admin-variant-editor">
+                    <h4>INVENTORY HISTORY — {p.name}</h4>
+                    <StockLedger productId={p.id} />
+                  </div>
                 )}
               </div>
             </article>
@@ -394,9 +550,16 @@ export default function AdminExtras({ user }) {
               <div className="admin-product-details">
                 <div className="admin-product-title">
                   <strong>{g.code}</strong>
-                  <span>{money(g.balance)} of {money(g.initial_value)} remaining</span>
+                  <span>{g.payment_status === "paid" ? `${money(g.balance)} of ${money(g.initial_value)} remaining` : "PAYMENT PENDING/ABANDONED"}</span>
                 </div>
-                <p className="muted">To: {g.recipient_email} · {g.active ? "Active" : "Inactive"} · {new Date(g.created_at).toLocaleDateString("en-IN")}</p>
+                <p className="muted">To: {g.recipient_email} · {g.active ? "Active" : "Inactive"} · {new Date(g.created_at).toLocaleDateString("en-IN")}{g.resent_count > 0 ? ` · resent ${g.resent_count}x` : ""}</p>
+                {g.payment_status === "paid" && (
+                  <div className="admin-product-actions">
+                    <button type="button" disabled={resendingId === g.id} onClick={() => resendGiftCard(g)}>
+                      {resendingId === g.id ? "SENDING..." : "RESEND EMAIL"}
+                    </button>
+                  </div>
+                )}
               </div>
             </article>
           ))}
@@ -453,6 +616,75 @@ export default function AdminExtras({ user }) {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {tab === "contact" && (
+        <div className="admin-product-list">
+          {!contactMessages.length && <div className="admin-empty"><p>No customer messages yet.</p></div>}
+          {contactMessages.map((m) => (
+            <article key={m.id} className={`admin-product-card ${m.resolved ? "admin-product-sold" : ""}`}>
+              <div className="admin-product-details">
+                <div className="admin-product-title">
+                  <strong>{m.name} · {(m.topic || "general").replace(/-/g, " ").toUpperCase()}</strong>
+                  <span>{new Date(m.created_at).toLocaleDateString("en-IN")}</span>
+                </div>
+                <p className="muted">{m.email}</p>
+                <p>{m.message}</p>
+                <div className="admin-product-actions">
+                  <button type="button" onClick={() => resolveContact(m.id, !m.resolved)}>
+                    {m.resolved ? "Mark unresolved" : "Mark resolved"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {tab === "analytics" && analytics && (
+        <div className="admin-analytics">
+          <div className="admin-kpi-grid">
+            <div><span>TODAY</span><strong>{money(analytics.revenue.today)}</strong></div>
+            <div><span>THIS WEEK</span><strong>{money(analytics.revenue.this_week)}</strong></div>
+            <div><span>THIS MONTH</span><strong>{money(analytics.revenue.this_month)}</strong></div>
+            <div><span>THIS YEAR</span><strong>{money(analytics.revenue.this_year)}</strong></div>
+            <div><span>ORDERS</span><strong>{analytics.revenue.order_count}</strong></div>
+            <div><span>AOV</span><strong>{money(analytics.revenue.aov)}</strong></div>
+            <div><span>CANCELLED</span><strong>{analytics.revenue.cancelled_count} / {analytics.revenue.total_orders}</strong></div>
+            <div><span>REPEAT CUSTOMERS</span><strong>{analytics.customers.repeat_customers} / {analytics.customers.total_customers}</strong></div>
+          </div>
+
+          <div className="admin-analytics-cols">
+            <div>
+              <h4>BESTSELLERS</h4>
+              {analytics.best_products.map((p) => (
+                <div key={p.id} className="admin-analytics-row"><span>{p.name}</span><b>{p.units_sold} sold · {money(p.revenue)}</b></div>
+              ))}
+              {!analytics.best_products.length && <p className="muted">No sales data yet.</p>}
+            </div>
+            <div>
+              <h4>BEST SIZES</h4>
+              {analytics.best_sizes.map((s) => (
+                <div key={s.size} className="admin-analytics-row"><span>{s.size}</span><b>{s.units_sold} sold</b></div>
+              ))}
+              {!analytics.best_sizes.length && <p className="muted">No variant sales data yet.</p>}
+            </div>
+            <div>
+              <h4>BEST COLOURS</h4>
+              {analytics.best_colors.map((c) => (
+                <div key={c.color} className="admin-analytics-row"><span>{c.color}</span><b>{c.units_sold} sold</b></div>
+              ))}
+              {!analytics.best_colors.length && <p className="muted">No variant sales data yet.</p>}
+            </div>
+            <div>
+              <h4>LOW STOCK</h4>
+              {analytics.low_stock.map((p) => (
+                <div key={p.id} className="admin-analytics-row"><span>{p.name}</span><b>{p.stock} left</b></div>
+              ))}
+              {!analytics.low_stock.length && <p className="muted">Nothing low on stock.</p>}
+            </div>
+          </div>
         </div>
       )}
     </section>

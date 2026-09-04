@@ -8,24 +8,24 @@ const router = Router();
 /*
   ABANDONED CART RECOVERY
 
-  This app has no background job scheduler running, so this endpoint
-  is meant to be called on a schedule from outside the app — the
-  simplest options:
-    - Render Cron Job: hit this URL every hour
-    - GitHub Actions scheduled workflow
-    - Or just click the "Send now" button on this tab in Admin
+  This runs three ways, from least to most "automatic":
+    1. Admin dashboard "Send Now" button -> POST /send (admin JWT)
+    2. An external scheduler (Render Cron, GitHub Actions, etc.) hitting
+       POST /cron-send with a dedicated x-cron-secret header — no admin
+       JWT needs to be embedded in a scheduler config for this.
+    3. An optional built-in interval timer (see startAbandonedCartScheduler
+       below, started from server.js) for always-on deployments.
 
-  It emails anyone whose server-side cart (see cart.js) has sat
-  untouched for 2+ hours and hasn't already been emailed about it.
-  Protected by the same admin auth as everything else in /api/admin —
-  for the external cron call, generate a personal admin JWT and pass
-  it as a Bearer token, or wrap the call with your own secret if you'd
-  rather not expose the token to the scheduler.
+  Note on #3: setInterval only works for as long as the Node process
+  stays alive. On a platform that spins the service down when idle
+  (e.g. Render's free tier), the timer dies with it and simply won't
+  fire until the next request wakes the process back up — which is
+  exactly why #2 (an external scheduler hitting a real HTTP endpoint)
+  is the more reliable option for anything other than an always-on
+  instance. Both are provided; use whichever fits your deployment.
 */
 
-router.post('/send', auth, admin, async (req, res) => {
-  const hoursIdle = Number(req.body.hours_idle) || 2;
-
+async function runAbandonedCartSweep(hoursIdle = 2) {
   const { rows: staleCarts } = await pool.query(
     `SELECT DISTINCT ci.user_id, u.email, u.name
      FROM cart_items ci
@@ -72,6 +72,46 @@ router.post('/send', auth, admin, async (req, res) => {
     sent += 1;
   }
 
+  return sent;
+}
+
+// Optional in-process scheduler for always-on deployments. Opt-in via
+// env — off by default so it doesn't surprise anyone relying on the
+// external-cron approach instead.
+export function startAbandonedCartScheduler() {
+  if (process.env.ENABLE_ABANDONED_CART_CRON !== 'true') return;
+  const hours = Number(process.env.ABANDONED_CART_INTERVAL_HOURS) || 1;
+  const idleHours = Number(process.env.ABANDONED_CART_IDLE_HOURS) || 2;
+  console.log(`Abandoned-cart scheduler enabled: sweeping every ${hours}h for carts idle ${idleHours}h+`);
+  setInterval(() => {
+    runAbandonedCartSweep(idleHours)
+      .then((sent) => sent && console.log(`Abandoned-cart sweep: ${sent} email(s) sent`))
+      .catch((e) => console.error('Abandoned-cart sweep failed:', e.message));
+  }, hours * 60 * 60 * 1000);
+}
+
+router.post('/send', auth, admin, async (req, res) => {
+  const sent = await runAbandonedCartSweep(Number(req.body.hours_idle) || 2);
+  res.json({ emails_sent: sent });
+});
+
+/*
+  POST /api/admin/abandoned-carts/cron-send
+  For external schedulers — authenticated with a long-lived secret
+  instead of a personal admin JWT, so a scheduler config never needs
+  to hold real login credentials. Set CRON_SECRET in your env and send
+  it as the x-cron-secret header from Render Cron / GitHub Actions /etc.
+*/
+router.post('/cron-send', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return res.status(503).json({ message: 'CRON_SECRET is not configured on the server' });
+  }
+  const provided = req.headers['x-cron-secret'];
+  if (provided !== secret) {
+    return res.status(401).json({ message: 'Invalid cron secret' });
+  }
+  const sent = await runAbandonedCartSweep(Number(req.body?.hours_idle) || 2);
   res.json({ emails_sent: sent });
 });
 
