@@ -442,16 +442,89 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   return (
     <div className="checkout-page">
       <header className="simple-header">
-        <Link to="/"><ArrowLeft /> THE OFF GRID</Link>
-        <span>SECURE CHECKOUT</span>
+        <Link to="/"><ArrowLeft /> KEEP SHOPPING</Link>
       </header>
 
       <main className="checkout-grid">
-        <section>
+        <section className="checkout-main">
           <div className="checkout-title">
-            <span>THE OFF GRID / CHECKOUT</span>
-            <h1>YOUR <em>BAG.</em></h1>
+            <h1>CHECKOUT<em>.</em></h1>
           </div>
+
+          <form id="checkout-form" onSubmit={submit}>
+            <h2><span className="checkout-step-num">01 —</span> DELIVERY ADDRESS</h2>
+
+            {savedAddresses.length > 0 && (
+              <div className="checkout-saved-addresses">
+                {savedAddresses.map((addr) => (
+                  <button
+                    type="button"
+                    key={addr.id}
+                    className={`checkout-address-card ${selectedAddressId === addr.id && !showManualForm ? "active" : ""}`}
+                    onClick={() => pickAddress(addr)}
+                  >
+                    <strong>{addr.label}{addr.is_default ? " · DEFAULT" : ""}</strong>
+                    <span>{addr.name} · {addr.phone}</span>
+                    <span>{addr.address}, {addr.city}, {addr.state} — {addr.pincode}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className={`checkout-address-card checkout-address-new ${showManualForm ? "active" : ""}`}
+                  onClick={() => { setShowManualForm(true); setSelectedAddressId(null); }}
+                >
+                  + USE A DIFFERENT ADDRESS
+                </button>
+              </div>
+            )}
+
+            {(showManualForm || !savedAddresses.length) && (
+              <div className="checkout-address-form">
+                <div className="checkout-form-row">
+                  <input required value={form.name} placeholder="FULL NAME" onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} />
+                  <input required value={form.phone} placeholder="PHONE" type="text" inputMode="numeric" maxLength={10} onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))} />
+                </div>
+                <input required value={form.email} placeholder="EMAIL" type="email" onChange={(e) => setForm((c) => ({ ...c, email: e.target.value }))} />
+                <input required value={form.address} placeholder="ADDRESS LINE 1" onChange={(e) => setForm((c) => ({ ...c, address: e.target.value }))} />
+                <div className="checkout-form-row">
+                  <input required value={form.city} placeholder="CITY" onChange={(e) => setForm((c) => ({ ...c, city: e.target.value }))} />
+                  <input required value={form.state} placeholder="STATE" onChange={(e) => setForm((c) => ({ ...c, state: e.target.value }))} />
+                </div>
+                <input required value={form.pincode} placeholder="PINCODE" type="text" inputMode="numeric" maxLength={6} onChange={(e) => setForm((c) => ({ ...c, pincode: e.target.value }))} />
+              </div>
+            )}
+
+            <h2><span className="checkout-step-num">02 —</span> PAYMENT</h2>
+            <div className="payment-options payment-options-stacked">
+              <button type="button" className={method === "COD" ? "active" : ""} onClick={() => setMethod("COD")}>
+                <strong>Cash on Delivery</strong>
+                <span>Pay when it lands at your door</span>
+              </button>
+              <button type="button" className={method === "ONLINE" ? "active" : ""} onClick={() => setMethod("ONLINE")}>
+                <strong>UPI / Cards — Razorpay</strong>
+                <span>Instant, secure. UPI, cards, netbanking</span>
+              </button>
+            </div>
+            <p className="payment-note">
+              <ShieldCheck /> {method === "ONLINE" ? "Secure Razorpay payment. Your card/UPI details are handled by Razorpay." : "Pay when your order is delivered."}
+            </p>
+
+            {loyaltyPoints > 0 && (
+              <>
+                <h2><span className="checkout-step-num">03 —</span> GRID POINTS</h2>
+                <label className="checkout-points-row">
+                  <input type="checkbox" checked={redeemPoints} onChange={(e) => setRedeemPoints(e.target.checked)} />
+                  <span>Use {maxRedeemable} of your {loyaltyPoints} points (₹{maxRedeemable} off)</span>
+                </label>
+              </>
+            )}
+
+            {error && <p className="notify-me-error">{error}</p>}
+          </form>
+        </section>
+
+        <aside className="checkout-sidebar">
+          <h2>YOUR BAG</h2>
 
           {!cart.length ? (
             <div className="empty-box">
@@ -459,158 +532,83 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
               <Link className="orange-btn" to="/">SHOP NOW</Link>
             </div>
           ) : (
-            cart.map((item, index) => (
-              <article className="checkout-item" key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
-                <img src={item.image} alt={item.name} />
-                <div>
-                  <small>{item.category}</small>
-                  <h3>{item.name}</h3>
-                  {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}{item.selectedColor && <p>COLOR: {item.selectedColor}</p>}
-                  <strong>{money(item.price)}</strong>
-                  <div className="quantity-line">
-                    <button type="button" onClick={() => change(index, -1)}><Minus /></button>
-                    <span>{item.qty || 1}</span>
-                    <button type="button" onClick={() => change(index, 1)}><Plus /></button>
-                    <button type="button" onClick={() => removeItem(index)}><Trash2 /></button>
-                  </div>
-                </div>
-              </article>
-            ))
-          )}
-        </section>
-
-        <form className="checkout-form" onSubmit={submit}>
-          <h2><span className="checkout-step-num">01 —</span> DELIVERY ADDRESS</h2>
-
-          {savedAddresses.length > 0 && (
-            <div className="checkout-saved-addresses">
-              {savedAddresses.map((addr) => (
-                <button
-                  type="button"
-                  key={addr.id}
-                  className={`checkout-address-card ${selectedAddressId === addr.id && !showManualForm ? "active" : ""}`}
-                  onClick={() => pickAddress(addr)}
-                >
-                  <strong>{addr.label}{addr.is_default ? " · DEFAULT" : ""}</strong>
-                  <span>{addr.name} · {addr.phone}</span>
-                  <span>{addr.address}, {addr.city}, {addr.state} — {addr.pincode}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className={`checkout-address-card checkout-address-new ${showManualForm ? "active" : ""}`}
-                onClick={() => { setShowManualForm(true); setSelectedAddressId(null); }}
-              >
-                + USE A DIFFERENT ADDRESS
-              </button>
-            </div>
-          )}
-
-          {(showManualForm || !savedAddresses.length) && ["name", "phone", "email", "address", "city", "state", "pincode"].map((key) => (
-            <input
-              key={key}
-              required
-              value={form[key]}
-              placeholder={key.toUpperCase()}
-              type={key === "email" ? "email" : "text"}
-              inputMode={key === "phone" || key === "pincode" ? "numeric" : undefined}
-              maxLength={key === "phone" ? 10 : key === "pincode" ? 6 : undefined}
-              onChange={(e) => setForm((current) => ({ ...current, [key]: e.target.value }))}
-            />
-          ))}
-
-          <h2><span className="checkout-step-num">02 —</span> PAYMENT</h2>
-          <div className="payment-options payment-options-stacked">
-            <button type="button" className={method === "COD" ? "active" : ""} onClick={() => setMethod("COD")}>
-              <strong>Cash on Delivery</strong>
-              <span>Pay when it lands at your door</span>
-            </button>
-            <button type="button" className={method === "ONLINE" ? "active" : ""} onClick={() => setMethod("ONLINE")}>
-              <strong>UPI / Cards — Razorpay</strong>
-              <span>Instant, secure. UPI, cards, netbanking</span>
-            </button>
-          </div>
-          <p className="payment-note">
-            <ShieldCheck /> {method === "ONLINE" ? "Secure Razorpay payment. Your card/UPI details are handled by Razorpay." : "Pay when your order is delivered."}
-          </p>
-
-          <h2>COUPON</h2>
-          {coupon ? (
-            <div className="coupon-applied">
-              <span><Tag size={13} /> {coupon.code} applied</span>
-              <button type="button" onClick={removeCoupon}>REMOVE</button>
-            </div>
-          ) : (
-            <div className="coupon-row">
-              <input
-                value={couponCode}
-                placeholder="ENTER COUPON CODE"
-                onChange={(e) => {
-                  setCouponCode(e.target.value.toUpperCase());
-                  if (couponStatus === "error") {
-                    setCouponStatus("idle");
-                    setCouponMsg("");
-                  }
-                }}
-              />
-              <button type="button" onClick={applyCoupon} disabled={couponStatus === "loading"}>{couponStatus === "loading" ? "..." : "APPLY"}</button>
-            </div>
-          )}
-          {couponStatus === "error" && <p className="notify-me-error">{couponMsg}</p>}
-
-          <h2>GIFT CARD</h2>
-          {giftCard ? (
-            <div className="coupon-applied">
-              <span><Tag size={13} /> {giftCard.code} · ₹{giftCard.balance} available</span>
-              <button type="button" onClick={removeGiftCard}>REMOVE</button>
-            </div>
-          ) : (
-            <div className="coupon-row">
-              <input
-                value={giftCardCode}
-                placeholder="ENTER GIFT CARD CODE"
-                onChange={(e) => {
-                  setGiftCardCode(e.target.value.toUpperCase());
-                  if (giftCardStatus === "error") {
-                    setGiftCardStatus("idle");
-                    setGiftCardMsg("");
-                  }
-                }}
-              />
-              <button type="button" onClick={applyGiftCard} disabled={giftCardStatus === "loading"}>{giftCardStatus === "loading" ? "..." : "APPLY"}</button>
-            </div>
-          )}
-          {giftCardStatus === "error" && <p className="notify-me-error">{giftCardMsg}</p>}
-
-          {loyaltyPoints > 0 && (
             <>
-              <h2>GRID POINTS</h2>
-              <label className="checkout-points-row">
-                <input
-                  type="checkbox"
-                  checked={redeemPoints}
-                  onChange={(e) => setRedeemPoints(e.target.checked)}
-                />
-                <span>Use {maxRedeemable} of your {loyaltyPoints} points (₹{maxRedeemable} off)</span>
-              </label>
+              <div className="checkout-sidebar-items">
+                {cart.map((item, index) => (
+                  <article className="checkout-item" key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
+                    <img src={item.image} alt={item.name} />
+                    <div>
+                      <h3>{item.name}</h3>
+                      {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}{item.selectedColor && <p>COLOR: {item.selectedColor}</p>}
+                      <strong>{money(item.price)}</strong>
+                      <div className="quantity-line">
+                        <button type="button" onClick={() => change(index, -1)}><Minus /></button>
+                        <span>{item.qty || 1}</span>
+                        <button type="button" onClick={() => change(index, 1)}><Plus /></button>
+                        <button type="button" onClick={() => removeItem(index)}><Trash2 /></button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="checkout-sidebar-codes">
+                {coupon ? (
+                  <div className="coupon-applied">
+                    <span><Tag size={13} /> {coupon.code} applied</span>
+                    <button type="button" onClick={removeCoupon}>REMOVE</button>
+                  </div>
+                ) : (
+                  <div className="coupon-row">
+                    <input
+                      value={couponCode}
+                      placeholder="COUPON CODE"
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        if (couponStatus === "error") { setCouponStatus("idle"); setCouponMsg(""); }
+                      }}
+                    />
+                    <button type="button" onClick={applyCoupon} disabled={couponStatus === "loading"}>{couponStatus === "loading" ? "..." : "APPLY"}</button>
+                  </div>
+                )}
+                {couponStatus === "error" && <p className="notify-me-error">{couponMsg}</p>}
+
+                {giftCard ? (
+                  <div className="coupon-applied">
+                    <span><Tag size={13} /> {giftCard.code} · ₹{giftCard.balance} available</span>
+                    <button type="button" onClick={removeGiftCard}>REMOVE</button>
+                  </div>
+                ) : (
+                  <div className="coupon-row">
+                    <input
+                      value={giftCardCode}
+                      placeholder="GIFT CARD CODE"
+                      onChange={(e) => {
+                        setGiftCardCode(e.target.value.toUpperCase());
+                        if (giftCardStatus === "error") { setGiftCardStatus("idle"); setGiftCardMsg(""); }
+                      }}
+                    />
+                    <button type="button" onClick={applyGiftCard} disabled={giftCardStatus === "loading"}>{giftCardStatus === "loading" ? "..." : "APPLY"}</button>
+                  </div>
+                )}
+                {giftCardStatus === "error" && <p className="notify-me-error">{giftCardMsg}</p>}
+              </div>
+
+              <div className="order-total">
+                <span>SUBTOTAL <b>{money(total)}</b></span>
+                <span>SHIPPING <b>{shipping ? money(shipping) : "FREE"}</b></span>
+                {couponDiscount > 0 && <span>COUPON <b>-{money(couponDiscount)}</b></span>}
+                {pointsDiscount > 0 && <span>POINTS <b>-{money(pointsDiscount)}</b></span>}
+                {giftCardDiscount > 0 && <span>GIFT CARD <b>-{money(giftCardDiscount)}</b></span>}
+                <strong>TOTAL <b>{money(grand)}</b></strong>
+              </div>
+
+              <button form="checkout-form" className="orange-btn checkout-submit" disabled={loading || !cart.length}>
+                {loading ? (method === "ONLINE" ? "OPENING PAYMENT..." : "PLACING ORDER...") : method === "ONLINE" ? `PAY ${money(grand)}` : "PLACE ORDER — COD"}
+              </button>
             </>
           )}
-
-          {error && <p className="notify-me-error">{error}</p>}
-
-          <div className="order-total">
-            <span>SUBTOTAL <b>{money(total)}</b></span>
-            <span>SHIPPING <b>{shipping ? money(shipping) : "FREE"}</b></span>
-            {couponDiscount > 0 && <span>COUPON <b>-{money(couponDiscount)}</b></span>}
-            {pointsDiscount > 0 && <span>POINTS <b>-{money(pointsDiscount)}</b></span>}
-            {giftCardDiscount > 0 && <span>GIFT CARD <b>-{money(giftCardDiscount)}</b></span>}
-            <strong>TOTAL <b>{money(grand)}</b></strong>
-          </div>
-
-          <button className="product-detail-add" disabled={loading || !cart.length}>
-            {loading ? (method === "ONLINE" ? "OPENING PAYMENT..." : "PLACING ORDER...") : method === "ONLINE" ? `PAY ${money(grand)}` : "PLACE COD ORDER"}
-          </button>
-        </form>
+        </aside>
       </main>
     </div>
   );

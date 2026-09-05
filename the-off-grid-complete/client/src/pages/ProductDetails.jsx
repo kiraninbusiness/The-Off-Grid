@@ -15,7 +15,7 @@ import {useSeo} from "../utils/useSeo";
 const money=n=>`₹${Number(n||0).toLocaleString("en-IN")}`;
 const colorClass=(c)=>String(c||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 
-export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user}){
+export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user,openCart}){
  const nav=useNavigate();
  const [qty,setQty]=useState(1),[size,setSize]=useState(""),[color,setColor]=useState(product?.color||""),[guide,setGuide]=useState(false),[zoom,setZoom]=useState(false),[imageIndex,setImageIndex]=useState(0);
  const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle");
@@ -74,7 +74,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const liked=wishlist.some(x=>String(x)===String(product.id));
  const discount=product.old_price?Math.round((Number(product.old_price)-Number(product.price))/Number(product.old_price)*100):0;
  const related=products.filter(p=>String(p.id)!==String(product.id)).sort((a,b)=>(a.category===product.category?0:1)-(b.category===product.category?0:1)).slice(0,3);
- const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,selectedSize:size||null,selectedColor:color||null});nav("/checkout")};
+ const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,selectedSize:size||null,selectedColor:color||null});if(openCart)openCart();else nav("/checkout")};
  const notifyMe=async e=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(notifyEmail.trim())){setNotifyStatus("error");return}setNotifyStatus("loading");try{await api(`/products/${product.id}/notify`,{method:"POST",body:JSON.stringify({email:notifyEmail.trim(),size:size||null,color:color||null})});setNotifyStatus("success")}catch{setNotifyStatus("error")}};
  const prev=()=>setImageIndex(i=>(i-1+images.length)%images.length),next=()=>setImageIndex(i=>(i+1)%images.length);
  return <div className="product-details-page">
