@@ -221,6 +221,11 @@ export async function initDb(){
   */
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS razorpay_payment_id TEXT`);
 
+  // Google Sign-In — nullable, unique when set. Existing password-based
+  // accounts can also sign in with Google later if the email matches.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_google_id_idx ON users(google_id) WHERE google_id IS NOT NULL`);
+
   /* ===== ROUND 7: replacement shipment lifecycle for exchanges ===== */
   await pool.query(`
     ALTER TABLE returns

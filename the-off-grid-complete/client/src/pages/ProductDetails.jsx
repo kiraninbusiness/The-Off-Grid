@@ -78,7 +78,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const notifyMe=async e=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(notifyEmail.trim())){setNotifyStatus("error");return}setNotifyStatus("loading");try{await api(`/products/${product.id}/notify`,{method:"POST",body:JSON.stringify({email:notifyEmail.trim(),size:size||null,color:color||null})});setNotifyStatus("success")}catch{setNotifyStatus("error")}};
  const prev=()=>setImageIndex(i=>(i-1+images.length)%images.length),next=()=>setImageIndex(i=>(i+1)%images.length);
  return <div className="product-details-page">
-  <header className="product-details-header"><button className="product-back" onClick={()=>nav(-1)}><ArrowLeft size={18}/> BACK TO SHOP</button><Link to="/" className="product-details-logo"><small>THE</small><strong>OFF GRID</strong></Link><span>PRODUCT / {String(product.id).padStart(2,"0")}</span></header>
+  <header className="product-details-header"><button className="product-back" onClick={()=>nav(-1)}><ArrowLeft size={18}/> BACK TO SHOP</button><Link to="/" className="product-details-logo"><small>THE</small><strong>OFF<em>GRID</em></strong></Link><span>PRODUCT / {String(product.id).padStart(2,"0")}</span></header>
   <main className="product-details-main product-details-premium">
    <div className="product-gallery">
     <div className="product-gallery-thumbs">{images.map((src,i)=><button key={src+i} className={i===imageIndex?"active":""} onClick={()=>setImageIndex(i)}><img src={src} alt={`${product.name} view ${i+1}`}/></button>)}{product.video&&<button className={imageIndex==="video"?"active":""} onClick={()=>setImageIndex("video")}><span className="video-thumb-badge">▶</span></button>}</div>

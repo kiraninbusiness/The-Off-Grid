@@ -480,7 +480,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
         </section>
 
         <form className="checkout-form" onSubmit={submit}>
-          <h2>DELIVERY</h2>
+          <h2><span className="checkout-step-num">01 —</span> DELIVERY ADDRESS</h2>
 
           {savedAddresses.length > 0 && (
             <div className="checkout-saved-addresses">
@@ -519,10 +519,16 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             />
           ))}
 
-          <h2>PAYMENT</h2>
-          <div className="payment-options">
-            <button type="button" className={method === "COD" ? "active" : ""} onClick={() => setMethod("COD")}>CASH ON DELIVERY</button>
-            <button type="button" className={method === "ONLINE" ? "active" : ""} onClick={() => setMethod("ONLINE")}>ONLINE PAYMENT</button>
+          <h2><span className="checkout-step-num">02 —</span> PAYMENT</h2>
+          <div className="payment-options payment-options-stacked">
+            <button type="button" className={method === "COD" ? "active" : ""} onClick={() => setMethod("COD")}>
+              <strong>Cash on Delivery</strong>
+              <span>Pay when it lands at your door</span>
+            </button>
+            <button type="button" className={method === "ONLINE" ? "active" : ""} onClick={() => setMethod("ONLINE")}>
+              <strong>UPI / Cards — Razorpay</strong>
+              <span>Instant, secure. UPI, cards, netbanking</span>
+            </button>
           </div>
           <p className="payment-note">
             <ShieldCheck /> {method === "ONLINE" ? "Secure Razorpay payment. Your card/UPI details are handled by Razorpay." : "Pay when your order is delivered."}

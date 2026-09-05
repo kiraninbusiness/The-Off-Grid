@@ -2,11 +2,13 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { pool } from '../db.js';
 import { auth } from '../middleware/auth.js';
 import { sendEmail, passwordResetEmail } from '../services/email.js';
 
 const router = Router();
+const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
 
 const tokenFor = (u) =>
   jwt.sign(
@@ -102,8 +104,70 @@ router.post('/register', async (req, res) => {
 
 
 // =====================================================
-// LOGIN
+// GOOGLE SIGN-IN
 // =====================================================
+/*
+  POST /api/auth/google — body: { credential }  (the Google ID token
+  from the Google Identity Services button on the frontend)
+
+  Requires GOOGLE_CLIENT_ID set on both server and client
+  (VITE_GOOGLE_CLIENT_ID). Without it, this route returns 503 and the
+  frontend button won't render — see client/src/pages/Account.jsx.
+  Get a Client ID from https://console.cloud.google.com/apis/credentials
+  (OAuth client type: "Web application").
+
+  Matches an existing account by email if one exists (so someone who
+  originally registered with a password can also sign in with Google
+  later); otherwise creates a new account with a random, unusable
+  password hash — Google-only accounts have no password to log in
+  with directly.
+*/
+router.post('/google', async (req, res) => {
+  if (!googleClient) {
+    return res.status(503).json({ message: 'Google Sign-In is not configured yet' });
+  }
+
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ message: 'Missing credential' });
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    if (!payload?.email) return res.status(400).json({ message: 'Google account has no email' });
+
+    const email = payload.email.toLowerCase();
+    const googleId = payload.sub;
+    const name = payload.name || email.split('@')[0];
+
+    const existing = await pool.query('SELECT id, name, email, role, referral_code FROM users WHERE email = $1', [email]);
+
+    let user;
+    if (existing.rows.length) {
+      user = existing.rows[0];
+      await pool.query('UPDATE users SET google_id = $1 WHERE id = $2 AND google_id IS NULL', [googleId, user.id]);
+    } else {
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hash = await bcrypt.hash(randomPassword, 12);
+      const myCode = crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
+
+      const { rows } = await pool.query(
+        `INSERT INTO users (name, email, password_hash, referral_code, google_id)
+         VALUES ($1,$2,$3,$4,$5)
+         RETURNING id, name, email, role, referral_code`,
+        [name, email, hash, myCode, googleId]
+      );
+      user = rows[0];
+    }
+
+    res.json({ user, token: tokenFor(user) });
+  } catch (e) {
+    console.error('GOOGLE SIGN-IN ERROR:', e.message);
+    res.status(401).json({ message: 'Could not verify Google sign-in' });
+  }
+});
 
 router.post('/login', async (req, res) => {
 
