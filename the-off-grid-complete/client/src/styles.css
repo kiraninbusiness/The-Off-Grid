@@ -43,6 +43,10 @@ button,input,textarea,select{font:inherit}button{cursor:pointer;border:0;backgro
 .admin-error button,.admin-success button{opacity:.6}
 .admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:40px}
 .admin-mini-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:40px}
+.admin-mini-stats>div{border:1px solid var(--line);background:var(--surface);padding:16px 18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.admin-mini-stats svg{flex-shrink:0;color:var(--orange)}
+.admin-mini-stats span{font-size:10px;letter-spacing:1px;color:#999;flex:1}
+.admin-mini-stats strong{font-size:18px;font-family:"Space Grotesk"}
 .admin-stat-card{border:1px solid var(--line);background:var(--surface);padding:20px;display:flex;gap:14px;align-items:flex-start}
 .admin-stat-icon{width:40px;height:40px;background:var(--paper);display:grid;place-items:center;flex-shrink:0}
 .admin-stat-card span{display:block;font-size:9px;letter-spacing:1.4px;color:#777}

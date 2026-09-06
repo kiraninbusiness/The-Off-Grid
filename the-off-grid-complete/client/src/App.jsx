@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagram, Youtube, User, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProductDetails from "./pages/ProductDetails";
@@ -48,9 +48,14 @@ export default function App() {
 
   // Merge the guest (localStorage) cart & wishlist into the server-side
   // versions once on login/register, so a cart started on one device
-  // shows up on another. Runs once per user id.
+  // shows up on another. Guarded with a ref (not just the dependency
+  // array) so this can only ever run once per page load — the merge
+  // is additive server-side, so firing it twice for the same login
+  // would double-count quantities.
+  const hasMergedRef = useRef(false);
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || hasMergedRef.current) return;
+    hasMergedRef.current = true;
     let cancelled = false;
     (async () => {
       try {

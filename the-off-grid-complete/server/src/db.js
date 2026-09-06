@@ -399,6 +399,38 @@ export async function initDb(){
   `);
 
   if(process.env.ADMIN_EMAIL){ await pool.query("UPDATE users SET role='admin' WHERE email=$1",[process.env.ADMIN_EMAIL.toLowerCase()]); }
+  /* ===== CART DUPLICATE-ROW FIX =====
+     Postgres treats NULL as distinct from NULL in unique constraints,
+     so ON CONFLICT (user_id, product_id, selected_size, selected_color)
+     never matched when either was NULL — every "add to bag" click on
+     a product with no size/color silently inserted a brand new row
+     instead of incrementing quantity, causing runaway duplicate cart
+     rows. Fix: normalize NULL to '' (empty string IS comparable),
+     collapse any duplicate rows already sitting in the database
+     (summing their quantities into one), then make the columns
+     NOT NULL going forward so this can't happen again. */
+  await pool.query(`UPDATE cart_items SET selected_size = COALESCE(selected_size, ''), selected_color = COALESCE(selected_color, '')`);
+  await pool.query(`
+    WITH duplicates AS (
+      SELECT user_id, product_id, selected_size, selected_color,
+             MIN(id) AS keep_id, SUM(quantity) AS total_qty
+      FROM cart_items
+      GROUP BY user_id, product_id, selected_size, selected_color
+      HAVING COUNT(*) > 1
+    )
+    UPDATE cart_items c SET quantity = d.total_qty
+    FROM duplicates d WHERE c.id = d.keep_id
+  `);
+  await pool.query(`
+    DELETE FROM cart_items c
+    USING cart_items c2
+    WHERE c.user_id = c2.user_id AND c.product_id = c2.product_id
+      AND c.selected_size = c2.selected_size AND c.selected_color = c2.selected_color
+      AND c.id > c2.id
+  `);
+  await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_size SET DEFAULT '', ALTER COLUMN selected_size SET NOT NULL`);
+  await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_color SET DEFAULT '', ALTER COLUMN selected_color SET NOT NULL`);
+
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){
     await pool.query(`INSERT INTO products

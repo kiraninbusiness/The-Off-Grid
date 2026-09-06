@@ -36,7 +36,13 @@ router.get('/', async (req, res) => {
 
 // PUT /api/cart/item — add or update quantity for one product/size/color
 router.put('/item', async (req, res) => {
-  const { product_id, quantity = 1, selected_size = null, selected_color = null } = req.body;
+  const { product_id, quantity = 1 } = req.body;
+  // Normalize to '' rather than null/undefined — Postgres treats NULL
+  // as distinct from NULL in the unique constraint below, so a NULL
+  // here would silently defeat ON CONFLICT and insert a duplicate row
+  // every time instead of updating the existing one.
+  const selected_size = req.body.selected_size || '';
+  const selected_color = req.body.selected_color || '';
   if (!product_id || !Number.isInteger(Number(quantity)) || Number(quantity) < 1) {
     return res.status(400).json({ message: 'Invalid cart item' });
   }
@@ -79,7 +85,7 @@ router.post('/merge', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,NOW())
        ON CONFLICT (user_id, product_id, selected_size, selected_color)
        DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity, updated_at = NOW()`,
-      [req.user.id, item.id, Math.max(1, Number(item.qty) || 1), item.selectedSize || null, item.selectedColor || null]
+      [req.user.id, item.id, Math.max(1, Number(item.qty) || 1), item.selectedSize || '', item.selectedColor || '']
     );
   }
 
