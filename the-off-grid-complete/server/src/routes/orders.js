@@ -6,6 +6,7 @@ import { auth, admin } from '../middleware/auth.js';
 import { checkCoupon } from './coupons.js';
 import { sendEmail, orderConfirmationEmail, orderStatusEmail } from '../services/email.js';
 import { logStockMovement } from './variants.js';
+import { createNotification } from '../services/notifications.js';
 
 const router = Router();
 
@@ -619,7 +620,7 @@ router.get('/mine', auth, async (req, res) => {
   const orderIds = rows.map((o) => o.id);
 
   const itemsResult = await pool.query(
-    `SELECT order_id, product_id, name, price, quantity, selected_size, selected_color
+    `SELECT id, order_id, product_id, name, price, quantity, selected_size, selected_color
      FROM order_items
      WHERE order_id = ANY($1::int[])`,
     [orderIds]
@@ -1078,6 +1079,20 @@ router.patch(
         const { subject, html } = orderStatusEmail(updatedOrder);
         sendEmail({ to: email, subject, html }).catch((e) => console.error('status email failed:', e.message));
       }
+      if (updatedOrder.user_id) {
+        const displayId = `OG${String(updatedOrder.id).padStart(6, '0')}`;
+        const statusCopy = {
+          processing: `Order ${displayId} is being processed.`,
+          shipped: `Order ${displayId} has shipped.`,
+          delivered: `Order ${displayId} was delivered.`,
+          cancelled: `Order ${displayId} was cancelled.`
+        };
+        createNotification(updatedOrder.user_id, {
+          type: 'order_status',
+          title: statusCopy[status] || `Order ${displayId} updated`,
+          link: `/orders`
+        });
+      }
     }
 
     res.json(updatedOrder);
@@ -1195,6 +1210,200 @@ router.post(
     }
   }
 );
+
+
+/*
+  ORDER MODIFICATION BEFORE SHIPPING
+
+  Customers can adjust their own order — address, size, or quantity —
+  right up until it ships. Once status is 'shipped', 'delivered', or
+  'cancelled', none of these apply; at that point it's a return/
+  exchange request instead (see returns.js).
+*/
+function assertModifiable(order) {
+  if (!['pending', 'processing'].includes(order.status)) {
+    const err = new Error('This order can no longer be modified — it has already shipped');
+    err.status = 400;
+    throw err;
+  }
+}
+
+// PATCH /api/orders/:id/address — change delivery details before shipping
+router.patch('/:id/address', auth, async (req, res) => {
+  try {
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const order = orderResult.rows[0];
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    assertModifiable(order);
+
+    const { name, phone, address, city, state, pincode } = req.body;
+    if (!name || !phone || !address || !city || !state || !pincode) {
+      return res.status(400).json({ message: 'All address fields are required' });
+    }
+    if (!/^\d{10}$/.test(String(phone))) return res.status(400).json({ message: 'Enter a valid 10-digit phone number' });
+    if (!/^\d{6}$/.test(String(pincode))) return res.status(400).json({ message: 'Enter a valid 6-digit pincode' });
+
+    const { rows } = await pool.query(
+      `UPDATE orders SET
+        shipping_name = $1, shipping_phone = $2, shipping_address = $3,
+        shipping_city = $4, shipping_state = $5, shipping_pincode = $6,
+        edited_at = NOW()
+       WHERE id = $7 RETURNING *`,
+      [name.trim(), phone.trim(), address.trim(), city.trim(), state.trim(), pincode.trim(), order.id]
+    );
+
+    createNotification(req.user.id, {
+      type: 'order_edited',
+      title: `Delivery address updated for order OG${String(order.id).padStart(6, '0')}`,
+      link: '/orders'
+    });
+
+    res.json(rows[0]);
+  } catch (e) {
+    res.status(e.status || 500).json({ message: e.message || 'Could not update address' });
+  }
+});
+
+// PATCH /api/orders/:id/items/:itemId — change size and/or quantity of one item
+router.patch('/:id/items/:itemId', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE', [req.params.id, req.user.id]);
+    const order = orderResult.rows[0];
+    if (!order) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Order not found' }); }
+    assertModifiable(order);
+
+    const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [req.params.itemId, order.id]);
+    const item = itemResult.rows[0];
+    if (!item) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Item not found on this order' }); }
+
+    const newSize = req.body.selected_size !== undefined ? req.body.selected_size : item.selected_size;
+    const newQuantity = req.body.quantity !== undefined ? Math.max(1, Number(req.body.quantity)) : item.quantity;
+    const sizeChanged = newSize !== item.selected_size;
+    const quantityDelta = newQuantity - item.quantity;
+
+    // Release the currently-held stock for this line before checking/reserving the new amount
+    if (item.selected_size) {
+      await client.query(
+        `UPDATE product_variants SET stock = stock + $1 WHERE product_id = $2 AND size = $3 AND color = $4`,
+        [item.quantity, item.product_id, item.selected_size, item.selected_color || '']
+      );
+    }
+    await client.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [item.quantity, item.product_id]);
+
+    // Check + reserve the new size/quantity
+    if (newSize) {
+      const variantResult = await client.query(
+        `SELECT * FROM product_variants WHERE product_id = $1 AND size = $2 AND color = $3 FOR UPDATE`,
+        [item.product_id, newSize, item.selected_color || '']
+      );
+      const variant = variantResult.rows[0];
+      if (variant && Number(variant.stock) < newQuantity) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: `Only ${variant.stock} left in ${newSize}${item.selected_color ? ' / ' + item.selected_color : ''}` });
+      }
+      if (variant) {
+        await client.query('UPDATE product_variants SET stock = stock - $1 WHERE id = $2', [newQuantity, variant.id]);
+      }
+    }
+    const productResult = await client.query('SELECT stock, price FROM products WHERE id = $1 FOR UPDATE', [item.product_id]);
+    if (Number(productResult.rows[0].stock) < newQuantity) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: `Only ${productResult.rows[0].stock} left in stock` });
+    }
+    await client.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [newQuantity, item.product_id]);
+
+    await client.query(
+      'UPDATE order_items SET selected_size = $1, quantity = $2 WHERE id = $3',
+      [newSize, newQuantity, item.id]
+    );
+
+    // Recompute order total from the actual item price difference —
+    // preserves whatever coupon/points/gift-card discount was already
+    // applied rather than re-deriving eligibility from scratch.
+    const priceDiff = item.price * quantityDelta;
+    const newTotal = Math.max(0, Number(order.total) + priceDiff);
+    await client.query('UPDATE orders SET total = $1, edited_at = NOW() WHERE id = $2', [newTotal, order.id]);
+
+    await logStockMovement(client, {
+      productId: item.product_id, change: -quantityDelta,
+      reason: 'customer_order_edit', reference: `order #${order.id}, item #${item.id}`
+    });
+
+    await client.query('COMMIT');
+
+    createNotification(req.user.id, {
+      type: 'order_edited',
+      title: `Order OG${String(order.id).padStart(6, '0')} updated${sizeChanged ? ' — size changed' : ''}`,
+      link: '/orders'
+    });
+
+    res.json({ success: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('ORDER ITEM EDIT ERROR:', e.message);
+    res.status(500).json({ message: 'Could not update item' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/orders/:id/items/:itemId — remove one item from an order before it ships
+router.delete('/:id/items/:itemId', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND user_id = $2 FOR UPDATE', [req.params.id, req.user.id]);
+    const order = orderResult.rows[0];
+    if (!order) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Order not found' }); }
+    assertModifiable(order);
+
+    const itemsResult = await client.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    if (itemsResult.rows.length <= 1) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'This is the only item on the order — cancel the order instead of removing it' });
+    }
+
+    const item = itemsResult.rows.find((i) => i.id === Number(req.params.itemId));
+    if (!item) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Item not found on this order' }); }
+
+    if (item.selected_size) {
+      await client.query(
+        `UPDATE product_variants SET stock = stock + $1 WHERE product_id = $2 AND size = $3 AND color = $4`,
+        [item.quantity, item.product_id, item.selected_size, item.selected_color || '']
+      );
+    }
+    await client.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [item.quantity, item.product_id]);
+    await client.query('DELETE FROM order_items WHERE id = $1', [item.id]);
+
+    const newTotal = Math.max(0, Number(order.total) - item.price * item.quantity);
+    await client.query('UPDATE orders SET total = $1, edited_at = NOW() WHERE id = $2', [newTotal, order.id]);
+
+    await logStockMovement(client, {
+      productId: item.product_id, change: item.quantity,
+      reason: 'customer_order_edit', reference: `removed from order #${order.id}`
+    });
+
+    await client.query('COMMIT');
+
+    createNotification(req.user.id, {
+      type: 'order_edited',
+      title: `Item removed from order OG${String(order.id).padStart(6, '0')}`,
+      link: '/orders'
+    });
+
+    res.json({ success: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('ORDER ITEM DELETE ERROR:', e.message);
+    res.status(500).json({ message: 'Could not remove item' });
+  } finally {
+    client.release();
+  }
+});
 
 
 export default router;

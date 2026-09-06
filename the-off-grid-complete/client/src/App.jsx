@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagram, Youtube, User, Settings } from "lucide-react";
+import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagram, Youtube, User, Settings, Bell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProductDetails from "./pages/ProductDetails";
 import ProductDiscovery from "./components/ProductDiscovery";
@@ -30,6 +30,9 @@ export default function App() {
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [cart, setCart] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_cart")) || []; } catch { return []; } });
   const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; } });
@@ -77,6 +80,39 @@ export default function App() {
   }, [user?.id]);
 
   const addOrder = (order) => setOrders((current) => [order, ...current]);
+  const refreshOrders = () => { if (!user) return; api("/orders/mine").then((data) => Array.isArray(data) && setOrders(data)).catch(() => {}); };
+
+  // Notification bell — poll unread count while logged in; fetch the
+  // full list only when the panel is actually opened.
+  useEffect(() => {
+    if (!user?.id) { setUnreadCount(0); setNotifications([]); return; }
+    let cancelled = false;
+    const poll = () => api("/notifications/unread-count").then((r) => { if (!cancelled) setUnreadCount(r.count || 0); }).catch(() => {});
+    poll();
+    const interval = setInterval(poll, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [user?.id]);
+
+  const openNotifications = () => {
+    setNotifOpen((o) => !o);
+    if (!notifOpen) {
+      api("/notifications").then((rows) => Array.isArray(rows) && setNotifications(rows)).catch(() => {});
+    }
+  };
+  const readNotification = (n) => {
+    if (!n.read_at) {
+      api(`/notifications/${n.id}/read`, { method: "PATCH" }).catch(() => {});
+      setNotifications((cur) => cur.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+    }
+    setNotifOpen(false);
+    if (n.link) navigate(n.link);
+  };
+  const markAllRead = () => {
+    api("/notifications/read-all", { method: "PATCH" }).catch(() => {});
+    setNotifications((cur) => cur.map((x) => ({ ...x, read_at: x.read_at || new Date().toISOString() })));
+    setUnreadCount(0);
+  };
   const cancelOrder = async (id) => { try { const response = await api(`/orders/${id}/cancel`, { method: "PATCH" }); setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order)); } catch (error) { window.alert(error.message || "This order cannot be cancelled."); } };
   useEffect(() => { const handler = (event) => { if (event?.detail != null) cancelOrder(event.detail); }; window.addEventListener("offgrid-cancel-order", handler); return () => window.removeEventListener("offgrid-cancel-order", handler); }, []);
   const addCart = (product) => {
@@ -110,7 +146,7 @@ export default function App() {
   const submitSearch = (value = searchText) => { const q = String(value || "").trim(); if (!q) return; setSearchText(q); setSearchOpen(false); setTimeout(() => scroll("shop"), 50); };
 
   if (location.pathname === "/checkout") return <Checkout cart={cart} setCart={setCart} user={user} onOrder={addOrder} />;
-  if (location.pathname === "/order" || location.pathname === "/orders") return <Order orders={orders} onCancel={cancelOrder} loading={ordersLoading} />;
+  if (location.pathname === "/order" || location.pathname === "/orders") return <Order orders={orders} onCancel={cancelOrder} loading={ordersLoading} onRefresh={refreshOrders} />;
   if (location.pathname === "/order-success" || location.pathname === "/success") return <Success />;
   if (location.pathname === "/account") return <Account user={user} setUser={setUser} orders={orders} />;
   if (location.pathname === "/reset-password") return <ResetPassword />;
@@ -128,7 +164,7 @@ export default function App() {
   if (location.pathname.startsWith("/product/")) { const rawId = location.pathname.split("/product/")[1]?.split("/")[0]; const product = products.find((item) => String(item.id) === String(rawId)); const localProduct = PRODUCTS.find((item) => String(item.id) === String(rawId)); const finalProduct = product || localProduct; if (!finalProduct) return <div className="product-not-found-page"><div className="product-not-found-inner"><span>THE OFF GRID</span><h1>PRODUCT NOT<br />FOUND</h1><p>We couldn't find the product you're looking for.</p><button type="button" onClick={() => navigate("/")}>BACK TO SHOP</button></div></div>; return <><ProductDetails product={finalProduct} products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} user={user} openCart={() => setCartOpen(true)} /><CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} user={user} /></>; }
 
   return <div className="app">
-    <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>NEW DROPS WEEKLY</span><span>SHIPPING ACROSS INDIA</span></div><header className="navbar"><button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button><nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav><button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF<em>GRID</em></strong></button><div className="nav-right"><button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button><button type="button" onClick={() => navigate("/account")} aria-label="Account"><User size={19} /></button>{user?.role === "admin" && <button type="button" className="admin-nav-icon" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}<button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button><button type="button" onClick={() => cart.length ? setCartOpen(true) : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button></div></header>
+    <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>NEW DROPS WEEKLY</span><span>SHIPPING ACROSS INDIA</span></div><header className="navbar"><button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button><nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav><button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF<em>GRID</em></strong></button><div className="nav-right"><button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button><button type="button" onClick={() => navigate("/account")} aria-label="Account"><User size={19} /></button>{user && <div className="notif-bell-wrap"><button type="button" onClick={openNotifications} aria-label="Notifications"><Bell size={19} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notifOpen && <div className="notif-panel"><div className="notif-panel-head"><span>NOTIFICATIONS</span>{notifications.some((n) => !n.read_at) && <button type="button" onClick={markAllRead}>MARK ALL READ</button>}</div>{notifications.length ? notifications.map((n) => <button type="button" key={n.id} className={`notif-item ${n.read_at ? "" : "unread"}`} onClick={() => readNotification(n)}><span>{n.title}</span><small>{new Date(n.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small></button>) : <p className="notif-empty">No notifications yet.</p>}</div>}</div>}{user?.role === "admin" && <button type="button" className="admin-nav-icon" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}<button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button><button type="button" onClick={() => cart.length ? setCartOpen(true) : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button></div></header>
     {menu && <div className="mobile-menu"><button type="button" className="mobile-close" onClick={() => setMenu(false)} aria-label="Close menu"><X size={28} /></button><div className="mobile-logo"><small>THE</small><strong>OFF<em>GRID</em></strong></div><div className="mobile-links"><button type="button" onClick={() => { setMenu(false); scroll("shop"); }}>SHOP</button><button type="button" onClick={() => { setMenu(false); scroll("categories"); }}>CATEGORIES</button><button type="button" onClick={() => { setMenu(false); scroll("story"); }}>OUR STORY</button><button type="button" onClick={() => { setMenu(false); scroll("journal"); }}>JOURNAL</button>{user?.role === "admin" && <button type="button" onClick={() => { setMenu(false); navigate("/admin"); }}>ADMIN</button>}</div><p>NO RULES.<br />JUST STYLE.</p></div>}
     {searchOpen && <div className="search-overlay"><button type="button" className="search-close" onClick={() => { setSearchOpen(false); setSearchText(""); }} aria-label="Close search"><X size={28} /></button><div className="search-inner"><span>SEARCH THE OFF GRID</span><form className="big-search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}><Search size={25} /><input autoFocus type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search products..." aria-label="Search products" /><button type="submit" aria-label="Submit search"><ArrowRight size={20} /></button></form>{searchText.trim() ? <div className="search-suggestions">{searchSuggestions.length ? <><div className="search-suggestions-label">PRODUCTS</div>{searchSuggestions.map((p) => <button key={p.id} type="button" className="search-suggestion" onClick={() => { setSearchOpen(false); setSearchText(""); navigate(productUrl(p)); }}><img src={p.image} alt="" /><span><strong>{p.name}</strong><small>{p.category} · ₹{Number(p.price || 0).toLocaleString("en-IN")}</small></span><ArrowRight size={15} /></button>)}</> : <div className="search-no-results">NO PRODUCTS FOUND. TRY A DIFFERENT SEARCH.</div>}<button type="button" className="search-view-all" onClick={() => submitSearch()}>VIEW ALL SEARCH RESULTS<ArrowRight size={15} /></button></div> : <div className="search-trending"><span>TRY</span><button type="button" onClick={() => setSearchText("tee")}>TEE</button><button type="button" onClick={() => setSearchText("hoodie")}>HOODIE</button><button type="button" onClick={() => setSearchText("cargo")}>CARGO</button><button type="button" onClick={() => setSearchText("jacket")}>JACKET</button></div>}<p>TYPE TO SEE LIVE PRODUCT SUGGESTIONS</p></div></div>}
     <section className="hero" id="home"><img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1800&q=90" alt="The Off Grid collection" /><div className="hero-dark"></div><div className="hero-content"><span className="eyebrow">THE OFF GRID / 001</span><h1>WEAR<br /><i>YOUR</i><br />WAY<span>.</span></h1><p>Clothing for independent minds.<br />Clean silhouettes. Strong details.<br />Zero unnecessary rules.</p><div className="hero-buttons"><button type="button" className="orange-btn" onClick={() => scroll("shop")}>SHOP NEW ARRIVALS<ArrowRight size={18} /></button><button type="button" className="outline-btn" onClick={() => scroll("story")}>OUR STORY</button></div></div><div className="hero-bottom"><span>01</span><span>NOT MADE FOR EVERYONE.</span></div></section>

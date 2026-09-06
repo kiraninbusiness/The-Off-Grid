@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
 import { notifyRestock } from './variants.js';
+import { sendEmail, priceDropEmail } from '../services/email.js';
+import { createNotification } from '../services/notifications.js';
 
 const router = Router();
 
@@ -179,8 +181,9 @@ router.patch('/:id', auth, admin, async (req, res) => {
     const sets = [];
     const values = [];
 
-    const before = await pool.query('SELECT stock FROM products WHERE id = $1', [req.params.id]);
+    const before = await pool.query('SELECT stock, price FROM products WHERE id = $1', [req.params.id]);
     const wasOut = before.rows.length && Number(before.rows[0].stock) === 0;
+    const priceBefore = before.rows.length ? Number(before.rows[0].price) : null;
 
     for (const field of fields) {
       if (req.body[field] !== undefined) {
@@ -202,6 +205,12 @@ router.patch('/:id', auth, admin, async (req, res) => {
     // Product came back in stock — notify anyone on the waitlist (fire and forget)
     if (wasOut && Number(rows[0].stock) > 0) {
       notifyRestock(rows[0].id).catch((e) => console.error('restock notify failed:', e.message));
+    }
+
+    // Price dropped — notify wishlisters whose saved price was higher (fire and forget)
+    const newPrice = Number(rows[0].price);
+    if (priceBefore !== null && newPrice < priceBefore) {
+      notifyPriceDrop(rows[0], priceBefore).catch((e) => console.error('price drop notify failed:', e.message));
     }
 
     res.json(rows[0]);
@@ -266,3 +275,35 @@ router.post('/:id/notify', async (req, res) => {
 });
 
 export default router;
+
+/*
+  WISHLIST PRICE-DROP NOTIFICATIONS
+
+  Anyone who wishlisted this product at a higher price gets emailed —
+  and their saved price is updated to the new one, so the next drop
+  below THAT triggers again (rather than emailing on every future
+  price change regardless of direction/size).
+*/
+async function notifyPriceDrop(product, oldPrice) {
+  const { rows: wishlisters } = await pool.query(
+    `SELECT w.id, w.last_known_price, u.id AS user_id, u.email
+     FROM wishlist_items w
+     JOIN users u ON u.id = w.user_id
+     WHERE w.product_id = $1 AND w.last_known_price > $2`,
+    [product.id, product.price]
+  );
+  if (!wishlisters.length) return;
+
+  const url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/product/${product.id}`;
+
+  for (const w of wishlisters) {
+    const { subject, html } = priceDropEmail(product.name, w.last_known_price, product.price, url, product.image);
+    await sendEmail({ to: w.email, subject, html });
+    await pool.query('UPDATE wishlist_items SET last_known_price = $1 WHERE id = $2', [product.price, w.id]);
+    createNotification(w.user_id, {
+      type: 'price_drop',
+      title: `Price drop: ${product.name} is now ₹${product.price}`,
+      link: `/product/${product.id}`
+    });
+  }
+}

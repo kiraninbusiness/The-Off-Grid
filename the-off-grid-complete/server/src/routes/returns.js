@@ -4,6 +4,7 @@ import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
 import { sendEmail, returnStatusEmail } from '../services/email.js';
 import { logStockMovement, notifyRestock } from './variants.js';
+import { createNotification } from '../services/notifications.js';
 
 const router = Router();
 
@@ -203,6 +204,37 @@ router.patch('/:id', auth, admin, async (req, res) => {
       // reserve against, so we let the exchange proceed on trust
       // (matches how this product's stock is tracked everywhere else
       // — product-level only, no SKU breakdown to check).
+
+      /*
+        SEPARATE REPLACEMENT ORDER
+        Gives the replacement its own order id/invoice rather than
+        living only inside the return record — matters once exchange
+        volume is high enough that you need independent fulfillment
+        and invoicing for replacements. total is informational (the
+        customer already paid via the original order; this isn't a
+        new charge).
+      */
+      const originalOrder = await client.query('SELECT * FROM orders WHERE id = $1', [current.order_id]);
+      const src = originalOrder.rows[0];
+      const replacementOrder = await client.query(
+        `INSERT INTO orders (
+          user_id, total, shipping_name, shipping_phone, shipping_address, shipping_email,
+          shipping_city, shipping_state, shipping_pincode, payment_method, payment_status,
+          status, order_type, replacement_for_return_id
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'exchange','paid','processing','exchange_replacement',$10)
+        RETURNING *`,
+        [
+          current.user_id, original.price * original.quantity,
+          src.shipping_name, src.shipping_phone, src.shipping_address, src.shipping_email,
+          src.shipping_city, src.shipping_state, src.shipping_pincode, current.id
+        ]
+      );
+      await client.query(
+        `INSERT INTO order_items (order_id, product_id, name, price, quantity, selected_size, selected_color)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [replacementOrder.rows[0].id, original.product_id, original.name, original.price, original.quantity, targetSize, targetColor]
+      );
+      await client.query('UPDATE returns SET replacement_order_id = $1 WHERE id = $2', [replacementOrder.rows[0].id, current.id]);
     }
 
     const sets = ['updated_at = NOW()'];
@@ -228,6 +260,11 @@ router.patch('/:id', auth, admin, async (req, res) => {
       const { subject, html } = returnStatusEmail(rows[0]);
       sendEmail({ to: customer.rows[0].email, subject, html }).catch(() => {});
     }
+    createNotification(rows[0].user_id, {
+      type: 'return_status',
+      title: `${rows[0].type === 'exchange' ? 'Exchange' : 'Return'} ${rows[0].status}`,
+      link: '/account?tab=returns'
+    });
 
     res.json(rows[0]);
   } catch (e) {
@@ -308,6 +345,11 @@ router.post('/:id/refund', auth, admin, async (req, res) => {
       const { subject, html } = returnStatusEmail(updated.rows[0]);
       sendEmail({ to: customer.rows[0].email, subject, html }).catch(() => {});
     }
+    createNotification(ret.user_id, {
+      type: 'return_status',
+      title: `Refund of ₹${amount} processed for return #${ret.id}`,
+      link: '/account?tab=returns'
+    });
 
     res.json(updated.rows[0]);
   } catch (e) {
@@ -356,6 +398,15 @@ router.patch('/:id/shipment', auth, admin, async (req, res) => {
   );
   const updated = rows[0];
 
+  // Keep the replacement's own order record in sync with the shipment mark
+  if (mark && updated.replacement_order_id) {
+    const orderStatus = mark === 'shipped' ? 'shipped' : 'delivered';
+    await pool.query(
+      `UPDATE orders SET status = $1${mark === 'delivered' ? ", delivered_at = NOW()" : ""} WHERE id = $2`,
+      [orderStatus, updated.replacement_order_id]
+    );
+  }
+
   if (mark) {
     const customer = await pool.query('SELECT email FROM users WHERE id = $1', [updated.user_id]);
     if (customer.rows[0]?.email) {
@@ -375,6 +426,11 @@ router.patch('/:id/shipment', auth, admin, async (req, res) => {
       `;
       sendEmail({ to: customer.rows[0].email, subject, html }).catch(() => {});
     }
+    createNotification(updated.user_id, {
+      type: 'return_status',
+      title: mark === 'shipped' ? `Replacement item shipped — return #${updated.id}` : `Replacement item delivered — return #${updated.id}`,
+      link: '/account?tab=returns'
+    });
   }
 
   res.json(updated);

@@ -105,9 +105,11 @@ router.get('/wishlist', async (req, res) => {
 
 // PUT /api/cart/wishlist/:productId — add
 router.put('/wishlist/:productId', async (req, res) => {
+  const product = await pool.query('SELECT price FROM products WHERE id = $1', [req.params.productId]);
   await pool.query(
-    'INSERT INTO wishlist_items (user_id, product_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-    [req.user.id, req.params.productId]
+    `INSERT INTO wishlist_items (user_id, product_id, last_known_price) VALUES ($1,$2,$3)
+     ON CONFLICT (user_id, product_id) DO NOTHING`,
+    [req.user.id, req.params.productId, product.rows[0]?.price ?? null]
   );
   res.status(201).json({ success: true });
 });
@@ -125,9 +127,11 @@ router.delete('/wishlist/:productId', async (req, res) => {
 router.post('/wishlist/merge', async (req, res) => {
   const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
   for (const id of ids) {
+    const product = await pool.query('SELECT price FROM products WHERE id = $1', [id]);
     await pool.query(
-      'INSERT INTO wishlist_items (user_id, product_id) VALUES ($1,$2) ON CONFLICT DO NOTHING',
-      [req.user.id, id]
+      `INSERT INTO wishlist_items (user_id, product_id, last_known_price) VALUES ($1,$2,$3)
+       ON CONFLICT (user_id, product_id) DO NOTHING`,
+      [req.user.id, id, product.rows[0]?.price ?? null]
     );
   }
   const { rows } = await pool.query('SELECT product_id FROM wishlist_items WHERE user_id = $1', [req.user.id]);

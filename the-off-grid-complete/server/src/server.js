@@ -21,6 +21,7 @@ import combos from './routes/combos.js';
 import abandoned, { startAbandonedCartScheduler } from './routes/abandoned.js';
 import webhooks from './routes/webhooks.js';
 import contact from './routes/contact.js';
+import notifications from './routes/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -53,6 +54,7 @@ app.use('/api/cart',cart);
 app.use('/api/combos',combos);
 app.use('/api/admin/abandoned-carts',abandoned);
 app.use('/api/contact',contact);
+app.use('/api/notifications',notifications);
 
 const port=process.env.PORT||5000;
 initDb().then(()=>app.listen(port,()=>{console.log(`API running on http://localhost:${port}`);startAbandonedCartScheduler();}))

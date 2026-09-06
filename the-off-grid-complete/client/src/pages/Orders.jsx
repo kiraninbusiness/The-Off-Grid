@@ -76,9 +76,129 @@ function ReturnForm({ order, onDone, onCancel }) {
   );
 }
 
-export default function Orders({ orders = [], onCancel, loading = false }) {
+function AddressEditForm({ order, onDone, onCancel }) {
+  const [form, setForm] = useState({
+    name: order.shipping_name || "",
+    phone: order.shipping_phone || "",
+    address: order.shipping_address || "",
+    city: order.shipping_city || "",
+    state: order.shipping_state || "",
+    pincode: order.shipping_pincode || "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr("");
+    try {
+      const updated = await api(`/orders/${order.id}/address`, { method: "PATCH", body: JSON.stringify(form) });
+      onDone(updated);
+    } catch (e) {
+      setErr(e.message || "Could not update address.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="return-request-form" onSubmit={submit}>
+      {["name", "phone", "address", "city", "state", "pincode"].map((key) => (
+        <input
+          key={key}
+          required
+          placeholder={key.toUpperCase()}
+          value={form[key]}
+          onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+        />
+      ))}
+      {err && <p className="notify-me-error">{err}</p>}
+      <div>
+        <button className="orange-btn" disabled={busy}>{busy ? "SAVING..." : "SAVE ADDRESS"}</button>
+        <button type="button" className="text-button" onClick={onCancel}>CANCEL</button>
+      </div>
+    </form>
+  );
+}
+
+function ItemEditRow({ order, item, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [sizes, setSizes] = useState([]);
+  const [size, setSize] = useState(item.selected_size || "");
+  const [qty, setQty] = useState(item.quantity);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  const openEditor = async () => {
+    setOpen(true);
+    if (item.product_id) {
+      try {
+        const product = await api(`/products/${item.product_id}`);
+        const list = String(product.size || "").split("/").map((s) => s.trim()).filter(Boolean);
+        setSizes(list);
+      } catch { /* product may have been removed — size change just won't be offered */ }
+    }
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setErr("");
+    try {
+      await api(`/orders/${order.id}/items/${item.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ selected_size: size || item.selected_size, quantity: qty }),
+      });
+      onDone();
+      setOpen(false);
+    } catch (e) {
+      setErr(e.message || "Could not update item.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm(`Remove ${item.name} from this order?`)) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await api(`/orders/${order.id}/items/${item.id}`, { method: "DELETE" });
+      onDone();
+    } catch (e) {
+      setErr(e.message || "Could not remove item.");
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return <button type="button" className="text-button item-edit-toggle" onClick={openEditor}>EDIT</button>;
+  }
+
+  return (
+    <div className="item-edit-panel">
+      {sizes.length > 0 && (
+        <select value={size} onChange={(e) => setSize(e.target.value)}>
+          {sizes.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      )}
+      <div className="product-quantity">
+        <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))}>−</button>
+        <span>{qty}</span>
+        <button type="button" onClick={() => setQty((q) => q + 1)}>+</button>
+      </div>
+      {err && <p className="notify-me-error">{err}</p>}
+      <button type="button" className="text-button" disabled={busy} onClick={save}>SAVE</button>
+      <button type="button" className="text-button danger-link" disabled={busy} onClick={remove}>REMOVE ITEM</button>
+      <button type="button" className="text-button" onClick={() => setOpen(false)}>CANCEL</button>
+    </div>
+  );
+}
+
+export default function Orders({ orders = [], onCancel, loading = false, onRefresh = () => {} }) {
   const [returns, setReturns] = useState([]);
   const [openReturnFor, setOpenReturnFor] = useState(null);
+  const [editingAddressFor, setEditingAddressFor] = useState(null);
 
   useEffect(() => {
     api("/returns/mine").then((rows) => setReturns(Array.isArray(rows) ? rows : [])).catch(() => {});
@@ -115,6 +235,17 @@ export default function Orders({ orders = [], onCancel, loading = false }) {
                 <h3>{items.length ? items.map((item) => `${item.name}${item.quantity > 1 ? ` × ${item.quantity}` : ""}`).join(", ") : "THE OFF GRID ORDER"}</h3>
                 <p>{money(order.total)} · {payment}</p>
 
+                {["pending", "processing"].includes(order.status) && items.length > 0 && (
+                  <div className="order-items-editable">
+                    {items.map((item) => (
+                      <div className="order-item-editable-row" key={item.id}>
+                        <span>{item.name}{item.selected_size ? ` · ${item.selected_size}` : ""} × {item.quantity}</span>
+                        <ItemEditRow order={order} item={item} onDone={onRefresh} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <span className={`order-status ${order.status}`}>
                   <StatusIcon status={order.status} />
                   {String(order.status || "pending").toUpperCase()}
@@ -134,10 +265,21 @@ export default function Orders({ orders = [], onCancel, loading = false }) {
                   {order.status === "pending" && payment === "COD" && (
                     <button className="text-button" onClick={() => onCancel(order.id)}>CANCEL ORDER</button>
                   )}
+                  {["pending", "processing"].includes(order.status) && editingAddressFor !== order.id && (
+                    <button className="text-button" onClick={() => setEditingAddressFor(order.id)}>CHANGE ADDRESS</button>
+                  )}
                   {canRequestReturn && openReturnFor !== order.id && (
                     <button className="text-button" onClick={() => setOpenReturnFor(order.id)}>REQUEST RETURN / EXCHANGE</button>
                   )}
                 </div>
+
+                {editingAddressFor === order.id && (
+                  <AddressEditForm
+                    order={order}
+                    onCancel={() => setEditingAddressFor(null)}
+                    onDone={() => { setEditingAddressFor(null); onRefresh(); }}
+                  />
+                )}
 
                 {openReturnFor === order.id && (
                   <ReturnForm

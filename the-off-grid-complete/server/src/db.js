@@ -431,6 +431,38 @@ export async function initDb(){
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_size SET DEFAULT '', ALTER COLUMN selected_size SET NOT NULL`);
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_color SET DEFAULT '', ALTER COLUMN selected_color SET NOT NULL`);
 
+  /* ===== ROUND 10 ADDITIONS ===== */
+
+  // Wishlist price-drop tracking
+  await pool.query(`ALTER TABLE wishlist_items ADD COLUMN IF NOT EXISTS last_known_price INTEGER`);
+
+  // In-app notification center
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notifications(
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT,
+      link TEXT,
+      read_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, created_at DESC)`);
+
+  // Order modification before shipping — track that an order was edited
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ`);
+
+  // Separate replacement order system for exchanges
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_type TEXT NOT NULL DEFAULT 'standard'`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS replacement_for_return_id INTEGER REFERENCES returns(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE returns ADD COLUMN IF NOT EXISTS replacement_order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL`);
+
+  // Staged abandoned-cart sequence (was a single boolean — now tracks
+  // which stage of the 30min/6hr/24hr/48hr sequence has been sent)
+  await pool.query(`ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS abandoned_stage INTEGER NOT NULL DEFAULT 0`);
+
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){
     await pool.query(`INSERT INTO products

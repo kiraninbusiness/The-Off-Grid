@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
 import { sendEmail, backInStockEmail } from '../services/email.js';
+import { createNotification } from '../services/notifications.js';
 
 const router = Router();
 
@@ -228,6 +229,18 @@ export async function notifyRestock(productId, variantId = null) {
   for (const alert of alerts.rows) {
     await sendEmail({ to: alert.email, subject, html });
     await pool.query('UPDATE stock_alerts SET notified = TRUE WHERE id = $1', [alert.id]);
+
+    // Stock alerts are email-only (guests can sign up without an
+    // account) — but if that email happens to belong to a registered
+    // customer, also drop it in their in-app notification center.
+    const account = await pool.query('SELECT id FROM users WHERE email = $1', [alert.email]);
+    if (account.rows[0]) {
+      createNotification(account.rows[0].id, {
+        type: 'back_in_stock',
+        title: `${product.rows[0].name}${variantLabel ? ` (${variantLabel})` : ''} is back in stock`,
+        link: `/product/${productId}`
+      });
+    }
   }
 }
 

@@ -131,6 +131,18 @@ export function backInStockEmail(productName, productUrl, variantLabel = null) {
   };
 }
 
+export function priceDropEmail(productName, oldPrice, newPrice, productUrl, productImage) {
+  const percentOff = Math.round(((oldPrice - newPrice) / oldPrice) * 100);
+  return {
+    subject: `🔥 Price drop — ${productName} is now ₹${newPrice}`,
+    html: wrap('Price drop on your wishlist', `
+      ${productImage ? `<img src="${productImage}" alt="${productName}" style="width:100%;max-width:300px;display:block;margin-bottom:16px" />` : ''}
+      <p><strong>${productName}</strong> just dropped from <span style="text-decoration:line-through;color:#999">₹${oldPrice}</span> to <strong style="color:#e0521a">₹${newPrice}</strong> (${percentOff}% off).</p>
+      <p><a href="${productUrl}" style="background:#111;color:#fff;padding:12px 20px;text-decoration:none;display:inline-block">SHOP NOW</a></p>
+    `)
+  };
+}
+
 export function returnStatusEmail(ret) {
   const statusCopy = {
     approved: 'Your request has been approved. Please ship the item back to us.',
