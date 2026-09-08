@@ -79,14 +79,26 @@ export async function awardLoyaltyPoints(client, orderId) {
 
   if (referredBy && !bonusAlreadyGiven) {
 
-    const REFERRAL_BONUS = 100;
-
-    await client.query(
-      `UPDATE users
-       SET loyalty_points = loyalty_points + $1
-       WHERE id = $2`,
-      [REFERRAL_BONUS, referredBy]
+    // Lifetime cap — without email/phone verification (a bigger,
+    // separate project), the cheapest real mitigation against someone
+    // farming referral bonuses via mass fake accounts is simply
+    // capping how many times it can pay out for one referrer.
+    const MAX_REFERRAL_BONUSES = 20;
+    const referralCount = await client.query(
+      `SELECT COUNT(*)::int AS count FROM users WHERE referred_by = $1 AND referral_bonus_given = TRUE`,
+      [referredBy]
     );
+
+    if (referralCount.rows[0].count < MAX_REFERRAL_BONUSES) {
+      const REFERRAL_BONUS = 100;
+
+      await client.query(
+        `UPDATE users
+         SET loyalty_points = loyalty_points + $1
+         WHERE id = $2`,
+        [REFERRAL_BONUS, referredBy]
+      );
+    }
 
     await client.query(
       `UPDATE users
@@ -303,7 +315,8 @@ router.post('/create', auth, async (req, res) => {
       const check = await checkCoupon(
         { query: (...args) => client.query(...args) },
         normalizedCode,
-        subtotal
+        subtotal,
+        req.user.id
       );
 
       if (!check.ok) {
@@ -453,6 +466,13 @@ router.post('/create', auth, async (req, res) => {
       );
     }
 
+    if (couponRow) {
+      await client.query(
+        'INSERT INTO coupon_redemptions (coupon_id, user_id, order_id) VALUES ($1,$2,$3)',
+        [couponRow.id, req.user.id, order.id]
+      );
+    }
+
 
     /*
       CREATE ORDER ITEMS
@@ -500,21 +520,31 @@ router.post('/create', auth, async (req, res) => {
       const variant = variantByKey[variantKey];
 
       if (variant) {
-        await client.query(
-          `UPDATE product_variants SET stock = stock - $1 WHERE id = $2`,
+        const variantUpdate = await client.query(
+          `UPDATE product_variants SET stock = stock - $1 WHERE id = $2 AND stock >= $1`,
           [quantity, variant.id]
         );
+        if (variantUpdate.rowCount === 0) {
+          throw new Error(`${p.name} (${item.selectedSize || ''}${item.selectedColor ? ' / ' + item.selectedColor : ''}) sold out while placing your order`);
+        }
       }
 
-      await client.query(
+      const productUpdate = await client.query(
         `UPDATE products
          SET stock = stock - $1
-         WHERE id = $2`,
+         WHERE id = $2 AND stock >= $1`,
         [
           quantity,
           p.id
         ]
       );
+      // Defense-in-depth alongside the FOR UPDATE row lock already
+      // held on this product earlier in the transaction — if
+      // rowCount is 0 here, stock genuinely ran out mid-transaction
+      // rather than trusting the earlier check alone.
+      if (productUpdate.rowCount === 0) {
+        throw new Error(`${p.name} sold out while placing your order`);
+      }
 
       await logStockMovement(client, {
         productId: p.id, variantId: variant?.id || null, change: -quantity,
@@ -697,6 +727,7 @@ export async function restoreOrderBenefits(client, order) {
        WHERE code = $1`,
       [order.coupon_code]
     );
+    await client.query(`DELETE FROM coupon_redemptions WHERE order_id = $1`, [order.id]);
   }
 
   if (order.gift_card_code && Number(order.gift_card_discount) > 0) {

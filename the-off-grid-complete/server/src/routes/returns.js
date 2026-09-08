@@ -5,6 +5,7 @@ import { auth, admin } from '../middleware/auth.js';
 import { sendEmail, returnStatusEmail } from '../services/email.js';
 import { logStockMovement, notifyRestock } from './variants.js';
 import { createNotification } from '../services/notifications.js';
+import { logAdminAction } from '../services/auditLog.js';
 
 const router = Router();
 
@@ -339,6 +340,11 @@ router.post('/:id/refund', auth, admin, async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    logAdminAction(req, {
+      action: 'refund_issued', entity: 'return', entityId: ret.id,
+      newValue: { amount, razorpay_refund_id: refund.id }
+    });
 
     const customer = await pool.query('SELECT email FROM users WHERE id = $1', [ret.user_id]);
     if (customer.rows[0]?.email) {

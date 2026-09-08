@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
+import { sanitizeText } from '../utils/sanitize.js';
 
 const router = Router();
 
@@ -22,9 +23,9 @@ const TOPICS = ['order-tracking', 'payment', 'return', 'exchange', 'refund', 'si
 
 // POST /api/contact — customer support / "Get in Touch" form submission.
 router.post('/', async (req, res) => {
-  const name = String(req.body.name || '').trim();
+  const name = sanitizeText(req.body.name, 100);
   const email = String(req.body.email || '').trim().toLowerCase();
-  const message = String(req.body.message || '').trim();
+  const message = sanitizeText(req.body.message, 2000);
   const topic = TOPICS.includes(req.body.topic) ? req.body.topic : 'general';
 
   if (!name || !/^\S+@\S+\.\S+$/.test(email) || !message) {

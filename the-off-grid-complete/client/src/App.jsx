@@ -3,6 +3,7 @@ import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagra
 import { useLocation, useNavigate } from "react-router-dom";
 import ProductDetails from "./pages/ProductDetails";
 import ProductDiscovery from "./components/ProductDiscovery";
+import { dedupeCart } from "./utils/dedupeCart";
 import Checkout from "./pages/Checkout";
 import Order from "./pages/Orders";
 import Success from "./pages/Success";
@@ -34,7 +35,7 @@ export default function App() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [searchText, setSearchText] = useState("");
-  const [cart, setCart] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_cart")) || []; } catch { return []; } });
+  const [cart, setCart] = useState(() => { try { return dedupeCart(JSON.parse(localStorage.getItem("offgrid_cart")) || []); } catch { return []; } });
   const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; } });
   const [products, setProducts] = useState(PRODUCTS);
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_user")) || null; } catch { return null; } });
@@ -49,35 +50,75 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("offgrid_wishlist", JSON.stringify(wishlist)); } catch {} }, [wishlist]);
   useEffect(() => { let cancelled = false; api("/products").then((data) => { if (!cancelled && Array.isArray(data) && data.length) setProducts(data); }).catch(() => {}); return () => { cancelled = true; }; }, []);
 
-  // Merge the guest (localStorage) cart & wishlist into the server-side
-  // versions once on login/register, so a cart started on one device
-  // shows up on another. Guarded with a ref (not just the dependency
-  // array) so this can only ever run once per page load — the merge
-  // is additive server-side, so firing it twice for the same login
-  // would double-count quantities.
-  const hasMergedRef = useRef(false);
+  /*
+    CART/WISHLIST — LOAD vs MERGE, KEPT STRICTLY SEPARATE
+
+    This used to be one effect that ran the *additive* merge endpoint
+    every time `user?.id` was truthy — which includes a completely
+    normal page reload with an already-persisted session, not just a
+    fresh login. Since the merge endpoint adds the incoming quantities
+    onto whatever the server already has, every single page reload
+    was silently doubling the cart. That's how a cart reaches 1000+
+    items with no user action at all: reopen the site ~10 times while
+    logged in and 1 × 2^10 gets you right around there.
+
+    Fixed by splitting these into two genuinely different operations:
+      - loadCart(): plain GET, replaces local state. Safe to call any
+        number of times — reloading twice in a row can't inflate
+        anything, because it never adds, only replaces.
+      - mergeGuestCartIntoAccount(): the additive merge. Only ever
+        called explicitly, once, from Account.jsx right after an
+        actual login/register/Google sign-in completes — never from
+        an effect watching general auth state.
+  */
+  const skipNextCartLoadRef = useRef(false);
   useEffect(() => {
-    if (!user?.id || hasMergedRef.current) return;
-    hasMergedRef.current = true;
+    if (!user?.id) return;
+    if (skipNextCartLoadRef.current) { skipNextCartLoadRef.current = false; return; }
     let cancelled = false;
     (async () => {
       try {
-        const mergedCart = await api("/cart/merge", { method: "POST", body: JSON.stringify({ items: cart }) });
-        const mergedWishlist = await api("/cart/wishlist/merge", { method: "POST", body: JSON.stringify({ ids: wishlist }) });
+        const [cartRows, wishlistIds] = await Promise.all([
+          api("/cart"),
+          api("/cart/wishlist"),
+        ]);
         if (cancelled) return;
-        if (Array.isArray(mergedCart)) {
-          setCart(mergedCart.map((row) => ({
+        if (Array.isArray(cartRows)) {
+          setCart(dedupeCart(cartRows.map((row) => ({
             id: row.product_id, cartItemId: row.id, name: row.name, price: row.price, image: row.image,
             category: row.category, stock: row.stock, qty: row.quantity,
             selectedSize: row.selected_size, selectedColor: row.selected_color,
-          })));
+          }))));
         }
-        if (Array.isArray(mergedWishlist)) setWishlist(mergedWishlist);
-      } catch (e) { console.error("Cart/wishlist sync failed", e); }
+        if (Array.isArray(wishlistIds)) setWishlist(wishlistIds);
+      } catch (e) { console.error("Cart/wishlist load failed", e); }
     })();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Called exactly once, explicitly, right after a real login/
+  // register/Google sign-in — merges whatever was in the guest
+  // (localStorage) cart into the account. Never wired to a generic
+  // "user is logged in" effect — see note above for why that broke.
+  // Sets skipNextCartLoadRef first so the plain-load effect above
+  // (which also fires the moment `user` becomes truthy) doesn't race
+  // this and overwrite the merged result with a pre-merge snapshot.
+  const mergeGuestCartIntoAccount = async () => {
+    skipNextCartLoadRef.current = true;
+    try {
+      const guestCart = dedupeCart(cart);
+      const mergedCart = await api("/cart/merge", { method: "POST", body: JSON.stringify({ items: guestCart }) });
+      const mergedWishlist = await api("/cart/wishlist/merge", { method: "POST", body: JSON.stringify({ ids: wishlist }) });
+      if (Array.isArray(mergedCart)) {
+        setCart(dedupeCart(mergedCart.map((row) => ({
+          id: row.product_id, cartItemId: row.id, name: row.name, price: row.price, image: row.image,
+          category: row.category, stock: row.stock, qty: row.quantity,
+          selectedSize: row.selected_size, selectedColor: row.selected_color,
+        }))));
+      }
+      if (Array.isArray(mergedWishlist)) setWishlist(mergedWishlist);
+    } catch (e) { console.error("Cart/wishlist merge failed", e); }
+  };
 
   const addOrder = (order) => setOrders((current) => [order, ...current]);
   const refreshOrders = () => { if (!user) return; api("/orders/mine").then((data) => Array.isArray(data) && setOrders(data)).catch(() => {}); };
@@ -148,7 +189,7 @@ export default function App() {
   if (location.pathname === "/checkout") return <Checkout cart={cart} setCart={setCart} user={user} onOrder={addOrder} />;
   if (location.pathname === "/order" || location.pathname === "/orders") return <Order orders={orders} onCancel={cancelOrder} loading={ordersLoading} onRefresh={refreshOrders} />;
   if (location.pathname === "/order-success" || location.pathname === "/success") return <Success />;
-  if (location.pathname === "/account") return <Account user={user} setUser={setUser} orders={orders} />;
+  if (location.pathname === "/account") return <Account user={user} setUser={setUser} orders={orders} onAuthenticated={mergeGuestCartIntoAccount} />;
   if (location.pathname === "/reset-password") return <ResetPassword />;
   if (location.pathname === "/wishlist") return <><Wishlist products={products} wishlist={wishlist} toggle={toggleWishlist} add={addCart} /><CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} user={user} /></>;
   if (location.pathname.startsWith("/track-order/")) return <TrackOrder orders={orders} />;

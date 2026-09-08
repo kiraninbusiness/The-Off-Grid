@@ -4,6 +4,7 @@ import { auth, admin } from '../middleware/auth.js';
 import { notifyRestock } from './variants.js';
 import { sendEmail, priceDropEmail } from '../services/email.js';
 import { createNotification } from '../services/notifications.js';
+import { logAdminAction } from '../services/auditLog.js';
 
 const router = Router();
 
@@ -213,6 +214,13 @@ router.patch('/:id', auth, admin, async (req, res) => {
       notifyPriceDrop(rows[0], priceBefore).catch((e) => console.error('price drop notify failed:', e.message));
     }
 
+    if (priceBefore !== null && newPrice !== priceBefore) {
+      logAdminAction(req, {
+        action: 'product_price_changed', entity: 'product', entityId: rows[0].id,
+        oldValue: { price: priceBefore }, newValue: { price: newPrice }
+      });
+    }
+
     res.json(rows[0]);
   } catch (e) {
     console.error('PATCH /products/:id failed:', e);
@@ -223,8 +231,10 @@ router.patch('/:id', auth, admin, async (req, res) => {
 // DELETE /api/products/:id — remove (admin only)
 router.delete('/:id', auth, admin, async (req, res) => {
   try {
+    const before = await pool.query('SELECT * FROM products WHERE id = $1', [req.params.id]);
     const { rows } = await pool.query('DELETE FROM products WHERE id = $1 RETURNING id', [req.params.id]);
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    logAdminAction(req, { action: 'product_deleted', entity: 'product', entityId: req.params.id, oldValue: before.rows[0] || null });
     res.json({ success: true });
   } catch (e) {
     console.error('DELETE /products/:id failed:', e);

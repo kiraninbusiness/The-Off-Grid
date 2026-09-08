@@ -3,9 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
 import { pool } from '../db.js';
 import { auth } from '../middleware/auth.js';
 import { sendEmail, passwordResetEmail } from '../services/email.js';
+import { sanitizeText } from '../utils/sanitize.js';
 
 const router = Router();
 const googleClient = process.env.GOOGLE_CLIENT_ID ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID) : null;
@@ -23,6 +26,16 @@ const tokenFor = (u) =>
     }
   );
 
+// Fire-and-forget — feeds basic brute-force visibility without
+// blocking the actual login response.
+function logLoginAttempt(email, success, ip) {
+  if (!email) return;
+  pool.query(
+    'INSERT INTO login_attempts (email, success, ip) VALUES ($1,$2,$3)',
+    [email, success, ip]
+  ).catch((e) => console.error('logLoginAttempt failed:', e.message));
+}
+
 
 // =====================================================
 // REGISTER
@@ -36,11 +49,11 @@ router.post('/register', async (req, res) => {
       !name ||
       !email ||
       !password ||
-      password.length < 6
+      password.length < 12
     ) {
       return res.status(400).json({
         message:
-          'Name, email and 6+ character password are required'
+          'Name, email and a password of at least 12 characters are required'
       });
     }
 
@@ -77,7 +90,7 @@ router.post('/register', async (req, res) => {
         ($1, $2, $3, $4, $5)
        RETURNING id, name, email, role, referral_code`,
       [
-        name,
+        sanitizeText(name, 100),
         email.toLowerCase(),
         hash,
         myCode,
@@ -192,10 +205,23 @@ router.post('/login', async (req, res) => {
       ))
     ) {
 
+      logLoginAttempt(email?.toLowerCase(), false, req.ip);
       return res.status(401).json({
         message: 'Invalid email or password'
       });
 
+    }
+
+    logLoginAttempt(email?.toLowerCase(), true, req.ip);
+
+    // Admin accounts with 2FA enabled don't get a real session token
+    // yet — just a short-lived pre-auth token that only proves "this
+    // request already knew the correct password." The frontend then
+    // has to submit a valid TOTP code to /auth/2fa/verify-login to
+    // actually get a usable session.
+    if (u.role === 'admin' && u.totp_enabled) {
+      const preToken = jwt.sign({ id: u.id, stage: '2fa_pending' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+      return res.json({ requires_2fa: true, pre_token: preToken });
     }
 
     res.json({
@@ -259,9 +285,14 @@ router.post('/forgot-password', async (req, res) => {
 
     }
 
-    // Generate secure random token
+    // Generate secure random token — the RAW token goes in the email
+    // link; only its SHA-256 hash is ever stored. If the database
+    // were ever compromised, the leaked rows wouldn't be directly
+    // usable reset links.
     const resetToken =
       crypto.randomBytes(32).toString('hex');
+    const resetTokenHash =
+      crypto.createHash('sha256').update(resetToken).digest('hex');
 
     // Token expires in 30 minutes
     const expires =
@@ -273,7 +304,7 @@ router.post('/forgot-password', async (req, res) => {
            reset_token_expires=$2
        WHERE id=$3`,
       [
-        resetToken,
+        resetTokenHash,
         expires,
         user.id
       ]
@@ -343,21 +374,24 @@ router.post('/reset-password', async (req, res) => {
 
     }
 
-    if (password.length < 6) {
+    if (password.length < 12) {
 
       return res.status(400).json({
         message:
-          'Password must be at least 6 characters'
+          'Password must be at least 12 characters'
       });
 
     }
+
+    const submittedTokenHash =
+      crypto.createHash('sha256').update(String(token)).digest('hex');
 
     const { rows } = await pool.query(
       `SELECT *
        FROM users
        WHERE reset_token=$1
        AND reset_token_expires > NOW()`,
-      [token]
+      [submittedTokenHash]
     );
 
     const user = rows[0];
@@ -412,7 +446,7 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
 
   const { rows } = await pool.query(
-    `SELECT id, name, email, role, loyalty_points, referral_code
+    `SELECT id, name, email, role, loyalty_points, referral_code, totp_enabled
      FROM users
      WHERE id = $1`,
     [req.user.id]
@@ -452,7 +486,7 @@ router.patch('/me', auth, async (req, res) => {
   const values = [];
 
   if (name !== undefined) {
-    const trimmed = String(name).trim();
+    const trimmed = sanitizeText(name, 100);
     if (!trimmed) return res.status(400).json({ message: 'Name cannot be empty' });
     values.push(trimmed);
     sets.push(`name = $${values.length}`);
@@ -473,8 +507,8 @@ router.patch('/me', auth, async (req, res) => {
     if (!current_password || !(await bcrypt.compare(current_password, user.password_hash))) {
       return res.status(401).json({ message: 'Current password is incorrect' });
     }
-    if (String(new_password).length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    if (String(new_password).length < 12) {
+      return res.status(400).json({ message: 'New password must be at least 12 characters' });
     }
     values.push(await bcrypt.hash(new_password, 12));
     sets.push(`password_hash = $${values.length}`);
@@ -524,6 +558,87 @@ router.delete('/me', auth, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+
+// =====================================================
+// ADMIN 2FA (TOTP — Google Authenticator / Authy / etc.)
+// =====================================================
+
+// POST /api/auth/2fa/setup — admin only, generates a new secret + QR
+// code. Not yet enabled until confirmed via /2fa/enable below.
+router.post('/2fa/setup', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+
+  const secret = authenticator.generateSecret();
+  await pool.query('UPDATE users SET totp_secret = $1, totp_enabled = FALSE WHERE id = $2', [secret, req.user.id]);
+
+  const otpauthUrl = authenticator.keyuri(req.user.email, 'THE OFF GRID Admin', secret);
+  const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+
+  res.json({ secret, qr_code: qrDataUrl });
+});
+
+// POST /api/auth/2fa/enable — confirms setup with one valid code
+router.post('/2fa/enable', auth, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+
+  const userResult = await pool.query('SELECT totp_secret FROM users WHERE id = $1', [req.user.id]);
+  const secret = userResult.rows[0]?.totp_secret;
+  if (!secret) return res.status(400).json({ message: 'Run /2fa/setup first' });
+
+  if (!authenticator.check(String(req.body.code || ''), secret)) {
+    return res.status(400).json({ message: 'Invalid code — check your authenticator app and try again' });
+  }
+
+  await pool.query('UPDATE users SET totp_enabled = TRUE WHERE id = $1', [req.user.id]);
+  res.json({ success: true });
+});
+
+// POST /api/auth/2fa/disable — requires current password AND a valid code
+router.post('/2fa/disable', auth, async (req, res) => {
+  const { password, code } = req.body;
+  const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+  const u = userResult.rows[0];
+
+  if (!u || !(await bcrypt.compare(password || '', u.password_hash))) {
+    return res.status(401).json({ message: 'Incorrect password' });
+  }
+  if (!u.totp_secret || !authenticator.check(String(code || ''), u.totp_secret)) {
+    return res.status(400).json({ message: 'Invalid authenticator code' });
+  }
+
+  await pool.query('UPDATE users SET totp_secret = NULL, totp_enabled = FALSE WHERE id = $1', [req.user.id]);
+  res.json({ success: true });
+});
+
+// POST /api/auth/2fa/verify-login — second step of login for admins with 2FA on
+router.post('/2fa/verify-login', async (req, res) => {
+  const { pre_token, code } = req.body;
+
+  let payload;
+  try {
+    payload = jwt.verify(pre_token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ message: 'This login attempt has expired — please sign in again' });
+  }
+  if (payload.stage !== '2fa_pending') {
+    return res.status(400).json({ message: 'Invalid verification request' });
+  }
+
+  const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [payload.id]);
+  const u = userResult.rows[0];
+  if (!u || !u.totp_enabled || !u.totp_secret) {
+    return res.status(400).json({ message: 'Two-factor authentication is not active on this account' });
+  }
+  if (!authenticator.check(String(code || ''), u.totp_secret)) {
+    return res.status(401).json({ message: 'Invalid authenticator code' });
+  }
+
+  res.json({
+    user: { id: u.id, name: u.name, email: u.email, role: u.role },
+    token: tokenFor(u)
+  });
 });
 
 

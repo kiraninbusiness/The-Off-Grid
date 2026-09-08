@@ -10,7 +10,7 @@ const router = Router();
   Does NOT mutate the database — callers that need to consume a
   coupon (order creation) do that themselves inside a transaction.
 */
-async function checkCoupon(queryable, rawCode, subtotal) {
+async function checkCoupon(queryable, rawCode, subtotal, userId = null) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code) return { ok: false, message: 'Enter a coupon code' };
 
@@ -27,6 +27,15 @@ async function checkCoupon(queryable, rawCode, subtotal) {
   }
   if (coupon.usage_limit != null && coupon.used_count >= coupon.usage_limit) {
     return { ok: false, message: 'This coupon has reached its usage limit' };
+  }
+  if (userId) {
+    const perUser = await queryable.query(
+      'SELECT COUNT(*)::int AS count FROM coupon_redemptions WHERE coupon_id = $1 AND user_id = $2',
+      [coupon.id, userId]
+    );
+    if (perUser.rows[0].count >= (coupon.max_uses_per_user || 1)) {
+      return { ok: false, message: "You've already used this coupon" };
+    }
   }
   if (subtotal < coupon.min_order) {
     return {

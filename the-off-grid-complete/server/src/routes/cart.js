@@ -84,7 +84,7 @@ router.post('/merge', async (req, res) => {
       `INSERT INTO cart_items (user_id, product_id, quantity, selected_size, selected_color, updated_at)
        VALUES ($1,$2,$3,$4,$5,NOW())
        ON CONFLICT (user_id, product_id, selected_size, selected_color)
-       DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity, updated_at = NOW()`,
+       DO UPDATE SET quantity = LEAST(cart_items.quantity + EXCLUDED.quantity, 20), updated_at = NOW()`,
       [req.user.id, item.id, Math.max(1, Number(item.qty) || 1), item.selectedSize || '', item.selectedColor || '']
     );
   }

@@ -344,6 +344,71 @@ export async function initDb(){
 
   await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6)) WHERE referral_code IS NULL`);
 
+  /* ===== SECURITY HARDENING ADDITIONS ===== */
+
+  // Admin audit log
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_audit_logs(
+      id SERIAL PRIMARY KEY,
+      admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      admin_email TEXT,
+      action TEXT NOT NULL,
+      entity TEXT,
+      entity_id TEXT,
+      old_value JSONB,
+      new_value JSONB,
+      ip TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS admin_audit_logs_created_idx ON admin_audit_logs(created_at DESC)`);
+
+  // Admin TOTP 2FA
+  await pool.query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS totp_secret TEXT,
+      ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+
+  // Failed-login tracking (basic brute-force visibility, feeds the audit log)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS login_attempts(
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      success BOOLEAN NOT NULL,
+      ip TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS login_attempts_email_idx ON login_attempts(email, created_at DESC)`);
+
+  // Idempotency: a given Razorpay payment should only ever settle one order.
+  // Wrapped in try/catch — if duplicate payment_ids somehow already exist
+  // in production data, this shouldn't crash server startup; it'll just
+  // need a manual cleanup pass before the constraint can be added.
+  try {
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS orders_razorpay_payment_unique ON orders(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL`);
+  } catch (e) {
+    console.error('Could not create orders_razorpay_payment_unique index (likely pre-existing duplicates) — investigate manually:', e.message);
+  }
+
+  // Coupon abuse: per-user usage tracking (was only a global used_count before)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS coupon_redemptions(
+      id SERIAL PRIMARY KEY,
+      coupon_id INTEGER NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(coupon_id, user_id, order_id)
+    )
+  `);
+  await pool.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_user INTEGER NOT NULL DEFAULT 1`);
+
+  // Referral abuse: only pay out once the referred user actually completes a purchase
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_paid BOOLEAN NOT NULL DEFAULT FALSE`);
+
   /* ===== ROUND 5 ADDITIONS ===== */
 
   // Product fields the admin form never actually exposed
@@ -430,6 +495,37 @@ export async function initDb(){
   `);
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_size SET DEFAULT '', ALTER COLUMN selected_size SET NOT NULL`);
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_color SET DEFAULT '', ALTER COLUMN selected_color SET NOT NULL`);
+
+  /* ===== EMERGENCY CART QUANTITY SANITIZATION =====
+     A separate, worse bug (now fixed in App.jsx) had the frontend
+     calling the ADDITIVE cart-merge endpoint on every single page
+     load with a persisted session — not just on an actual login. That
+     roughly doubled every cart line's quantity every time the site
+     was reopened, capable of reaching 1000+ "items" with zero user
+     action. No real customer has genuinely added that many of
+     anything, so any existing quantity in the multi-hundreds is
+     certainly bug fallout, not real intent — reset to 1 rather than
+     preserved, since there's no way to recover what was actually
+     intended from a corrupted number. */
+  await pool.query(`UPDATE cart_items SET quantity = 1 WHERE quantity > 20`);
+
+  /* ===== CART SANITY CAP =====
+     Collapsing duplicate rows above only fixes the row-count side of
+     the bug — if a single row's quantity was already inflated (e.g.
+     from repeated merge calls compounding before the merge-guard fix
+     below), summing duplicates together still lands on the same
+     inflated total. A real customer essentially never has 50+ of the
+     same item in their cart, so treat totals that large as leftover
+     bug damage: cap any absurd single-line quantity, and if a user's
+     whole cart is still absurd after that, just clear it rather than
+     preserve a nonsense number. Safe to run every startup — a normal
+     cart is always well under these thresholds and is never touched. */
+  await pool.query(`UPDATE cart_items SET quantity = 10 WHERE quantity > 10`);
+  await pool.query(`
+    DELETE FROM cart_items WHERE user_id IN (
+      SELECT user_id FROM cart_items GROUP BY user_id HAVING SUM(quantity) > 50
+    )
+  `);
 
   /* ===== ROUND 10 ADDITIONS ===== */
 

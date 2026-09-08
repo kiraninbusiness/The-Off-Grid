@@ -16,8 +16,8 @@ export default function ResetPassword() {
     e.preventDefault();
     setErr("");
 
-    if (password.length < 6) {
-      setErr("Password must be at least 6 characters.");
+    if (password.length < 12) {
+      setErr("Password must be at least 12 characters.");
       return;
     }
     if (password !== confirm) {
@@ -65,7 +65,7 @@ export default function ResetPassword() {
           <input
             required
             type="password"
-            placeholder="NEW PASSWORD (6+ CHARACTERS)"
+            placeholder="NEW PASSWORD (12+ CHARACTERS)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

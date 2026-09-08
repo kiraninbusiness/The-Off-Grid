@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth, admin } from '../middleware/auth.js';
+import { logAdminAction } from '../services/auditLog.js';
 
 const router = Router();
 router.use(auth, admin);
@@ -59,13 +60,16 @@ router.patch('/reviews/:id', async (req, res) => {
     [Boolean(hidden), req.params.id]
   );
   if (!rows.length) return res.status(404).json({ message: 'Review not found' });
+  logAdminAction(req, { action: hidden ? 'review_hidden' : 'review_unhidden', entity: 'review', entityId: req.params.id });
   res.json(rows[0]);
 });
 
 // DELETE /api/admin/reviews/:id — remove a review entirely
 router.delete('/reviews/:id', async (req, res) => {
+  const before = await pool.query('SELECT * FROM reviews WHERE id = $1', [req.params.id]);
   const { rows } = await pool.query('DELETE FROM reviews WHERE id = $1 RETURNING id', [req.params.id]);
   if (!rows.length) return res.status(404).json({ message: 'Review not found' });
+  logAdminAction(req, { action: 'review_deleted', entity: 'review', entityId: req.params.id, oldValue: before.rows[0] || null });
   res.json({ success: true });
 });
 
@@ -146,6 +150,14 @@ router.get('/analytics', async (req, res) => {
     low_stock: lowStock.rows,
     customers: { ...customerStats.rows[0], repeat_customers: repeatCustomers.rows[0].repeat_count }
   });
+});
+
+// GET /api/admin/audit-log — recent admin actions
+router.get('/audit-log', async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM admin_audit_logs ORDER BY created_at DESC LIMIT 200`
+  );
+  res.json(rows);
 });
 
 export default router;

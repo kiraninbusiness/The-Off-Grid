@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db.js';
 import { auth } from '../middleware/auth.js';
+import { sanitizeText } from '../utils/sanitize.js';
 
 const router = Router();
 
@@ -42,6 +43,8 @@ router.post('/:productId', auth, async (req, res) => {
     return res.status(400).json({ message: 'Rating must be between 1 and 5' });
   }
 
+  const cleanComment = sanitizeText(comment, 1000);
+
   const purchase = await pool.query(
     `SELECT 1
      FROM order_items oi
@@ -61,7 +64,7 @@ router.post('/:productId', auth, async (req, res) => {
      ON CONFLICT (product_id, user_id)
      DO UPDATE SET rating = EXCLUDED.rating, comment = EXCLUDED.comment, verified_purchase = EXCLUDED.verified_purchase, created_at = NOW()
      RETURNING id, rating, comment, verified_purchase, created_at`,
-    [productId, req.user.id, ratingNum, comment.slice(0, 1000), verifiedPurchase]
+    [productId, req.user.id, ratingNum, cleanComment, verifiedPurchase]
   );
 
   res.status(201).json({
