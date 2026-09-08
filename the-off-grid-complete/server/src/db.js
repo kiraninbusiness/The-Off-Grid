@@ -473,7 +473,21 @@ export async function initDb(){
      rows. Fix: normalize NULL to '' (empty string IS comparable),
      collapse any duplicate rows already sitting in the database
      (summing their quantities into one), then make the columns
-     NOT NULL going forward so this can't happen again. */
+     NOT NULL going forward so this can't happen again.
+
+     DEPLOY-CRASH FIX: the normalize UPDATE below can itself violate
+     the very constraint it's trying to fix — if a NULL row and an
+     already-'' row exist for the same user+product (e.g. from a
+     previous partial run of this migration, or from before this
+     table had the constraint at all), setting NULL -> '' collides
+     with the existing '' row and Postgres rejects the UPDATE with
+     "duplicate key value violates unique constraint
+     cart_items_user_id_product_id_selected_size_selected_color_key"
+     — which is the exact error that was crashing every deploy. The
+     constraint has to come off before normalizing, and go back on
+     (as an index, which is all ON CONFLICT actually needs) only after
+     the data underneath it is already clean. */
+  await pool.query(`ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS cart_items_user_id_product_id_selected_size_selected_color_key`);
   await pool.query(`UPDATE cart_items SET selected_size = COALESCE(selected_size, ''), selected_color = COALESCE(selected_color, '')`);
   await pool.query(`
     WITH duplicates AS (
@@ -495,6 +509,13 @@ export async function initDb(){
   `);
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_size SET DEFAULT '', ALTER COLUMN selected_size SET NOT NULL`);
   await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_color SET DEFAULT '', ALTER COLUMN selected_color SET NOT NULL`);
+  // Data underneath is guaranteed duplicate-free by the DELETE above, so
+  // this is now safe to (re)create — and it's what ON CONFLICT (user_id,
+  // product_id, selected_size, selected_color) in cart.js targets.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS cart_items_user_product_variant_idx
+    ON cart_items (user_id, product_id, selected_size, selected_color)
+  `);
 
   /* ===== EMERGENCY CART QUANTITY SANITIZATION =====
      A separate, worse bug (now fixed in App.jsx) had the frontend
