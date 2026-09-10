@@ -599,3 +599,39 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-
 .account-2fa-section h3{font-size:10px;letter-spacing:1px;margin-bottom:12px;color:#888}
 .two-fa-qr{width:180px;height:180px;background:#fff;padding:10px;margin:10px 0}
 .two-fa-setup{max-width:420px}
+
+/* Journal / blog */
+.journal-list{padding:60px 7% 100px;display:grid;gap:50px;max-width:900px;margin:0 auto}
+.journal-list-item{display:grid;grid-template-columns:280px 1fr;gap:35px;text-align:left;align-items:center}
+.journal-list-image{height:200px;overflow:hidden;background:var(--surface)}
+.journal-list-image img{width:100%;height:100%;object-fit:cover}
+.journal-list-copy span{font-size:10px;letter-spacing:1px;color:var(--orange)}
+.journal-list-copy h2{font-family:"Space Grotesk";font-size:26px;margin:10px 0;letter-spacing:-.5px}
+.journal-list-copy p{color:#999;font-size:13px;line-height:1.6;margin-bottom:12px}
+.journal-read-more{font-size:10px;letter-spacing:1px;color:var(--orange);display:inline-flex;align-items:center;gap:6px}
+.journal-post-hero{height:60vh;min-height:380px;overflow:hidden}
+.journal-post-hero img{width:100%;height:100%;object-fit:cover}
+.journal-post-body{max-width:680px;margin:0 auto;padding:70px 7%}
+.journal-post-body>span{font-size:10px;letter-spacing:1px;color:var(--orange)}
+.journal-post-body h1{font-family:"Space Grotesk";font-size:clamp(32px,5vw,52px);line-height:1.05;letter-spacing:-1.5px;margin:15px 0 35px}
+.journal-post-body p{color:#ccc;line-height:1.9;font-size:15px;margin-bottom:22px}
+.journal-more{border-top:1px solid var(--line);padding-top:60px}
+.journal-more h2{font-size:12px;letter-spacing:1.5px;color:#888;margin-bottom:30px}
+
+@media(max-width:900px){
+  .journal-list-item{grid-template-columns:1fr}
+  .journal-list-image{height:220px}
+}
+
+/* Size guide: CM/inches toggle */
+.size-guide-unit-toggle{display:flex;gap:8px;margin:14px 0}
+.size-guide-unit-toggle button{border:1px solid var(--line);padding:7px 16px;font-size:9px;letter-spacing:1px}
+.size-guide-unit-toggle button.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+/* Admin: size chart editor */
+.admin-size-chart-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 36px;gap:8px;margin-bottom:8px}
+.admin-size-chart-row input{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:10px;font-size:11px}
+.admin-size-chart-remove{border:1px solid var(--line);display:grid;place-items:center;color:var(--orange)}
+@media(max-width:900px){
+  .admin-size-chart-row{grid-template-columns:1fr 1fr}
+}

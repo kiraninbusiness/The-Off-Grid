@@ -42,7 +42,8 @@ const empty = {
   care_instructions: "",
   model_details: "",
   meta_title: "",
-  meta_description: ""
+  meta_description: "",
+  size_chart: []
 };
 
 const money = (n) =>
@@ -416,7 +417,8 @@ export default function Admin({ user }) {
         images,
         price,
         old_price: oldPrice,
-        stock
+        stock,
+        size_chart: (f.size_chart || []).filter((row) => row.size && String(row.size).trim())
       };
 
       if (editing) {
@@ -635,7 +637,8 @@ export default function Admin({ user }) {
       care_instructions: product.care_instructions || "",
       model_details: product.model_details || "",
       meta_title: product.meta_title || "",
-      meta_description: product.meta_description || ""
+      meta_description: product.meta_description || "",
+      size_chart: Array.isArray(product.size_chart) ? product.size_chart : []
     });
 
     setErr("");
@@ -1289,6 +1292,32 @@ export default function Admin({ user }) {
                 META DESCRIPTION
                 <textarea rows={2} maxLength={160} placeholder="Shown in Google search results — keep it under 160 characters" value={f.meta_description} onChange={(e) => change("meta_description", e.target.value)} />
               </label>
+            </div>
+
+            <div className="admin-seo-block">
+              <span className="admin-seo-label">SIZE CHART (OPTIONAL — leave empty to use the generic size guide. Measurements in CM; customers can toggle to inches automatically.)</span>
+              {f.size_chart.map((row, i) => (
+                <div className="admin-size-chart-row" key={i}>
+                  <input placeholder="SIZE (e.g. M)" value={row.size || ""} onChange={(e) => {
+                    const next = [...f.size_chart]; next[i] = { ...next[i], size: e.target.value }; change("size_chart", next);
+                  }} />
+                  <input type="number" placeholder="CHEST (CM)" value={row.chest_cm ?? ""} onChange={(e) => {
+                    const next = [...f.size_chart]; next[i] = { ...next[i], chest_cm: e.target.value === "" ? null : Number(e.target.value) }; change("size_chart", next);
+                  }} />
+                  <input type="number" placeholder="LENGTH (CM)" value={row.length_cm ?? ""} onChange={(e) => {
+                    const next = [...f.size_chart]; next[i] = { ...next[i], length_cm: e.target.value === "" ? null : Number(e.target.value) }; change("size_chart", next);
+                  }} />
+                  <input type="number" placeholder="SHOULDER (CM)" value={row.shoulder_cm ?? ""} onChange={(e) => {
+                    const next = [...f.size_chart]; next[i] = { ...next[i], shoulder_cm: e.target.value === "" ? null : Number(e.target.value) }; change("size_chart", next);
+                  }} />
+                  <button type="button" className="admin-size-chart-remove" onClick={() => change("size_chart", f.size_chart.filter((_, idx) => idx !== i))}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="text-button" onClick={() => change("size_chart", [...f.size_chart, { size: "", chest_cm: null, length_cm: null, shoulder_cm: null }])}>
+                <Plus size={13} /> ADD SIZE ROW
+              </button>
             </div>
 
 
