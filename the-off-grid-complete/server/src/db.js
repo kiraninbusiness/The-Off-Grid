@@ -580,6 +580,9 @@ export async function initDb(){
   // which stage of the 30min/6hr/24hr/48hr sequence has been sent)
   await pool.query(`ALTER TABLE cart_items ADD COLUMN IF NOT EXISTS abandoned_stage INTEGER NOT NULL DEFAULT 0`);
 
+  // Per-product custom size chart (chest/length/shoulder in cm per size)
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS size_chart JSONB`);
+
   const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
   if(rows[0].count===0){
     await pool.query(`INSERT INTO products
@@ -598,6 +601,64 @@ export async function initDb(){
       ('VOID WIDE LEG DENIM','Wide-leg denim with a relaxed profile and washed finish.','BOTTOMS','UNISEX','28 / 30 / 32 / 34 / 36','NEW',2999,3699,'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90',8,'WASHED BLACK','WIDE LEG'),
       ('NIGHT SHIFT TEE','Relaxed everyday tee with a vintage-inspired washed finish.','T-SHIRTS','UNISEX','S / M / L / XL','BESTSELLER',1499,1899,'https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1200&q=90',18,'WASHED BLACK','OVERSIZED')
     `);
+  }
+
+  /*
+    Idempotent addition — runs on every startup regardless of catalog
+    size (unlike the block above, which only runs on a totally empty
+    table). Checked by name so re-running this on a server that
+    already has these products is a safe no-op.
+  */
+  const newProducts = [
+    {
+      name: 'NIGHTGUARD PADDED JACKET',
+      description: 'Heavyweight padded jacket built for real cold — insulated, wind-resistant, and cut for layering.',
+      category: 'JACKETS', gender: 'UNISEX', size: 'M / L / XL / XXL', condition: 'NEW',
+      price: 4999, old_price: 5999,
+      image: 'https://images.unsplash.com/photo-1557418669-db3f781a58c0?auto=format&fit=crop&w=1200&q=90',
+      images: [
+        'https://images.unsplash.com/photo-1557418669-db3f781a58c0?auto=format&fit=crop&w=1200&q=90',
+        'https://images.unsplash.com/photo-1611025504703-8c143abe6996?auto=format&fit=crop&w=1200&q=90',
+        'https://images.unsplash.com/photo-1706765779533-6c0210fab380?auto=format&fit=crop&w=1200&q=90',
+      ],
+      stock: 10, color: 'BLACK', fit: 'REGULAR',
+      size_chart: [
+        { size: 'M', chest_cm: 52, length_cm: 60, shoulder_cm: 46 },
+        { size: 'L', chest_cm: 53, length_cm: 62, shoulder_cm: 48 },
+        { size: 'XL', chest_cm: 56, length_cm: 65, shoulder_cm: 50 },
+        { size: 'XXL', chest_cm: 59, length_cm: 67, shoulder_cm: 52 },
+      ],
+    },
+    {
+      name: 'SHIELD WINDCHEATER',
+      description: 'Light, wind-resistant shell for everyday layering — built for transitional weather.',
+      category: 'JACKETS', gender: 'UNISEX', size: 'M / L / XL / XXL', condition: 'NEW',
+      price: 3499, old_price: 3999,
+      image: 'https://images.unsplash.com/photo-1614031679232-0dae776a72ee?auto=format&fit=crop&w=1200&q=90',
+      images: [
+        'https://images.unsplash.com/photo-1614031679232-0dae776a72ee?auto=format&fit=crop&w=1200&q=90',
+        'https://images.unsplash.com/photo-1556098539-3019e1bdf05e?auto=format&fit=crop&w=1200&q=90',
+        'https://images.unsplash.com/photo-1614079290101-0c2181ac8ea3?auto=format&fit=crop&w=1200&q=90',
+      ],
+      stock: 14, color: 'BLACK', fit: 'REGULAR',
+      size_chart: [
+        { size: 'M', chest_cm: 50, length_cm: 60, shoulder_cm: 45 },
+        { size: 'L', chest_cm: 52, length_cm: 62, shoulder_cm: 47 },
+        { size: 'XL', chest_cm: 54, length_cm: 64, shoulder_cm: 54 },
+        { size: 'XXL', chest_cm: 57, length_cm: 66, shoulder_cm: 56 },
+      ],
+    },
+  ];
+
+  for (const p of newProducts) {
+    const existing = await pool.query('SELECT id FROM products WHERE name = $1', [p.name]);
+    if (existing.rows.length) continue;
+    await pool.query(
+      `INSERT INTO products (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit, size_chart)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [p.name, p.description, p.category, p.gender, p.size, p.condition, p.price, p.old_price, p.image, p.images, p.stock, p.color, p.fit, JSON.stringify(p.size_chart)]
+    );
+    console.log(`Seeded new product: ${p.name}`);
   }
 }
 if(process.argv[1]?.endsWith('src/db.js')) initDb().then(()=>{console.log('Database ready');process.exit()}).catch(e=>{console.error(e);process.exit(1)});

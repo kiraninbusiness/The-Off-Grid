@@ -178,7 +178,7 @@ router.post('/', auth, admin, async (req, res) => {
 // PATCH /api/products/:id — update (admin only)
 router.patch('/:id', auth, admin, async (req, res) => {
   try {
-    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video', 'meta_title', 'meta_description', 'slug', 'material', 'care_instructions', 'model_details'];
+    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video', 'meta_title', 'meta_description', 'slug', 'material', 'care_instructions', 'model_details', 'size_chart'];
     const sets = [];
     const values = [];
 
@@ -188,7 +188,10 @@ router.patch('/:id', auth, admin, async (req, res) => {
 
     for (const field of fields) {
       if (req.body[field] !== undefined) {
-        values.push(field === 'images' ? (Array.isArray(req.body.images) ? req.body.images : []) : req.body[field]);
+        let value = req.body[field];
+        if (field === 'images') value = Array.isArray(value) ? value : [];
+        if (field === 'size_chart') value = value === null ? null : JSON.stringify(Array.isArray(value) ? value : []);
+        values.push(value);
         sets.push(`${field} = $${values.length}`);
       }
     }
