@@ -30,6 +30,20 @@ import { productUrl } from "./utils/productUrl";
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // React Router does NOT reset scroll position on navigation by
+  // default — this is the root cause behind two separate-looking
+  // reports: the admin page appearing "blank" (you land on it still
+  // scrolled to wherever you were on the previous, often longer,
+  // page — if Admin's content doesn't reach that far down, you're
+  // just looking at empty space past the end of it) and product pages
+  // opening "scrolled to the bottom" (identical mechanism). Every
+  // route change now starts at the top, matching normal site
+  // behavior.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const [menu, setMenu] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
