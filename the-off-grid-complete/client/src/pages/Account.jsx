@@ -14,6 +14,7 @@ export default function Account({user,setUser,orders=[],onAuthenticated=()=>{}})
  const [busy,setBusy]=useState(false),[addressBusy,setAddressBusy]=useState(false),[err,setErr]=useState(""),[notice,setNotice]=useState(""),[forgot,setForgot]=useState(false),[forgotEmail,setForgotEmail]=useState("");
  const [returns,setReturns]=useState([]);
  const [needs2fa,setNeeds2fa]=useState(false),[preToken,setPreToken]=useState(""),[totpCode,setTotpCode]=useState("");
+ useEffect(()=>{if(new URLSearchParams(window.location.search).get("session")==="expired"){setErr("Your session expired — please sign in again.");window.history.replaceState(null,"","/account")}},[]);
  const [twoFaSetup,setTwoFaSetup]=useState(null),[twoFaCode,setTwoFaCode]=useState(""),[twoFaBusy,setTwoFaBusy]=useState(false),[twoFaErr,setTwoFaErr]=useState("");
  const [disable2faOpen,setDisable2faOpen]=useState(false),[disable2faPassword,setDisable2faPassword]=useState(""),[disable2faCode,setDisable2faCode]=useState("");
  const start2faSetup=async()=>{setTwoFaBusy(true);setTwoFaErr("");try{const r=await api("/auth/2fa/setup",{method:"POST"});setTwoFaSetup(r)}catch(e){setTwoFaErr(e.message||"Could not start setup")}finally{setTwoFaBusy(false)}};

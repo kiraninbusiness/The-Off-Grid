@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, ArrowUpRight, Instagram, Youtube, User, Settings, Bell } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ProductDetails from "./pages/ProductDetails";
@@ -40,8 +40,31 @@ export default function App() {
   // opening "scrolled to the bottom" (identical mechanism). Every
   // route change now starts at the top, matching normal site
   // behavior.
+  //
+  // Three layers, because a single scrollTo() call is not actually
+  // reliable against two separate browser behaviors:
+  //  1. The browser's OWN scroll restoration (history.scrollRestoration,
+  //     default "auto") tries to restore the old scroll position on
+  //     its own — set to "manual" once, so it stops fighting React.
+  //  2. Chrome's scroll anchoring feature re-adjusts scroll position
+  //     to "compensate" as images load in and shift layout height —
+  //     disabled globally via CSS (see styles.css) rather than only
+  //     scrolling once before those images have even loaded.
+  //  3. useLayoutEffect (not useEffect) so the reset happens before
+  //     the browser paints the new route at all, instead of after —
+  //     useEffect can let one frame render at the old scroll position
+  //     first, which is visible as a flash/jump on a slow connection.
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+  useLayoutEffect(() => {
+    // Explicit "instant" — html has scroll-behavior:smooth set
+    // globally (styles.css), which would otherwise turn this into an
+    // animated scroll that a layout shift (images loading in) can
+    // interrupt partway, landing short of the top.
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [location.pathname]);
 
   const [menu, setMenu] = useState(false);
