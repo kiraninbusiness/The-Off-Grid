@@ -2651,8 +2651,8 @@ export default function Admin({ user }) {
 
       </section>
 
-      <AdminCreators />\n      <AdminExtras user={user} />
-
+      <AdminCreators />
+      <AdminExtras user={user} />
     </main>
   );
 }
