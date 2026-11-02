@@ -80,6 +80,7 @@ export async function initDb(){
   await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_size TEXT");
   await pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS selected_color TEXT");
   await pool.query("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS verified_purchase BOOLEAN NOT NULL DEFAULT FALSE");
+  await pool.query("ALTER TABLE reviews ADD COLUMN IF NOT EXISTS fit_feedback TEXT");
   await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS reset_token TEXT,
@@ -194,6 +195,19 @@ export async function initDb(){
   `);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gift_card_code TEXT, ADD COLUMN IF NOT EXISTS gift_card_discount INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS combo_discount INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS courier TEXT, ADD COLUMN IF NOT EXISTS awb TEXT, ADD COLUMN IF NOT EXISTS tracking_url TEXT, ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS processing_at TIMESTAMPTZ`);
+  // Phone OTP login: one account per verified mobile number; codes are stored hashed.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique_idx ON users (phone) WHERE phone IS NOT NULL`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS otp_codes(
+    phone TEXT PRIMARY KEY,
+    code_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    requests_in_hour INTEGER NOT NULL DEFAULT 1,
+    window_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
 
   /*
     GIFT CARD PAYMENT GATING (P0 fix)
@@ -405,6 +419,36 @@ export async function initDb(){
     )
   `);
   await pool.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS max_uses_per_user INTEGER NOT NULL DEFAULT 1`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS model_height_cm INTEGER`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS model_wears_size TEXT`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS fabric_gsm INTEGER`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS fabric_composition TEXT`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gift_wrap BOOLEAN NOT NULL DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS gift_message TEXT`);
+  await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS packaging_fee INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS min_tier TEXT`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS early_access_until TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS early_access_tier TEXT`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS points_ledger(
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    delta INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    order_id INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS points_ledger_user_idx ON points_ledger (user_id, id DESC)`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday DATE`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_reward_year INTEGER`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS review_photos(
+    id SERIAL PRIMARY KEY,
+    review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS review_photos_review_idx ON review_photos (review_id)`);
+  await pool.query(`ALTER TABLE coupons ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT FALSE`);
 
   // Referral abuse: only pay out once the referred user actually completes a purchase
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_paid BOOLEAN NOT NULL DEFAULT FALSE`);
@@ -517,36 +561,32 @@ export async function initDb(){
     ON cart_items (user_id, product_id, selected_size, selected_color)
   `);
 
-  /* ===== EMERGENCY CART QUANTITY SANITIZATION =====
-     A separate, worse bug (now fixed in App.jsx) had the frontend
-     calling the ADDITIVE cart-merge endpoint on every single page
-     load with a persisted session — not just on an actual login. That
-     roughly doubled every cart line's quantity every time the site
-     was reopened, capable of reaching 1000+ "items" with zero user
-     action. No real customer has genuinely added that many of
-     anything, so any existing quantity in the multi-hundreds is
-     certainly bug fallout, not real intent — reset to 1 rather than
-     preserved, since there's no way to recover what was actually
-     intended from a corrupted number. */
-  await pool.query(`UPDATE cart_items SET quantity = 1 WHERE quantity > 20`);
-
-  /* ===== CART SANITY CAP =====
-     Collapsing duplicate rows above only fixes the row-count side of
-     the bug — if a single row's quantity was already inflated (e.g.
-     from repeated merge calls compounding before the merge-guard fix
-     below), summing duplicates together still lands on the same
-     inflated total. A real customer essentially never has 50+ of the
-     same item in their cart, so treat totals that large as leftover
-     bug damage: cap any absurd single-line quantity, and if a user's
-     whole cart is still absurd after that, just clear it rather than
-     preserve a nonsense number. Safe to run every startup — a normal
-     cart is always well under these thresholds and is never touched. */
-  await pool.query(`UPDATE cart_items SET quantity = 10 WHERE quantity > 10`);
-  await pool.query(`
-    DELETE FROM cart_items WHERE user_id IN (
-      SELECT user_id FROM cart_items GROUP BY user_id HAVING SUM(quantity) > 50
-    )
-  `);
+  /* ===== SAFE CART NORMALIZATION MIGRATION =====
+     Apply a one-time quantity cap to legacy rows without deleting customer
+     carts. This is guarded by a migration marker and does not run on every
+     server startup.
+  */
+  await pool.query(`CREATE TABLE IF NOT EXISTS app_migrations (
+    migration_key TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  const migrationClient = await pool.connect();
+  try {
+    await migrationClient.query('BEGIN');
+    const migration = await migrationClient.query(
+      `INSERT INTO app_migrations (migration_key) VALUES ('cart_quantity_cap_v1')
+       ON CONFLICT (migration_key) DO NOTHING RETURNING migration_key`
+    );
+    if (migration.rows.length) {
+      await migrationClient.query(`UPDATE cart_items SET quantity = 10 WHERE quantity > 10`);
+    }
+    await migrationClient.query('COMMIT');
+  } catch (e) {
+    await migrationClient.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    migrationClient.release();
+  }
 
   /* ===== ROUND 10 ADDITIONS ===== */
 
@@ -567,6 +607,84 @@ export async function initDb(){
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, created_at DESC)`);
+
+  // Durable guest-cart merge idempotency keys.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cart_merge_requests (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      request_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, request_id)
+    )
+  `);
+
+  // Push tokens are owned by a single account and updated when Expo rotates them.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_push_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      platform TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS user_push_tokens_user_idx ON user_push_tokens(user_id)`);
+
+  // Verified webhook payloads survive process errors and can be safely retried.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS razorpay_webhook_events (
+      event_id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      status TEXT NOT NULL DEFAULT 'processing',
+      attempts INTEGER NOT NULL DEFAULT 1,
+      last_error TEXT,
+      received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      processed_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS razorpay_webhook_events_status_idx ON razorpay_webhook_events(status, received_at)`);
+
+  // Payment captured after an online order was already cancelled: keep it visible
+  // for an explicit admin refund workflow instead of silently ignoring a real charge.
+  await pool.query(`ALTER TABLE orders
+    ADD COLUMN IF NOT EXISTS payment_reconciliation_status TEXT,
+    ADD COLUMN IF NOT EXISTS razorpay_refund_id TEXT,
+    ADD COLUMN IF NOT EXISTS refund_settled_at TIMESTAMPTZ
+  `);
+
+  // Idempotent loyalty clawbacks for issued return refunds.
+  await pool.query(`CREATE TABLE IF NOT EXISTS loyalty_refund_reversals (
+    id SERIAL PRIMARY KEY,
+    return_id INTEGER NOT NULL UNIQUE REFERENCES returns(id) ON DELETE CASCADE,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refund_amount INTEGER NOT NULL CHECK (refund_amount > 0),
+    points_reversed INTEGER NOT NULL CHECK (points_reversed >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+
+  // Creator programme applications. This stores application/moderation data only;
+  // payout details and commission liabilities are deliberately not collected here.
+  await pool.query(`CREATE TABLE IF NOT EXISTS creator_applications (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    platform TEXT NOT NULL CHECK (platform IN ('instagram','youtube','tiktok')),
+    handle TEXT NOT NULL,
+    secondary_handle TEXT,
+    follower_count BIGINT NOT NULL DEFAULT 0 CHECK (follower_count >= 0),
+    audience TEXT NOT NULL,
+    bio TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','paused')),
+    admin_note TEXT,
+    reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS creator_applications_status_created_idx ON creator_applications(status, created_at DESC)`);
 
   // Order modification before shipping — track that an order was edited
   await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ`);

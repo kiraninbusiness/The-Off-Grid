@@ -1,3 +1,4 @@
+import { normalizeShipment } from '../services/shipment.js';
 import { Router } from 'express';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
@@ -7,6 +8,11 @@ import { checkCoupon } from './coupons.js';
 import { sendEmail, orderConfirmationEmail, orderStatusEmail } from '../services/email.js';
 import { logStockMovement } from './variants.js';
 import { createNotification } from '../services/notifications.js';
+import { pointsForOrder, earlyAccessInfo } from '../services/club.js';
+import { deliveredSpend } from '../services/clubSpend.js';
+import { packagingFee, cleanGiftMessage } from '../services/premium.js';
+import { tierFor } from '../services/club.js';
+import { estimateDelivery } from '../services/deliveryEstimate.js';
 
 const router = Router();
 
@@ -32,7 +38,12 @@ export async function awardLoyaltyPoints(client, orderId) {
   if (!orderResult.rows.length) return;
 
   const order = orderResult.rows[0];
-  const points = Math.floor(Number(order.total) / 100);
+  // Members on higher tiers earn bonus points. Tier is based on spend from earlier settled orders.
+  // Use the same delivered-order lifetime spend as the Club tier screen.
+  // This keeps tier multipliers consistent across the app and checkout.
+  const spendBefore = await deliveredSpend(client, order.user_id);
+  const split = pointsForOrder(order.total, spendBefore);
+  const points = split.base + split.bonus;
 
   if (points <= 0) {
     await client.query(
@@ -48,6 +59,16 @@ export async function awardLoyaltyPoints(client, orderId) {
      WHERE id = $2`,
     [points, order.user_id]
   );
+  await client.query(
+    `INSERT INTO points_ledger (user_id, delta, reason, order_id) VALUES ($1, $2, 'purchase', $3)`,
+    [order.user_id, split.base, orderId]
+  );
+  if (split.bonus > 0) {
+    await client.query(
+      `INSERT INTO points_ledger (user_id, delta, reason, order_id) VALUES ($1, $2, $3, $4)`,
+      [order.user_id, split.bonus, `${split.tier}_bonus`, orderId]
+    );
+  }
 
   await client.query(
     `UPDATE orders
@@ -98,6 +119,10 @@ export async function awardLoyaltyPoints(client, orderId) {
          WHERE id = $2`,
         [REFERRAL_BONUS, referredBy]
       );
+      await client.query(
+        `INSERT INTO points_ledger (user_id, delta, reason, order_id) VALUES ($1, $2, 'referral', $3)`,
+        [referredBy, REFERRAL_BONUS, orderId]
+      );
     }
 
     await client.query(
@@ -115,14 +140,21 @@ export async function awardLoyaltyPoints(client, orderId) {
 */
 router.post('/create', auth, async (req, res) => {
   const {
-    items = [],
+    items: rawItems = [],
     shipping = {},
     payment_method = 'cod',
     redeem_points = 0,
     coupon_code = '',
-    gift_card_code = ''
+    gift_card_code = '',
+    gift_wrap = false,
+    gift_message = ''
   } = req.body;
 
+  if (!Array.isArray(rawItems)) {
+    return res.status(400).json({ message: 'Cart items must be provided as a list.' });
+  }
+
+  const items = rawItems;
   if (!['cod', 'online'].includes(payment_method)) {
     return res.status(400).json({
       message: 'Invalid payment method'
@@ -133,6 +165,26 @@ router.post('/create', auth, async (req, res) => {
     return res.status(400).json({
       message: 'Cart is empty'
     });
+  }
+
+  // Reject malformed or repeated SKU lines before opening a database
+  // transaction. Repeated lines could otherwise each pass stock checks
+  // independently and reserve more stock than is actually available.
+  const seenLines = new Set();
+  for (const item of items) {
+    const productId = Number(item?.productId);
+    const quantity = Number(item?.quantity);
+    if (!Number.isSafeInteger(productId) || productId < 1 ||
+        !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10) {
+      return res.status(400).json({ message: 'Your bag contains an invalid product or quantity (maximum 10 per size/colour). Please review it and try again.' });
+    }
+    const size = String(item?.selectedSize || '').trim().toLowerCase();
+    const color = String(item?.selectedColor || '').trim().toLowerCase();
+    const lineKey = JSON.stringify([productId, size, color]);
+    if (seenLines.has(lineKey)) {
+      return res.status(400).json({ message: 'Your bag contains the same size/colour more than once. Please update your bag and try again.' });
+    }
+    seenLines.add(lineKey);
   }
 
   const cleanShipping = {
@@ -189,26 +241,54 @@ router.post('/create', auth, async (req, res) => {
       rows.map((p) => [p.id, p])
     );
 
+    // Early-access drops can only be bought by members of the right tier until the window ends.
+    if (rows.some((p) => p.early_access_until)) {
+      const memberSpend = await deliveredSpend(client, req.user.id);
+      for (const p of rows) {
+        const info = earlyAccessInfo(p, memberSpend);
+        if (info.locked) {
+          throw new Error(`"${p.name}" is in early access for ${info.tier.toUpperCase()} members. It opens to everyone soon.`);
+        }
+      }
+    }
+
     /*
-      SKU-LEVEL VARIANT LOOKUP
-      If a product has variant rows (size+color -> stock), lock and
-      validate against the specific variant instead of the aggregate
-      products.stock column. Products with no variants fall back to
-      the old product-level stock check for backward compatibility.
+      SKU-LEVEL VARIANT VALIDATION
+      Products with configured variants must be purchased using an exact,
+      in-stock size/color SKU. Never silently fall back to aggregate product
+      stock when a selected SKU is missing or when a required size is absent.
+      Products with no variant rows retain product-level stock compatibility.
     */
     const variantByKey = {};
+    const variantProducts = new Set();
     for (const item of items) {
       const productId = Number(item.productId);
-      if (!item.selectedSize) continue;
+      const product = byId[productId];
+      if (!product) continue;
+
       const variantResult = await client.query(
         `SELECT * FROM product_variants
-         WHERE product_id = $1 AND size = $2 AND color = $3
+         WHERE product_id = $1
          FOR UPDATE`,
-        [productId, item.selectedSize, item.selectedColor || '']
+        [productId]
       );
-      if (variantResult.rows.length) {
-        variantByKey[`${productId}|${item.selectedSize}|${item.selectedColor || ''}`] = variantResult.rows[0];
+      if (!variantResult.rows.length) continue;
+
+      variantProducts.add(productId);
+      const selectedSize = String(item.selectedSize || '').trim();
+      const selectedColor = String(item.selectedColor || '').trim();
+      if (!selectedSize) {
+        throw new Error(`Please select a size for ${product.name}`);
       }
+
+      const variant = variantResult.rows.find((row) =>
+        String(row.size || '').trim().toLowerCase() === selectedSize.toLowerCase() &&
+        String(row.color || '').trim().toLowerCase() === selectedColor.toLowerCase()
+      );
+      if (!variant) {
+        throw new Error(`The selected size/color is no longer available for ${product.name}. Please update your bag.`);
+      }
+      variantByKey[`${productId}|${selectedSize}|${selectedColor}`] = variant;
     }
 
     /*
@@ -267,8 +347,12 @@ router.post('/create', auth, async (req, res) => {
         );
       }
 
-      const variantKey = `${productId}|${item.selectedSize || ''}|${item.selectedColor || ''}`;
+      const variantKey = `${productId}|${String(item.selectedSize || '').trim()}|${String(item.selectedColor || '').trim()}`;
       const variant = variantByKey[variantKey];
+
+      if (variantProducts.has(productId) && !variant) {
+        throw new Error(`The selected size/color is no longer available for ${p.name}. Please update your bag.`);
+      }
 
       if (variant) {
         if (quantity > Number(variant.stock)) {
@@ -387,8 +471,13 @@ router.post('/create', auth, async (req, res) => {
 
     const discount = pointsToRedeem;
 
+    // Premium gift packaging: a flat fee, free for Black members. Charged on the server, never trusted from the app.
+    const wrapWanted = gift_wrap === true;
+    const wrapFee = wrapWanted ? packagingFee(true, tierFor(await deliveredSpend(client, req.user.id)).key) : 0;
+    const wrapMessage = wrapWanted ? cleanGiftMessage(gift_message) : '';
+
     const total =
-      subtotal + shippingCharge - couponDiscount - discount - giftCardDiscount - comboDiscount;
+      subtotal + shippingCharge + wrapFee - couponDiscount - discount - giftCardDiscount - comboDiscount;
 
     if (couponRow) {
       await client.query(
@@ -403,6 +492,10 @@ router.post('/create', auth, async (req, res) => {
          SET loyalty_points = loyalty_points - $1
          WHERE id = $2`,
         [pointsToRedeem, req.user.id]
+      );
+      await client.query(
+        `INSERT INTO points_ledger (user_id, delta, reason) VALUES ($1, $2, 'redeemed')`,
+        [req.user.id, -pointsToRedeem]
       );
     }
 
@@ -429,9 +522,12 @@ router.post('/create', auth, async (req, res) => {
           coupon_discount,
           gift_card_code,
           gift_card_discount,
-          combo_discount
+          combo_discount,
+          gift_wrap,
+          gift_message,
+          packaging_fee
         )
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
         RETURNING *`,
         [
           req.user.id,
@@ -450,7 +546,10 @@ router.post('/create', auth, async (req, res) => {
           couponDiscount,
           giftCard ? giftCard.code : null,
           giftCardDiscount,
-          comboDiscount
+          comboDiscount,
+          wrapWanted,
+          wrapMessage || null,
+          wrapFee
         ]
       )
     ).rows[0];
@@ -665,10 +764,17 @@ router.get('/mine', auth, async (req, res) => {
     itemsByOrder[item.order_id].push(item);
   }
 
-  const withItems = rows.map((order) => ({
-    ...order,
-    items: itemsByOrder[order.id] || []
-  }));
+  const withItems = rows.map((order) => {
+    // Arrival window for orders still on their way (not delivered, cancelled or returned).
+    const open = ['pending', 'processing', 'shipped'].includes(order.status);
+    const shipped = order.status === 'shipped' && order.shipped_at;
+    const est = open ? estimateDelivery(order.shipping_pincode, shipped ? order.shipped_at : order.created_at, { shipped: !!shipped }) : null;
+    return {
+      ...order,
+      estimated_delivery: est ? { min_date: est.min_date, max_date: est.max_date, label: est.label } : null,
+      items: itemsByOrder[order.id] || []
+    };
+  });
 
   res.json(withItems);
 });
@@ -717,6 +823,10 @@ export async function restoreOrderBenefits(client, order) {
        SET loyalty_points = loyalty_points + $1
        WHERE id = $2`,
       [Number(order.points_redeemed), Number(order.user_id)]
+    );
+    await client.query(
+      `INSERT INTO points_ledger (user_id, delta, reason, order_id) VALUES ($1, $2, 'refunded', $3)`,
+      [Number(order.user_id), Number(order.points_redeemed), Number(order.id)]
     );
   }
 
@@ -1039,6 +1149,9 @@ router.patch(
       payment_status
     } = req.body;
 
+    const shipment = normalizeShipment(req.body);
+    if (shipment.error) return res.status(400).json({ message: shipment.error });
+
     const client = await pool.connect();
 
     let updatedOrder;
@@ -1046,29 +1159,68 @@ router.patch(
     try {
       await client.query('BEGIN');
 
+      const existingResult = await client.query(
+        'SELECT * FROM orders WHERE id = $1 FOR UPDATE',
+        [req.params.id]
+      );
+      const existingOrder = existingResult.rows[0];
+      if (!existingOrder) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
+
+      const allowedStatuses = new Set(['pending', 'processing', 'shipped', 'delivered', 'cancelled']);
+      const allowedPaymentStatuses = new Set(['pending', 'paid', 'failed', 'refunded']);
+      if (status != null && !allowedStatuses.has(status)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Invalid order status' });
+      }
+      if (payment_status != null && !allowedPaymentStatuses.has(payment_status)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Invalid payment status' });
+      }
+
+      if (status === 'cancelled' && existingOrder.status !== 'cancelled') {
+        // Do not let a status edit cancel a captured payment. A paid online
+        // order must go through the refund workflow; stock is not restored here.
+        if (existingOrder.payment_status === 'paid') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'This order has been paid. Issue a refund through the refund workflow before cancelling it.' });
+        }
+        if (existingOrder.status !== 'pending') {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'Only pending unpaid orders can be cancelled from this screen.' });
+        }
+        await restoreOrderBenefits(client, existingOrder);
+      }
+
+      if (existingOrder.payment_status === 'paid' && payment_status != null && payment_status !== 'paid') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'A captured payment cannot be changed here. Use the refund workflow if money must be returned.' });
+      }
+      if (payment_status === 'paid' && existingOrder.payment_status !== 'paid') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Use payment verification/webhook processing to mark an order as paid.' });
+      }
+      if (payment_status === 'refunded' && existingOrder.payment_status !== 'refunded') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Use the refund workflow to mark an order as refunded.' });
+      }
+
       const { rows } = await client.query(
         `UPDATE orders
          SET
-           status =
-             COALESCE($1, status),
-
-           payment_status =
-             COALESCE(
-               $2,
-               payment_status
-             ),
-
-           delivered_at =
-             CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END
-
+           status = COALESCE($1, status),
+           payment_status = COALESCE($2, payment_status),
+           delivered_at = CASE WHEN $1 = 'delivered' AND delivered_at IS NULL THEN NOW() ELSE delivered_at END,
+           processing_at = CASE WHEN $1 IN ('processing','shipped','delivered') AND processing_at IS NULL THEN NOW() ELSE processing_at END,
+           shipped_at = CASE WHEN $1 = 'shipped' AND shipped_at IS NULL THEN NOW() ELSE shipped_at END,
+           courier = COALESCE($4, courier),
+           awb = COALESCE($5, awb),
+           tracking_url = COALESCE($6, tracking_url)
          WHERE id = $3
-
          RETURNING *`,
-        [
-          status,
-          payment_status,
-          req.params.id
-        ]
+        [status, payment_status, req.params.id, shipment.courier ?? null, shipment.awb ?? null, shipment.tracking_url ?? null]
       );
 
       if (!rows.length) {
@@ -1114,13 +1266,14 @@ router.patch(
         const displayId = `OG${String(updatedOrder.id).padStart(6, '0')}`;
         const statusCopy = {
           processing: `Order ${displayId} is being processed.`,
-          shipped: `Order ${displayId} has shipped.`,
+          shipped: `Order ${displayId} has shipped${updatedOrder.courier ? ` with ${updatedOrder.courier}` : ''}.`,
           delivered: `Order ${displayId} was delivered.`,
           cancelled: `Order ${displayId} was cancelled.`
         };
         createNotification(updatedOrder.user_id, {
           type: 'order_status',
           title: statusCopy[status] || `Order ${displayId} updated`,
+          body: status === 'shipped' && updatedOrder.awb ? `Tracking number: ${updatedOrder.awb}` : null,
           link: `/orders`
         });
       }

@@ -15,6 +15,28 @@ const router = Router();
   Query params (all optional): category, gender, color, fit, q (search),
   sort (price_asc | price_high | name | newest), min, max.
 */
+import { earlyAccessInfo, isTierKey } from '../services/club.js';
+import { deliveredSpend, optionalUserId } from '../services/clubSpend.js';
+
+// Adds early_access / early_access_locked / early_access_tier so the app can show a lock.
+async function annotateEarlyAccess(rows, req) {
+  if (!rows.some((r) => r.early_access_until)) return;
+  const spend = await deliveredSpend(pool, optionalUserId(req));
+  for (const r of rows) {
+    const info = earlyAccessInfo(r, spend);
+    r.early_access = info.active;
+    r.early_access_locked = info.locked;
+    r.early_access_tier = info.active ? info.tier : null;
+  }
+}
+
+// A whole number inside [min, max], or null.
+function cleanInt(value, min, max) {
+  if (value === null || value === undefined || String(value).trim() === '') return null;
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= min && n <= max ? n : null;
+}
+
 router.get('/', async (req, res) => {
   try {
     const { category, gender, color, fit, q, sort, min, max } = req.query;
@@ -86,6 +108,7 @@ router.get('/', async (req, res) => {
         LIMIT $${pagedValues.length - 1} OFFSET $${pagedValues.length}
       `;
       const { rows } = await pool.query(sql, pagedValues);
+      await annotateEarlyAccess(rows, req);
       return res.json({ items: rows, total, page, pages: Math.ceil(total / limit) });
     }
 
@@ -100,6 +123,7 @@ router.get('/', async (req, res) => {
       ORDER BY ${orderBy}
     `;
     const { rows } = await pool.query(sql, values);
+    await annotateEarlyAccess(rows, req);
     res.json(rows);
   } catch (e) {
     console.error('GET /products failed:', e);
@@ -124,6 +148,15 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ message: 'Product not found' });
+    await annotateEarlyAccess(rows, req);
+    // Approved customer photos (moderated in admin), newest first.
+    const photos = await pool.query(
+      `SELECT ph.url, r.rating FROM review_photos ph JOIN reviews r ON r.id = ph.review_id
+        WHERE ph.status = 'approved' AND r.product_id = $1 AND COALESCE(r.hidden, FALSE) = FALSE
+        ORDER BY ph.id DESC LIMIT 12`,
+      [rows[0].id]
+    );
+    rows[0].customer_photos = photos.rows;
     res.json(rows[0]);
   } catch (e) {
     console.error('GET /products/:id failed:', e);
@@ -166,7 +199,14 @@ router.post('/', auth, admin, async (req, res) => {
 
     // Slug depends on the new row's id, so it's set right after insert.
     const slug = slugify(name, rows[0].id);
-    const withSlug = await pool.query('UPDATE products SET slug = $1 WHERE id = $2 RETURNING *', [slug, rows[0].id]);
+    const withSlug = await pool.query(
+      `UPDATE products SET slug = $1, model_height_cm = $3, model_wears_size = $4, fabric_gsm = $5, fabric_composition = $6 WHERE id = $2 RETURNING *`,
+      [slug, rows[0].id,
+        cleanInt(req.body.model_height_cm, 100, 250),
+        String(req.body.model_wears_size ?? '').trim().slice(0, 120) || null,
+        cleanInt(req.body.fabric_gsm, 50, 1000),
+        String(req.body.fabric_composition ?? '').trim().slice(0, 120) || null]
+    );
 
     res.status(201).json(withSlug.rows[0]);
   } catch (e) {
@@ -178,7 +218,7 @@ router.post('/', auth, admin, async (req, res) => {
 // PATCH /api/products/:id — update (admin only)
 router.patch('/:id', auth, admin, async (req, res) => {
   try {
-    const fields = ['name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video', 'meta_title', 'meta_description', 'slug', 'material', 'care_instructions', 'model_details', 'size_chart'];
+    const fields = ['model_height_cm', 'model_wears_size', 'fabric_gsm', 'fabric_composition', 'early_access_until', 'early_access_tier', 'name', 'description', 'category', 'gender', 'size', 'condition', 'price', 'old_price', 'image', 'images', 'stock', 'color', 'fit', 'video', 'meta_title', 'meta_description', 'slug', 'material', 'care_instructions', 'model_details', 'size_chart'];
     const sets = [];
     const values = [];
 
@@ -186,9 +226,14 @@ router.patch('/:id', auth, admin, async (req, res) => {
     const wasOut = before.rows.length && Number(before.rows[0].stock) === 0;
     const priceBefore = before.rows.length ? Number(before.rows[0].price) : null;
 
+    if (req.body.early_access_tier && !isTierKey(req.body.early_access_tier)) {
+      return res.status(400).json({ message: 'Unknown member tier' });
+    }
     for (const field of fields) {
       if (req.body[field] !== undefined) {
         let value = req.body[field];
+        if (['model_height_cm', 'fabric_gsm'].includes(field)) value = cleanInt(value, field === 'fabric_gsm' ? 50 : 100, field === 'fabric_gsm' ? 1000 : 250);
+        if (['model_wears_size', 'fabric_composition'].includes(field)) value = String(value ?? '').trim().slice(0, 120) || null;
         if (field === 'images') value = Array.isArray(value) ? value : [];
         if (field === 'size_chart') value = value === null ? null : JSON.stringify(Array.isArray(value) ? value : []);
         values.push(value);
@@ -208,7 +253,7 @@ router.patch('/:id', auth, admin, async (req, res) => {
 
     // Product came back in stock — notify anyone on the waitlist (fire and forget)
     if (wasOut && Number(rows[0].stock) > 0) {
-      notifyRestock(rows[0].id).catch((e) => console.error('restock notify failed:', e.message));
+      notifyRestock(rows[0].id, null, { wishlist: true }).catch((e) => console.error('restock notify failed:', e.message));
     }
 
     // Price dropped — notify wishlisters whose saved price was higher (fire and forget)

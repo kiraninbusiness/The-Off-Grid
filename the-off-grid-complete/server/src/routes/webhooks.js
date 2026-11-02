@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import crypto from 'crypto';
 import { pool } from '../db.js';
 import { sendEmail, orderStatusEmail } from '../services/email.js';
 import { giftCardEmail } from './giftcards.js';
+import { verifyRazorpayWebhookSignature, webhookEventId } from '../services/webhookSecurity.js';
 import { awardLoyaltyPoints, restoreOrderBenefits } from './orders.js';
 
 const router = Router();
@@ -24,32 +24,25 @@ const router = Router();
   verification.
 
   Set the webhook secret in Razorpay's dashboard (Settings > Webhooks)
-  and put the same value in RAZORPAY_WEBHOOK_SECRET. Without it, this
-  endpoint safely no-ops (nothing breaks — you just don't get
-  server-side reconciliation until it's configured).
+  and put the same value in RAZORPAY_WEBHOOK_SECRET. If it is missing,
+  this endpoint returns 503 rather than falsely acknowledging a payment
+  event; configure the secret before enabling Razorpay webhooks.
   ------------------------------------------------------------------
 */
 router.post('/razorpay', async (req, res) => {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
   if (!secret) {
     console.warn('Razorpay webhook received but RAZORPAY_WEBHOOK_SECRET is not set — ignoring.');
-    return res.status(200).json({ ok: true, ignored: true });
+    return res.status(503).json({ message: 'Razorpay webhook verification is not configured.' });
   }
 
   const signature = req.headers['x-razorpay-signature'];
-  const rawBody = req.body; // Buffer, thanks to express.raw() in server.js
-
+  const rawBody = req.body;
   if (!signature || !Buffer.isBuffer(rawBody)) {
     return res.status(400).json({ message: 'Missing signature or body' });
   }
 
-  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  const provided = String(signature);
-  const valid =
-    provided.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
-
-  if (!valid) {
+  if (!verifyRazorpayWebhookSignature(rawBody, signature, secret)) {
     return res.status(400).json({ message: 'Invalid webhook signature' });
   }
 
@@ -60,15 +53,53 @@ router.post('/razorpay', async (req, res) => {
     return res.status(400).json({ message: 'Invalid JSON payload' });
   }
 
-  // Acknowledge immediately — Razorpay retries on non-2xx, and we don't
-  // want a slow/failed downstream step to trigger duplicate retries for
-  // an event we already understood.
-  res.status(200).json({ ok: true });
-
+  const headerEventId = req.headers['x-razorpay-event-id'];
+  const eventId = webhookEventId(rawBody, headerEventId);
+  const client = await pool.connect();
+  let lockAcquired = false;
   try {
+    // Serialize duplicate deliveries of the same event, including across app instances.
+    await client.query('SELECT pg_advisory_lock(hashtext($1))', [eventId]);
+    lockAcquired = true;
+    const prior = await client.query('SELECT status FROM razorpay_webhook_events WHERE event_id = $1', [eventId]);
+    if (prior.rows[0]?.status === 'processed') {
+      return res.status(200).json({ ok: true, duplicate: true });
+    }
+
+    await client.query(
+      `INSERT INTO razorpay_webhook_events (event_id, event_type, payload, status, attempts, last_error)
+       VALUES ($1,$2,$3::jsonb,'processing',1,NULL)
+       ON CONFLICT (event_id) DO UPDATE SET
+         event_type = EXCLUDED.event_type,
+         payload = EXCLUDED.payload,
+         status = 'processing',
+         attempts = razorpay_webhook_events.attempts + 1,
+         last_error = NULL`,
+      [eventId, String(event.event || 'unknown'), JSON.stringify(event)]
+    );
+
     await reconcile(event);
+    await client.query(
+      `UPDATE razorpay_webhook_events
+       SET status = 'processed', processed_at = NOW(), last_error = NULL
+       WHERE event_id = $1`,
+      [eventId]
+    );
+    return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('RAZORPAY WEBHOOK RECONCILE ERROR:', e.message);
+    await client.query(
+      `UPDATE razorpay_webhook_events
+       SET status = 'failed', last_error = $2
+       WHERE event_id = $1`,
+      [eventId, String(e?.message || 'Webhook processing failed').slice(0, 1000)]
+    ).catch(updateError => console.error('Could not persist webhook failure:', updateError.message));
+    // Non-2xx tells Razorpay to retry. Reconciliation is idempotent and the
+    // persisted event row keeps a trace of attempts and failures.
+    return res.status(500).json({ message: 'Webhook processing failed; retry requested.' });
+  } finally {
+    if (lockAcquired) await client.query('SELECT pg_advisory_unlock(hashtext($1))', [eventId]).catch(() => {});
+    client.release();
   }
 });
 
@@ -84,6 +115,7 @@ async function reconcile(event) {
     // and now does the FULL success sequence, not just the status
     // flip: loyalty points, exactly like the normal verified-payment
     // path, so a browser-closed order isn't missing points forever.
+    let giftCardEmailToSend = null;
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -92,7 +124,18 @@ async function reconcile(event) {
         [payment.order_id]
       );
       const order = rows[0];
-      if (order && order.payment_status !== 'paid' && order.status !== 'cancelled') {
+      if (order && order.status === 'cancelled' && order.payment_status !== 'paid') {
+        // A late capture must never resurrect a customer-cancelled order.
+        // Record the real charge and flag it for a full admin refund.
+        await client.query(
+          `UPDATE orders
+           SET payment_status = 'paid', razorpay_payment_id = $2,
+               payment_reconciliation_status = 'refund_required'
+           WHERE id = $1`,
+          [order.id, payment.id]
+        );
+        console.error(`PAYMENT EXCEPTION: cancelled order ${order.id} was captured by Razorpay; admin refund required.`);
+      } else if (order && order.payment_status !== 'paid') {
         await client.query(
           `UPDATE orders SET payment_status = 'paid', status = 'processing', razorpay_payment_id = $2 WHERE id = $1`,
           [order.id, payment.id]
@@ -115,9 +158,8 @@ async function reconcile(event) {
           [gc.rows[0].id, payment.id]
         );
         const card = updatedCard.rows[0];
-        const { subject, html } = giftCardEmail(card);
-        sendEmail({ to: card.recipient_email, subject, html }).catch(() => {});
-        console.log(`Webhook reconciled + emailed gift card ${card.code} (browser never confirmed).`);
+        giftCardEmailToSend = card;
+        console.log(`Webhook reconciled gift card ${card.code} (browser never confirmed).`);
       }
       await client.query('COMMIT');
     } catch (e) {
@@ -125,6 +167,10 @@ async function reconcile(event) {
       throw e;
     } finally {
       client.release();
+    }
+    if (giftCardEmailToSend) {
+      const { subject, html } = giftCardEmail(giftCardEmailToSend);
+      await sendEmail({ to: giftCardEmailToSend.recipient_email, subject, html }).catch(e => console.error('Gift card email failed:', e.message));
     }
   }
 
@@ -174,6 +220,14 @@ async function reconcile(event) {
     // Razorpay confirms the money actually moved.
     await pool.query(
       `UPDATE returns SET refund_settled_at = NOW() WHERE razorpay_refund_id = $1`,
+      [refund.id]
+    );
+    await pool.query(
+      `UPDATE orders
+       SET refund_settled_at = NOW(),
+           payment_reconciliation_status = 'refund_settled'
+       WHERE razorpay_refund_id = $1
+         AND payment_reconciliation_status = 'refund_issued'`,
       [refund.id]
     );
   }

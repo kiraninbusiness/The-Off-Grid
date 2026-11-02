@@ -19,11 +19,20 @@ import upload from './routes/upload.js';
 import giftcards from './routes/giftcards.js';
 import cart from './routes/cart.js';
 import combos from './routes/combos.js';
+import community from './routes/community.js';
+import looks from './routes/looks.js';
+import campaigns, { startCampaignScheduler } from './routes/campaigns.js';
 import abandoned, { startAbandonedCartScheduler } from './routes/abandoned.js';
 import webhooks from './routes/webhooks.js';
 import contact from './routes/contact.js';
 import notifications from './routes/notifications.js';
-import { loginLimiter, forgotPasswordLimiter, registerLimiter, contactLimiter, newsletterLimiter, generalApiLimiter } from './middleware/rateLimiters.js';
+import customer from './routes/customer.js';
+import creators from './routes/creators.js';
+import visualSearch from './routes/visualSearch.js';
+import clientErrors from './routes/clientErrors.js';
+import analyticsRoutes from './routes/analytics.js';
+import bannersRoutes from './routes/banners.js';
+import { loginLimiter, forgotPasswordLimiter, registerLimiter, contactLimiter, newsletterLimiter, clientErrorLimiter, otpLimiter, reviewPhotoLimiter, visualSearchLimiter, generalApiLimiter } from './middleware/rateLimiters.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app=express();
@@ -87,6 +96,10 @@ app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth/register', registerLimiter);
 app.use('/api/contact', contactLimiter);
 app.use('/api/newsletter', newsletterLimiter);
+app.use('/api/client-errors', clientErrorLimiter);
+app.use('/api/auth/otp', otpLimiter);
+app.use('/api/upload/review-photo', reviewPhotoLimiter);
+app.use('/api/visual-search', visualSearchLimiter);
 app.use('/api/auth',auth);
 app.use('/api/products',products);
 app.use('/api/orders',orders);
@@ -96,14 +109,24 @@ app.use('/api/newsletter',newsletter);
 app.use('/api/profile',profile);
 app.use('/api/products',variants);
 app.use('/api/returns',returns);
+// Mounted before adminRoutes: its router-wide admin login check would otherwise block the cron-secret route.
+app.use('/api/admin/abandoned-carts',abandoned);
+app.use('/api/campaigns',campaigns);
+app.use('/api/looks',looks);
+app.use('/api/community',community);
 app.use('/api/admin',adminRoutes);
 app.use('/api/upload',upload);
 app.use('/api/gift-cards',giftcards);
 app.use('/api/cart',cart);
 app.use('/api/combos',combos);
-app.use('/api/admin/abandoned-carts',abandoned);
 app.use('/api/contact',contact);
+app.use('/api/client-errors',clientErrors);
+app.use('/api/analytics',analyticsRoutes);
+app.use('/api/banners',bannersRoutes);
 app.use('/api/notifications',notifications);
+app.use('/api/customer',customer);
+app.use('/api/creators',creators);
+app.use('/api/visual-search',visualSearch);
 
 /*
   STANDARDIZED ERROR HANDLING
@@ -122,5 +145,5 @@ app.use((err, req, res, next) => {
 });
 
 const port=process.env.PORT||5000;
-initDb().then(()=>app.listen(port,()=>{console.log(`API running on http://localhost:${port}`);startAbandonedCartScheduler();}))
+initDb().then(()=>app.listen(port,()=>{console.log(`API running on http://localhost:${port}`);startAbandonedCartScheduler();startCampaignScheduler();}))
 .catch(e=>{console.error(e);process.exit(1)});
