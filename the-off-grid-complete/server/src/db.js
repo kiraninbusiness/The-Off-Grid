@@ -356,7 +356,7 @@ export async function initDb(){
     CREATE INDEX IF NOT EXISTS stock_movements_product_idx ON stock_movements(product_id);
   `);
 
-  await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(MD5(id::text || RANDOM()::text) FOR 6)) WHERE referral_code IS NULL`);
+  // Existing customer referral data is not rewritten during API startup.
 
   /* ===== SECURITY HARDENING ADDITIONS ===== */
 
@@ -507,86 +507,10 @@ export async function initDb(){
     ON stock_alerts (product_id, email, COALESCE(variant_id, 0))
   `);
 
-  if(process.env.ADMIN_EMAIL){ await pool.query("UPDATE users SET role='admin' WHERE email=$1",[process.env.ADMIN_EMAIL.toLowerCase()]); }
-  /* ===== CART DUPLICATE-ROW FIX =====
-     Postgres treats NULL as distinct from NULL in unique constraints,
-     so ON CONFLICT (user_id, product_id, selected_size, selected_color)
-     never matched when either was NULL — every "add to bag" click on
-     a product with no size/color silently inserted a brand new row
-     instead of incrementing quantity, causing runaway duplicate cart
-     rows. Fix: normalize NULL to '' (empty string IS comparable),
-     collapse any duplicate rows already sitting in the database
-     (summing their quantities into one), then make the columns
-     NOT NULL going forward so this can't happen again.
-
-     DEPLOY-CRASH FIX: the normalize UPDATE below can itself violate
-     the very constraint it's trying to fix — if a NULL row and an
-     already-'' row exist for the same user+product (e.g. from a
-     previous partial run of this migration, or from before this
-     table had the constraint at all), setting NULL -> '' collides
-     with the existing '' row and Postgres rejects the UPDATE with
-     "duplicate key value violates unique constraint
-     cart_items_user_id_product_id_selected_size_selected_color_key"
-     — which is the exact error that was crashing every deploy. The
-     constraint has to come off before normalizing, and go back on
-     (as an index, which is all ON CONFLICT actually needs) only after
-     the data underneath it is already clean. */
-  await pool.query(`ALTER TABLE cart_items DROP CONSTRAINT IF EXISTS cart_items_user_id_product_id_selected_size_selected_color_key`);
-  await pool.query(`UPDATE cart_items SET selected_size = COALESCE(selected_size, ''), selected_color = COALESCE(selected_color, '')`);
-  await pool.query(`
-    WITH duplicates AS (
-      SELECT user_id, product_id, selected_size, selected_color,
-             MIN(id) AS keep_id, SUM(quantity) AS total_qty
-      FROM cart_items
-      GROUP BY user_id, product_id, selected_size, selected_color
-      HAVING COUNT(*) > 1
-    )
-    UPDATE cart_items c SET quantity = d.total_qty
-    FROM duplicates d WHERE c.id = d.keep_id
-  `);
-  await pool.query(`
-    DELETE FROM cart_items c
-    USING cart_items c2
-    WHERE c.user_id = c2.user_id AND c.product_id = c2.product_id
-      AND c.selected_size = c2.selected_size AND c.selected_color = c2.selected_color
-      AND c.id > c2.id
-  `);
-  await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_size SET DEFAULT '', ALTER COLUMN selected_size SET NOT NULL`);
-  await pool.query(`ALTER TABLE cart_items ALTER COLUMN selected_color SET DEFAULT '', ALTER COLUMN selected_color SET NOT NULL`);
-  // Data underneath is guaranteed duplicate-free by the DELETE above, so
-  // this is now safe to (re)create — and it's what ON CONFLICT (user_id,
-  // product_id, selected_size, selected_color) in cart.js targets.
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS cart_items_user_product_variant_idx
-    ON cart_items (user_id, product_id, selected_size, selected_color)
-  `);
-
-  /* ===== SAFE CART NORMALIZATION MIGRATION =====
-     Apply a one-time quantity cap to legacy rows without deleting customer
-     carts. This is guarded by a migration marker and does not run on every
-     server startup.
-  */
-  await pool.query(`CREATE TABLE IF NOT EXISTS app_migrations (
-    migration_key TEXT PRIMARY KEY,
-    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-  )`);
-  const migrationClient = await pool.connect();
-  try {
-    await migrationClient.query('BEGIN');
-    const migration = await migrationClient.query(
-      `INSERT INTO app_migrations (migration_key) VALUES ('cart_quantity_cap_v1')
-       ON CONFLICT (migration_key) DO NOTHING RETURNING migration_key`
-    );
-    if (migration.rows.length) {
-      await migrationClient.query(`UPDATE cart_items SET quantity = 10 WHERE quantity > 10`);
-    }
-    await migrationClient.query('COMMIT');
-  } catch (e) {
-    await migrationClient.query('ROLLBACK').catch(() => {});
-    throw e;
-  } finally {
-    migrationClient.release();
-  }
+  // Admin roles are managed explicitly; startup must not promote user accounts.
+  // Cart data is intentionally left untouched during API startup. Existing
+  // cart indexes and constraints are preserved; any future cart migration
+  // must be reviewed and run explicitly as a versioned migration.
 
   /* ===== ROUND 10 ADDITIONS ===== */
 
@@ -701,82 +625,8 @@ export async function initDb(){
   // Per-product custom size chart (chest/length/shoulder in cm per size)
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS size_chart JSONB`);
 
-  const {rows}=await pool.query('SELECT COUNT(*)::int AS count FROM products');
-  if(rows[0].count===0){
-    await pool.query(`INSERT INTO products
-      (name,description,category,gender,size,condition,price,old_price,image,stock,color,fit)
-      VALUES
-      ('ZENITH OVERSIZED TEE','Heavyweight oversized cotton tee designed for everyday wear.','T-SHIRTS','UNISEX','S / M / L / XL','NEW',1599,1999,'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=90',12,'CHARCOAL','OVERSIZED'),
-      ('LUNA LINEN SHIRT','Relaxed linen shirt with a clean silhouette and lightweight feel.','SHIRTS','UNISEX','S / M / L / XL','NEW',2499,2999,'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=1200&q=90',8,'OFF WHITE','RELAXED'),
-      ('TERRA CARGO PANTS','Utility-inspired cargo pants with a relaxed streetwear fit.','BOTTOMS','UNISEX','28 / 30 / 32 / 34 / 36','NEW',2799,3299,'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90',10,'OLIVE','RELAXED'),
-      ('SIGNATURE HOODIE','Premium heavyweight hoodie with an oversized silhouette.','HOODIES','UNISEX','S / M / L / XL','BESTSELLER',3299,3999,'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=1200&q=90',15,'BONE','OVERSIZED'),
-      ('RAYON BOMBER JACKET','Minimal bomber jacket with a structured modern silhouette.','JACKETS','UNISEX','S / M / L / XL','NEW',3999,4999,'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=1200&q=90',6,'BLACK','REGULAR'),
-      ('CLASSIC OFF GRID CAP','Minimal six-panel cap finished with The Off Grid branding.','ACCESSORIES','UNISEX','ONE SIZE','NEW',999,1299,'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=1200&q=90',20,'BLACK','ADJUSTABLE'),
-      ('CORE RIBBED TANK','Clean ribbed tank designed for layering or standalone wear.','TANK TOPS','UNISEX','S / M / L / XL','NEW',1299,1599,'https://images.unsplash.com/photo-1618354691373-d851c5c3c990?auto=format&fit=crop&w=1200&q=90',14,'BLACK','SLIM'),
-      ('GRID RUNNER SNEAKERS','Everyday sneakers built around a clean technical streetwear aesthetic.','FOOTWEAR','UNISEX','6 / 7 / 8 / 9 / 10 / 11','NEW',4499,5499,'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1200&q=90',9,'WHITE / GREY','REGULAR'),
-      ('SHADOW UTILITY VEST','Utility vest with multiple pockets and a contemporary streetwear cut.','JACKETS','UNISEX','S / M / L / XL','NEW',2899,3499,'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=90',7,'GRAPHITE','RELAXED'),
-      ('MONOCHROME OVERSHIRT','Structured overshirt designed to work as a light outer layer.','SHIRTS','UNISEX','S / M / L / XL','NEW',2699,3199,'https://images.unsplash.com/photo-1603252110481-7ba873bf42ab?auto=format&fit=crop&w=1200&q=90',11,'GREY','RELAXED'),
-      ('VOID WIDE LEG DENIM','Wide-leg denim with a relaxed profile and washed finish.','BOTTOMS','UNISEX','28 / 30 / 32 / 34 / 36','NEW',2999,3699,'https://images.unsplash.com/photo-1542272604-787c3835535d?auto=format&fit=crop&w=1200&q=90',8,'WASHED BLACK','WIDE LEG'),
-      ('NIGHT SHIFT TEE','Relaxed everyday tee with a vintage-inspired washed finish.','T-SHIRTS','UNISEX','S / M / L / XL','BESTSELLER',1499,1899,'https://images.unsplash.com/photo-1503341504253-dff4815485f1?auto=format&fit=crop&w=1200&q=90',18,'WASHED BLACK','OVERSIZED')
-    `);
-  }
+  // Product catalog seeding is intentionally disabled. Production catalog
+  // records must only be created through the approved admin/catalog workflow.
 
-  /*
-    Idempotent addition — runs on every startup regardless of catalog
-    size (unlike the block above, which only runs on a totally empty
-    table). Checked by name so re-running this on a server that
-    already has these products is a safe no-op.
-  */
-  const newProducts = [
-    {
-      name: 'NIGHTGUARD PADDED JACKET',
-      description: 'Heavyweight padded jacket built for real cold — insulated, wind-resistant, and cut for layering.',
-      category: 'JACKETS', gender: 'UNISEX', size: 'M / L / XL / XXL', condition: 'NEW',
-      price: 4999, old_price: 5999,
-      image: 'https://images.unsplash.com/photo-1557418669-db3f781a58c0?auto=format&fit=crop&w=1200&q=90',
-      images: [
-        'https://images.unsplash.com/photo-1557418669-db3f781a58c0?auto=format&fit=crop&w=1200&q=90',
-        'https://images.unsplash.com/photo-1611025504703-8c143abe6996?auto=format&fit=crop&w=1200&q=90',
-        'https://images.unsplash.com/photo-1706765779533-6c0210fab380?auto=format&fit=crop&w=1200&q=90',
-      ],
-      stock: 10, color: 'BLACK', fit: 'REGULAR',
-      size_chart: [
-        { size: 'M', chest_cm: 52, length_cm: 60, shoulder_cm: 46 },
-        { size: 'L', chest_cm: 53, length_cm: 62, shoulder_cm: 48 },
-        { size: 'XL', chest_cm: 56, length_cm: 65, shoulder_cm: 50 },
-        { size: 'XXL', chest_cm: 59, length_cm: 67, shoulder_cm: 52 },
-      ],
-    },
-    {
-      name: 'SHIELD WINDCHEATER',
-      description: 'Light, wind-resistant shell for everyday layering — built for transitional weather.',
-      category: 'JACKETS', gender: 'UNISEX', size: 'M / L / XL / XXL', condition: 'NEW',
-      price: 3499, old_price: 3999,
-      image: 'https://images.unsplash.com/photo-1614031679232-0dae776a72ee?auto=format&fit=crop&w=1200&q=90',
-      images: [
-        'https://images.unsplash.com/photo-1614031679232-0dae776a72ee?auto=format&fit=crop&w=1200&q=90',
-        'https://images.unsplash.com/photo-1556098539-3019e1bdf05e?auto=format&fit=crop&w=1200&q=90',
-        'https://images.unsplash.com/photo-1614079290101-0c2181ac8ea3?auto=format&fit=crop&w=1200&q=90',
-      ],
-      stock: 14, color: 'BLACK', fit: 'REGULAR',
-      size_chart: [
-        { size: 'M', chest_cm: 50, length_cm: 60, shoulder_cm: 45 },
-        { size: 'L', chest_cm: 52, length_cm: 62, shoulder_cm: 47 },
-        { size: 'XL', chest_cm: 54, length_cm: 64, shoulder_cm: 54 },
-        { size: 'XXL', chest_cm: 57, length_cm: 66, shoulder_cm: 56 },
-      ],
-    },
-  ];
-
-  for (const p of newProducts) {
-    const existing = await pool.query('SELECT id FROM products WHERE name = $1', [p.name]);
-    if (existing.rows.length) continue;
-    await pool.query(
-      `INSERT INTO products (name, description, category, gender, size, condition, price, old_price, image, images, stock, color, fit, size_chart)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-      [p.name, p.description, p.category, p.gender, p.size, p.condition, p.price, p.old_price, p.image, p.images, p.stock, p.color, p.fit, JSON.stringify(p.size_chart)]
-    );
-    console.log(`Seeded new product: ${p.name}`);
-  }
 }
 if(process.argv[1]?.endsWith('src/db.js')) initDb().then(()=>{console.log('Database ready');process.exit()}).catch(e=>{console.error(e);process.exit(1)});
