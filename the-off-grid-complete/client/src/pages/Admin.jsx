@@ -42,6 +42,10 @@ const empty = {
   material: "",
   care_instructions: "",
   model_details: "",
+  model_height_cm: "",
+  model_wears_size: "",
+  fabric_gsm: "",
+  fabric_composition: "",
   meta_title: "",
   meta_description: "",
   size_chart: []
@@ -232,7 +236,9 @@ export default function Admin({ user }) {
     min_order: "0",
     max_discount: "",
     usage_limit: "",
-    expires_at: ""
+    expires_at: "",
+    is_public: false,
+    min_tier: ""
   };
 
   const [couponForm, setCouponForm] =
@@ -542,7 +548,9 @@ export default function Admin({ user }) {
             couponForm.usage_limit === ""
               ? null
               : Number(couponForm.usage_limit),
-          expires_at: couponForm.expires_at || null
+          expires_at: couponForm.expires_at || null,
+          is_public: !!couponForm.is_public,
+          min_tier: couponForm.min_tier || null
         })
       });
 
@@ -574,6 +582,51 @@ export default function Admin({ user }) {
       setCouponErr(
         e?.message || "Unable to update coupon."
       );
+    }
+  }
+
+  async function setCouponTier(coupon) {
+    const answer = window.prompt("Who can use this coupon? Type silver, gold or black (members at that level and above). Leave empty for everyone.", coupon.min_tier || "");
+    if (answer === null) return;
+    const tier = answer.trim().toLowerCase();
+    if (tier && !["silver", "gold", "black"].includes(tier)) { setCouponErr("Tier must be silver, gold or black."); return; }
+    try {
+      await api(`/coupons/${coupon.id}`, { method: "PATCH", body: JSON.stringify({ min_tier: tier || null }) });
+      await load();
+    } catch (e) {
+      setCouponErr(e?.message || "Unable to update coupon.");
+    }
+  }
+
+  async function setEarlyAccess(product) {
+    const tierAnswer = window.prompt("Early access for which members? Type silver, gold or black (that level and above). Leave empty to remove early access.", product.early_access_tier || "gold");
+    if (tierAnswer === null) return;
+    const tier = tierAnswer.trim().toLowerCase();
+    try {
+      if (!tier) {
+        await api(`/products/${product.id}`, { method: "PATCH", body: JSON.stringify({ early_access_until: null, early_access_tier: null }) });
+      } else {
+        if (!["silver", "gold", "black"].includes(tier)) { window.alert("Tier must be silver, gold or black."); return; }
+        const days = Number(window.prompt("How many days before it opens to everyone?", "2"));
+        if (!Number.isFinite(days) || days <= 0 || days > 60) { window.alert("Enter a number of days between 1 and 60."); return; }
+        const until = new Date(Date.now() + days * 86400000).toISOString();
+        await api(`/products/${product.id}`, { method: "PATCH", body: JSON.stringify({ early_access_until: until, early_access_tier: tier }) });
+      }
+      await load();
+    } catch (e) {
+      window.alert(e?.message || "Could not update early access.");
+    }
+  }
+
+  async function toggleCouponVisibility(coupon) {
+    try {
+      await api(`/coupons/${coupon.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_public: !coupon.is_public })
+      });
+      await load();
+    } catch (e) {
+      setCouponErr(e?.message || "Unable to update coupon.");
     }
   }
 
@@ -637,6 +690,10 @@ export default function Admin({ user }) {
       material: product.material || "",
       care_instructions: product.care_instructions || "",
       model_details: product.model_details || "",
+      model_height_cm: product.model_height_cm ?? "",
+      model_wears_size: product.model_wears_size || "",
+      fabric_gsm: product.fabric_gsm ?? "",
+      fabric_composition: product.fabric_composition || "",
       meta_title: product.meta_title || "",
       meta_description: product.meta_description || "",
       size_chart: Array.isArray(product.size_chart) ? product.size_chart : []
@@ -674,13 +731,23 @@ export default function Admin({ user }) {
       setErr("");
       setSuccess("");
 
+      const body = { status: newStatus };
+      if (newStatus === "shipped") {
+        // Optional courier details: shown to the customer in the app and in the shipped email.
+        // Press Cancel on any prompt to skip it.
+        const courier = window.prompt("Courier name (e.g. Delhivery) — optional:", "");
+        const awb = window.prompt("Tracking / AWB number — optional:", "");
+        const trackingUrl = window.prompt("Tracking link (https://…) — optional:", "");
+        if (courier && courier.trim()) body.courier = courier.trim();
+        if (awb && awb.trim()) body.awb = awb.trim();
+        if (trackingUrl && trackingUrl.trim()) body.tracking_url = trackingUrl.trim();
+      }
+
       await api(
         `/orders/${id}/status`,
         {
           method: "PATCH",
-          body: JSON.stringify({
-            status: newStatus
-          })
+          body: JSON.stringify(body)
         }
       );
 
@@ -1269,6 +1336,28 @@ export default function Admin({ user }) {
 
             <div className="admin-two">
               <label>
+                MODEL HEIGHT IN CM (OPTIONAL)
+                <input type="number" min="100" max="250" placeholder="e.g. 183" value={f.model_height_cm} onChange={(e) => change("model_height_cm", e.target.value)} />
+              </label>
+              <label>
+                SIZE THE MODEL WEARS (OPTIONAL)
+                <input placeholder="e.g. M" value={f.model_wears_size} onChange={(e) => change("model_wears_size", e.target.value)} />
+              </label>
+            </div>
+
+            <div className="admin-two">
+              <label>
+                FABRIC WEIGHT IN GSM (OPTIONAL)
+                <input type="number" min="50" max="1000" placeholder="e.g. 240" value={f.fabric_gsm} onChange={(e) => change("fabric_gsm", e.target.value)} />
+              </label>
+              <label>
+                FABRIC COMPOSITION (OPTIONAL)
+                <input placeholder="e.g. 100% combed cotton" value={f.fabric_composition} onChange={(e) => change("fabric_composition", e.target.value)} />
+              </label>
+            </div>
+
+            <div className="admin-two">
+              <label>
                 MATERIAL (OPTIONAL)
                 <input placeholder="e.g. 240 GSM Cotton" value={f.material} onChange={(e) => change("material", e.target.value)} />
               </label>
@@ -1854,6 +1943,10 @@ export default function Admin({ user }) {
                             Edit
                           </button>
 
+                          <button type="button" onClick={() => setEarlyAccess(p)}>
+                            {p.early_access ? `Early access: ${p.early_access_tier}` : "Early access…"}
+                          </button>
+
 
                           <button
                             type="button"
@@ -2157,6 +2250,15 @@ export default function Admin({ user }) {
                       </span>
                     </div>
 
+                    {o.gift_wrap && (
+                      <div>
+                        <span>
+                          <small>PREMIUM PACKAGING (GIFT BOX + CARD)</small>
+                          <strong>{o.gift_message ? `Card message: ${o.gift_message}` : "No card message"}</strong>
+                        </span>
+                      </div>
+                    )}
+
 
                     <div>
                       <IndianRupee
@@ -2384,6 +2486,30 @@ export default function Admin({ user }) {
                 />
               </label>
 
+              <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={!!couponForm.is_public}
+                  onChange={(e) =>
+                    setCouponForm((c) => ({ ...c, is_public: e.target.checked }))
+                  }
+                />
+                SHOW TO CUSTOMERS IN THE APP
+              </label>
+
+              <label style={{ display: "grid", gap: 4 }}>
+                MEMBERS ONLY (OPTIONAL)
+                <select
+                  value={couponForm.min_tier || ""}
+                  onChange={(e) => setCouponForm((c) => ({ ...c, min_tier: e.target.value }))}
+                >
+                  <option value="">Everyone</option>
+                  <option value="silver">Silver and above</option>
+                  <option value="gold">Gold and above</option>
+                  <option value="black">Black only</option>
+                </select>
+              </label>
+
             </div>
 
             {couponErr && (
@@ -2465,6 +2591,17 @@ export default function Admin({ user }) {
                     onClick={() => toggleCoupon(c)}
                   >
                     {c.active ? "Deactivate" : "Activate"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleCouponVisibility(c)}
+                  >
+                    {c.is_public ? "Hide from app" : "Show in app"}
+                  </button>
+
+                  <button type="button" onClick={() => setCouponTier(c)}>
+                    {c.min_tier ? `Members: ${c.min_tier}` : "Members only…"}
                   </button>
 
                   <button

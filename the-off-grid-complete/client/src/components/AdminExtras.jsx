@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { RefreshCw, Trash2, EyeOff, Eye, Users, MessageSquareWarning, PackageSearch, Undo2, Gift, Layers, Mail, Boxes, Plus, TrendingUp } from "lucide-react";
 import { api } from "../api";
+import AppHealth from "./AppHealth";
+import AdminBanners from "./AdminBanners";
+import AdminLooks from "./AdminLooks";
+import AdminCommunity from "./AdminCommunity";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -209,9 +213,20 @@ export default function AdminExtras({ user }) {
   const toggleReviewHidden = async (review) => {
     try {
       const updated = await api(`/admin/reviews/${review.id}`, { method: "PATCH", body: JSON.stringify({ hidden: !review.hidden }) });
-      setReviews((cur) => cur.map((r) => (r.id === review.id ? updated : r)));
+      setReviews((cur) => cur.map((r) => (r.id === review.id ? { ...updated, photos: r.photos, product_name: r.product_name, user_name: r.user_name } : r)));
     } catch (e) {
       setErr(e.message || "Could not update review.");
+    }
+  };
+
+  const setPhotoStatus = async (review, photo, status) => {
+    try {
+      await api(`/admin/review-photos/${photo.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      setReviews((cur) => cur.map((r) => (r.id === review.id
+        ? { ...r, photos: (r.photos || []).map((p) => (p.id === photo.id ? { ...p, status } : p)) }
+        : r)));
+    } catch (e) {
+      setErr(e.message || "Could not update photo.");
     }
   };
 
@@ -359,6 +374,18 @@ export default function AdminExtras({ user }) {
         <button type="button" className={tab === "analytics" ? "active" : ""} onClick={() => setTab("analytics")}>
           <TrendingUp size={15} /> Analytics
         </button>
+        <button type="button" className={tab === "app" ? "active" : ""} onClick={() => setTab("app")}>
+          APP
+        </button>
+        <button type="button" className={tab === "banners" ? "active" : ""} onClick={() => setTab("banners")}>
+          BANNERS
+        </button>
+        <button type="button" className={tab === "looks" ? "active" : ""} onClick={() => setTab("looks")}>
+          LOOKS
+        </button>
+        <button type="button" className={tab === "community" ? "active" : ""} onClick={() => setTab("community")}>
+          COMMUNITY
+        </button>
       </div>
 
       {tab === "returns" && (
@@ -478,6 +505,22 @@ export default function AdminExtras({ user }) {
                   <span>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)} · {r.user_name}</span>
                 </div>
                 <p>{r.comment || <em>No comment left.</em>}</p>
+                {(r.photos || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "8px 0" }}>
+                    {r.photos.map((ph) => (
+                      <div key={ph.id} style={{ width: 120 }}>
+                        <a href={ph.url} target="_blank" rel="noreferrer">
+                          <img src={ph.url} alt="Customer review" loading="lazy" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6, display: "block" }} />
+                        </a>
+                        <small>{ph.status === "approved" ? "Shown to customers" : ph.status === "rejected" ? "Rejected" : "Waiting for approval"}</small>
+                        <div className="admin-product-actions">
+                          {ph.status !== "approved" && <button type="button" onClick={() => setPhotoStatus(r, ph, "approved")}>Approve</button>}
+                          {ph.status !== "rejected" && <button type="button" className="delete" onClick={() => setPhotoStatus(r, ph, "rejected")}>Reject</button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="admin-product-actions">
                   <button type="button" onClick={() => toggleReviewHidden(r)}>
                     {r.hidden ? <><Eye size={15} /> Unhide</> : <><EyeOff size={15} /> Hide</>}
@@ -641,6 +684,12 @@ export default function AdminExtras({ user }) {
           ))}
         </div>
       )}
+
+      {tab === "banners" && <AdminBanners />}
+      {tab === "looks" && <AdminLooks />}
+      {tab === "community" && <AdminCommunity />}
+
+      {tab === "app" && <AppHealth />}
 
       {tab === "analytics" && analytics && (
         <div className="admin-analytics">
