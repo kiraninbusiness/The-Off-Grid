@@ -330,11 +330,8 @@ export async function initDb(){
       ADD COLUMN IF NOT EXISTS meta_title TEXT,
       ADD COLUMN IF NOT EXISTS meta_description TEXT
   `);
-  await pool.query(`
-    UPDATE products SET slug =
-      LOWER(REGEXP_REPLACE(REGEXP_REPLACE(name, '[^a-zA-Z0-9]+', '-', 'g'), '(^-|-$)', '', 'g')) || '-' || id
-    WHERE slug IS NULL
-  `);
+  // Existing product rows are not rewritten during startup. Populate slugs
+  // through a separately reviewed, explicit data migration if required.
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS products_slug_idx ON products(slug)`);
 
   /*
