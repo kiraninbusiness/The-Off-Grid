@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { RefreshCw, Trash2, EyeOff, Eye, Users, MessageSquareWarning, PackageSearch, Undo2, Gift, Layers, Mail, Boxes, Plus, TrendingUp } from "lucide-react";
+import { RefreshCw, Trash2, EyeOff, Eye, Users, MessageSquareWarning, PackageSearch, Undo2, Gift, Layers, Mail, Boxes, Plus, TrendingUp, IndianRupee } from "lucide-react";
 import { api } from "../api";
+import AppHealth from "./AppHealth";
+import AdminBanners from "./AdminBanners";
+import AdminLooks from "./AdminLooks";
+import AdminCommunity from "./AdminCommunity";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -103,6 +107,8 @@ function StockLedger({ productId }) {
 export default function AdminExtras({ user }) {
   const [tab, setTab] = useState("returns");
   const [returns, setReturns] = useState([]);
+  const [paymentExceptions, setPaymentExceptions] = useState([]);
+  const [exceptionBusyId, setExceptionBusyId] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [stockAlerts, setStockAlerts] = useState([]);
@@ -157,6 +163,39 @@ export default function AdminExtras({ user }) {
 
   useEffect(() => { load(); }, [user]);
 
+  useEffect(() => {
+    const openAppTab = () => setTab("app");
+    window.addEventListener("offgrid-admin-open-app", openAppTab);
+    return () => window.removeEventListener("offgrid-admin-open-app", openAppTab);
+  }, []);
+
+  const loadPaymentExceptions = async () => {
+    try {
+      const rows = await api("/admin/payment-exceptions");
+      setPaymentExceptions(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      setErr(e.message || "Could not load payment exceptions.");
+    }
+  };
+
+  const issueExceptionRefund = async (order) => {
+    const confirmed = window.confirm(
+      `Issue a full Razorpay refund of ₹${Number(order.total || 0).toLocaleString("en-IN")} for cancelled order #${order.id}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+    setExceptionBusyId(order.id);
+    setErr("");
+    try {
+      await api(`/admin/orders/${order.id}/refund-exception`, { method: "POST", body: JSON.stringify({}) });
+      await loadPaymentExceptions();
+    } catch (e) {
+      setErr(e.message || "Could not issue the refund. Check Razorpay before retrying.");
+      await loadPaymentExceptions();
+    } finally {
+      setExceptionBusyId(null);
+    }
+  };
+
   const updateReturn = async (id, patch) => {
     try {
       const updated = await api(`/returns/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
@@ -209,9 +248,20 @@ export default function AdminExtras({ user }) {
   const toggleReviewHidden = async (review) => {
     try {
       const updated = await api(`/admin/reviews/${review.id}`, { method: "PATCH", body: JSON.stringify({ hidden: !review.hidden }) });
-      setReviews((cur) => cur.map((r) => (r.id === review.id ? updated : r)));
+      setReviews((cur) => cur.map((r) => (r.id === review.id ? { ...updated, photos: r.photos, product_name: r.product_name, user_name: r.user_name } : r)));
     } catch (e) {
       setErr(e.message || "Could not update review.");
+    }
+  };
+
+  const setPhotoStatus = async (review, photo, status) => {
+    try {
+      await api(`/admin/review-photos/${photo.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      setReviews((cur) => cur.map((r) => (r.id === review.id
+        ? { ...r, photos: (r.photos || []).map((p) => (p.id === photo.id ? { ...p, status } : p)) }
+        : r)));
+    } catch (e) {
+      setErr(e.message || "Could not update photo.");
     }
   };
 
@@ -315,13 +365,13 @@ export default function AdminExtras({ user }) {
   if (user?.role !== "admin") return null;
 
   return (
-    <section className="admin-content admin-extras">
+    <section id="admin-app-management" className="admin-content admin-extras">
       <div className="admin-panel-header">
         <div>
-          <p className="eyebrow">STORE MANAGEMENT</p>
-          <h2>Customers, Reviews, Returns & Stock Alerts</h2>
+          <p className="eyebrow">STORE & APP MANAGEMENT</p>
+          <h2>Customers, Reviews, Returns & Mobile App</h2>
         </div>
-        <button type="button" className="admin-refresh" onClick={load}>
+        <button type="button" className="admin-refresh" onClick={() => { load(); if (tab === "payments") loadPaymentExceptions(); }}>
           <RefreshCw size={15} className={loading ? "spin" : ""} /> Refresh
         </button>
       </div>
@@ -329,6 +379,9 @@ export default function AdminExtras({ user }) {
       {err && <div className="admin-error">{err}</div>}
 
       <div className="admin-extras-tabs">
+        <button type="button" className={tab === "payments" ? "active" : ""} onClick={() => { setTab("payments"); loadPaymentExceptions(); }}>
+          <IndianRupee size={15} /> Payment Exceptions <b>{paymentExceptions.filter((p) => p.payment_reconciliation_status === "refund_required").length}</b>
+        </button>
         <button type="button" className={tab === "returns" ? "active" : ""} onClick={() => setTab("returns")}>
           <Undo2 size={15} /> Returns <b>{returns.filter((r) => r.status === "requested").length}</b>
         </button>
@@ -359,7 +412,47 @@ export default function AdminExtras({ user }) {
         <button type="button" className={tab === "analytics" ? "active" : ""} onClick={() => setTab("analytics")}>
           <TrendingUp size={15} /> Analytics
         </button>
+        <button type="button" className={tab === "app" ? "active" : ""} onClick={() => setTab("app")}>
+          MOBILE APP
+        </button>
+        <button type="button" className={tab === "banners" ? "active" : ""} onClick={() => setTab("banners")}>
+          BANNERS
+        </button>
+        <button type="button" className={tab === "looks" ? "active" : ""} onClick={() => setTab("looks")}>
+          LOOKS
+        </button>
+        <button type="button" className={tab === "community" ? "active" : ""} onClick={() => setTab("community")}>
+          COMMUNITY
+        </button>
       </div>
+
+      {tab === "payments" && (
+        <div className="admin-product-list">
+          {!paymentExceptions.length && <div className="admin-empty"><p>No payment reconciliation exceptions recorded.</p></div>}
+          {paymentExceptions.map((p) => (
+            <article key={p.id} className="admin-product-card">
+              <div className="admin-product-details">
+                <div className="admin-product-title">
+                  <strong>ORDER #{p.id} · {money(p.total)}</strong>
+                  <span className={p.payment_reconciliation_status === "refund_required" ? "order-status return-status-requested" : "order-status"}>{String(p.payment_reconciliation_status || "").replace(/_/g, " ").toUpperCase()}</span>
+                </div>
+                <p className="muted">Payment: {p.payment_status} · Method: {p.payment_method} · Payment ID: {p.razorpay_payment_id || "—"}</p>
+                {p.razorpay_refund_id && <p className="muted">Razorpay refund: {p.razorpay_refund_id}</p>}
+                {p.refund_settled_at && <p className="muted">Settled: {new Date(p.refund_settled_at).toLocaleString("en-IN")}</p>}
+                {p.payment_reconciliation_status === "refund_required" ? (
+                  <div className="admin-product-actions">
+                    <button type="button" className="orange-btn" disabled={exceptionBusyId === p.id} onClick={() => issueExceptionRefund(p)}>
+                      {exceptionBusyId === p.id ? "ISSUING REFUND…" : "ISSUE FULL REFUND"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="muted">No automatic retry is available for this state. Verify the transaction in Razorpay before making any manual change.</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {tab === "returns" && (
         <div className="admin-product-list">
@@ -478,6 +571,22 @@ export default function AdminExtras({ user }) {
                   <span>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)} · {r.user_name}</span>
                 </div>
                 <p>{r.comment || <em>No comment left.</em>}</p>
+                {(r.photos || []).length > 0 && (
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", margin: "8px 0" }}>
+                    {r.photos.map((ph) => (
+                      <div key={ph.id} style={{ width: 120 }}>
+                        <a href={ph.url} target="_blank" rel="noreferrer">
+                          <img src={ph.url} alt="Customer review" loading="lazy" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 6, display: "block" }} />
+                        </a>
+                        <small>{ph.status === "approved" ? "Shown to customers" : ph.status === "rejected" ? "Rejected" : "Waiting for approval"}</small>
+                        <div className="admin-product-actions">
+                          {ph.status !== "approved" && <button type="button" onClick={() => setPhotoStatus(r, ph, "approved")}>Approve</button>}
+                          {ph.status !== "rejected" && <button type="button" className="delete" onClick={() => setPhotoStatus(r, ph, "rejected")}>Reject</button>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="admin-product-actions">
                   <button type="button" onClick={() => toggleReviewHidden(r)}>
                     {r.hidden ? <><Eye size={15} /> Unhide</> : <><EyeOff size={15} /> Hide</>}
@@ -639,6 +748,26 @@ export default function AdminExtras({ user }) {
               </div>
             </article>
           ))}
+        </div>
+      )}
+
+      {tab === "banners" && <AdminBanners />}
+      {tab === "looks" && <AdminLooks />}
+      {tab === "community" && <AdminCommunity />}
+
+      {tab === "app" && (
+        <div className="admin-product-list">
+          <div className="admin-form-panel">
+            <p className="eyebrow">THE OFF GRID · MOBILE APP</p>
+            <h2>Mobile App Control Center</h2>
+            <p className="muted">Monitor app usage and reported errors, and manage shared app merchandising content below. Product, price and inventory edits continue to sync through the shared store API.</p>
+            <div className="admin-product-actions">
+              <button type="button" onClick={() => setTab("banners")}>Manage App Banners</button>
+              <button type="button" onClick={() => setTab("looks")}>Manage Shop the Look</button>
+              <button type="button" onClick={() => setTab("community")}>Manage Community</button>
+            </div>
+          </div>
+          <AppHealth />
         </div>
       )}
 
