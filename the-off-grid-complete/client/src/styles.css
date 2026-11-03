@@ -635,3 +635,27 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-
 @media(max-width:900px){
   .admin-size-chart-row{grid-template-columns:1fr 1fr}
 }
+
+
+/* Mobile app admin control centre */
+.admin-app-jump{display:inline-flex;align-items:center;gap:9px;margin-top:18px;padding:11px 14px;border:1px solid var(--orange);color:var(--ink);font-size:10px;letter-spacing:1.2px}
+.admin-app-jump:hover{background:var(--orange);color:#fff}
+.admin-mobile-app{margin:34px 0 42px;padding:30px;border:1px solid var(--line);background:linear-gradient(135deg,#171717,#0d0d0d);scroll-margin-top:24px}
+.admin-mobile-app-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.admin-mobile-app-heading h2{display:flex;align-items:center;gap:12px;margin:10px 0;font-family:"Space Grotesk",sans-serif;font-size:clamp(24px,3vw,36px);letter-spacing:-1.2px}
+.admin-mobile-app-heading h2 svg{color:var(--orange);flex:none}
+.admin-mobile-app-heading p:not(.eyebrow){max-width:650px;margin:0;color:#999;font-size:13px;line-height:1.6}
+.admin-app-status{display:inline-flex;align-items:center;gap:8px;padding:9px 11px;border:1px solid #315a40;color:#9bd4a8;font-size:9px;letter-spacing:1px;white-space:nowrap}
+.admin-app-status>span{width:7px;height:7px;border-radius:50%;background:#5ac477;box-shadow:0 0 10px #5ac477}
+.admin-mobile-app-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:26px 0}
+.admin-mobile-app-metrics>div{padding:18px;border:1px solid var(--line);background:#101010;display:flex;flex-direction:column;gap:7px}
+.admin-mobile-app-metrics span{font-size:9px;letter-spacing:1.3px;color:#999}
+.admin-mobile-app-metrics strong{font-family:"Space Grotesk",sans-serif;font-size:30px}
+.admin-mobile-app-metrics small{font-size:10px;color:#777}
+.admin-mobile-app-actions{display:flex;flex-wrap:wrap;gap:10px}
+.admin-mobile-app-actions button{display:inline-flex;align-items:center;gap:9px;padding:12px 14px;border:1px solid #383838;font-size:10px;letter-spacing:.7px}
+.admin-mobile-app-actions button:hover:not(:disabled){border-color:var(--orange);color:var(--orange)}
+.admin-mobile-app-actions button:disabled{opacity:.5;cursor:wait}
+.admin-mobile-app-note{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:11px;line-height:1.6;color:#858585}
+#admin-products,#admin-orders,#admin-coupons{scroll-margin-top:24px}
+@media(max-width:760px){.admin-mobile-app{padding:20px 16px}.admin-mobile-app-heading{flex-direction:column}.admin-app-status{white-space:normal}.admin-mobile-app-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.admin-mobile-app-metrics>div{padding:13px}.admin-mobile-app-metrics strong{font-size:25px}.admin-mobile-app-actions{display:grid;grid-template-columns:1fr 1fr}.admin-mobile-app-actions button{justify-content:center;padding:12px 8px;font-size:9px}}

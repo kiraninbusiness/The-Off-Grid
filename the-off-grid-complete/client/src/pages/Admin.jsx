@@ -19,7 +19,9 @@ import {
   TrendingUp,
   Eye,
   RotateCcw,
-  X
+  X,
+  Smartphone,
+  ArrowUpRight
 } from "lucide-react";
 import { api, apiUpload } from "../api";
 import AdminExtras from "../components/AdminExtras";
@@ -900,6 +902,9 @@ export default function Admin({ user }) {
             Manage products, inventory and
             customer orders from one place.
           </p>
+          <button type="button" className="admin-app-jump" onClick={() => document.getElementById("admin-mobile-app")?.scrollIntoView({ behavior: "smooth", block: "start" })}>
+            <Smartphone size={16} /> MOBILE APP MANAGEMENT <ArrowUpRight size={14} />
+          </button>
         </div>
 
         <div className="admin-header-actions">
@@ -1072,6 +1077,30 @@ export default function Admin({ user }) {
           INVENTORY SUMMARY
       ================================= */}
 
+      <section className="admin-mobile-app" id="admin-mobile-app">
+        <div className="admin-mobile-app-heading">
+          <div>
+            <p className="eyebrow">THE OFF GRID · APP OPERATIONS</p>
+            <h2><Smartphone size={25} /> Mobile App Control Center</h2>
+            <p>Manage the catalogue, stock, orders and promotions that power your storefront. Changes are saved through the website API.</p>
+          </div>
+          <span className="admin-app-status"><span /> ADMIN DATA CONNECTED</span>
+        </div>
+        <div className="admin-mobile-app-metrics">
+          <div><span>CATALOGUE</span><strong>{products.length}</strong><small>Products available to manage</small></div>
+          <div><span>ACTIVE STOCK</span><strong>{totalStock.toLocaleString("en-IN")}</strong><small>Units across the catalogue</small></div>
+          <div><span>ORDERS</span><strong>{orders.length}</strong><small>{pending} awaiting processing</small></div>
+          <div><span>PROMOTIONS</span><strong>{coupons.filter((coupon) => coupon.active).length}</strong><small>Active coupons</small></div>
+        </div>
+        <div className="admin-mobile-app-actions">
+          <button type="button" onClick={() => document.getElementById("admin-products")?.scrollIntoView({ behavior: "smooth", block: "start" })}><Package size={16} /> Manage products</button>
+          <button type="button" onClick={() => document.getElementById("admin-orders")?.scrollIntoView({ behavior: "smooth", block: "start" })}><ShoppingBag size={16} /> Manage orders</button>
+          <button type="button" onClick={() => document.getElementById("admin-coupons")?.scrollIntoView({ behavior: "smooth", block: "start" })}><IndianRupee size={16} /> Manage promotions</button>
+          <button type="button" onClick={load} disabled={loading}><RefreshCw size={16} className={loading ? "spin" : ""} /> Refresh app data</button>
+        </div>
+        <p className="admin-mobile-app-note">Sync note: the mobile app must use this website’s same production API and database for catalogue, stock and promotion changes to appear there. This panel does not report app installs, crashes or push-delivery metrics.</p>
+      </section>
+
       <section className="admin-mini-stats">
 
         <div>
@@ -1132,7 +1161,7 @@ export default function Admin({ user }) {
           PRODUCT AREA
       ================================= */}
 
-      <section className="admin-content">
+      <section className="admin-content" id="admin-products">
 
         {/* =================================
             ADD / EDIT PRODUCT
@@ -1890,7 +1919,7 @@ export default function Admin({ user }) {
           ORDER MANAGEMENT
       ================================= */}
 
-      <section className="admin-orders">
+      <section className="admin-orders" id="admin-orders">
 
         <div className="admin-orders-header">
 
@@ -2244,7 +2273,7 @@ export default function Admin({ user }) {
           COUPON MANAGEMENT
       ================================= */}
 
-      <section className="admin-content">
+      <section className="admin-content" id="admin-coupons">
 
         <div className="admin-form-panel">
 
