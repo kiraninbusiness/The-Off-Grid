@@ -635,3 +635,108 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--orange);outline-
 @media(max-width:900px){
   .admin-size-chart-row{grid-template-columns:1fr 1fr}
 }
+
+
+/* =========================================================
+   THE OFF GRID — EDITORIAL STUDIO REFRESH
+   Visual-only layer: preserves existing React routes, commerce
+   interactions, product data, account, cart and checkout.
+   ========================================================= */
+:root{
+  --paper:#f2f0eb;
+  --surface:#e9e6df;
+  --ink:#171715;
+  --line:rgba(23,23,21,.16);
+  --orange:#8b806e;
+}
+html{scroll-behavior:smooth;background:var(--paper)}
+body{background:var(--paper);color:var(--ink);font-family:Arial,Helvetica,sans-serif;letter-spacing:.005em}
+button,a{ -webkit-tap-highlight-color:transparent }
+.topbar{background:#171715;color:#f2f0eb;min-height:30px;font-size:9px;letter-spacing:1.5px}
+.navbar{background:rgba(242,240,235,.96);color:#171715;border-bottom:1px solid rgba(23,23,21,.15);backdrop-filter:blur(14px)}
+.navbar button,.nav-left button,.nav-right button{color:#171715}
+.logo strong,.footer-brand strong{font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:-2px}
+.logo em,.footer-brand em{font-style:normal;color:#8b806e}
+.hero{height:min(790px,calc(100svh - 90px));min-height:590px;background:#34332f}
+.hero>img{filter:saturate(.58) contrast(1.06);object-position:center 42%}
+.hero-dark{background:linear-gradient(90deg,rgba(12,12,11,.64) 0%,rgba(12,12,11,.28) 48%,rgba(12,12,11,.02) 100%)}
+.hero-content{max-width:1440px;padding-left:8%;padding-right:8%}
+.hero-content .eyebrow,.hero-bottom{letter-spacing:2.3px}
+.hero-content h1{font-family:Arial,Helvetica,sans-serif;font-size:clamp(76px,12.2vw,176px);font-weight:900;letter-spacing:-.095em;line-height:.77;margin:32px 0 26px}
+.hero-content h1 i{font-family:Georgia,serif;font-weight:400;letter-spacing:-.09em}
+.hero-content h1 span{color:#c6b9a5}
+.hero-content p{font-size:12px;line-height:1.9;letter-spacing:.08em;text-transform:uppercase}
+.orange-btn{background:#e9e6df;color:#171715;border:1px solid #e9e6df;letter-spacing:1.5px}
+.orange-btn:hover{background:#c9c1b4;border-color:#c9c1b4;color:#171715}
+.outline-btn{border-color:rgba(255,255,255,.65);color:#fff}
+.marquee{background:#d9d5cc;color:#171715;border:0;font-size:10px;letter-spacing:2.5px}
+.marquee span{color:#8b806e}
+.section{padding:110px 8%}
+.section-number,.section-title>div>span,.journal-content>span,.newsletter>div>span{font-size:9px;letter-spacing:2px;color:#81796d}
+.story{background:var(--paper)}
+.story-grid{grid-template-columns:1.2fr .8fr;gap:10%}
+.story-grid h2,.section-title h2,.journal-content h2,.newsletter h2{font-family:Arial,Helvetica,sans-serif;font-weight:900;letter-spacing:-.075em;line-height:.9}
+.story-grid h2{font-size:clamp(48px,7.5vw,104px)}
+.story-grid h2 em,.section-title h2 em,.journal-content h2 em,.newsletter h2 em,.statement h2 em{font-family:Georgia,serif;font-weight:400}
+.story-grid>div p{font-size:15px;line-height:1.9;color:#666157;max-width:440px}
+.under-btn{color:#171715;border-bottom:1px solid #8b806e;letter-spacing:1.4px}
+.benefits{border-top:1px solid var(--line);margin-top:85px}
+.benefits>div{border-right:1px solid var(--line)}
+.benefits strong{color:#8b806e}
+.benefits h3{letter-spacing:1.5px}
+.categories{background:#e7e4dc}
+.section-title{align-items:end;margin-bottom:48px}
+.section-title h2{font-size:clamp(48px,7vw,94px)}
+.category-grid{gap:12px}
+.category{background:#d5d0c7}
+.category img{filter:saturate(.72);transition:transform .8s cubic-bezier(.2,.7,.2,1),filter .8s}
+.category:hover img{transform:scale(1.045);filter:saturate(.95)}
+.category-overlay{background:linear-gradient(0deg,rgba(0,0,0,.48),transparent 58%)}
+.category-info h3{font-size:clamp(28px,4vw,52px);letter-spacing:-1.5px}
+.category-info span{letter-spacing:1.6px}
+.shop{background:var(--paper)}
+.statement{background:#1a1a18;color:#f2f0eb;padding:130px 8%;min-height:470px}
+.statement h2{font-family:Arial,Helvetica,sans-serif;font-size:clamp(56px,9vw,120px);font-weight:900;letter-spacing:-.08em;line-height:.86}
+.statement h2 em{color:#b9ad9b}
+.journal{background:#e7e4dc;gap:8%;align-items:center}
+.journal-image{overflow:hidden}
+.journal-image img{filter:saturate(.65);transition:transform .9s}
+.journal-image:hover img{transform:scale(1.035)}
+.journal-content h2{font-size:clamp(42px,6vw,78px)}
+.journal-content p{color:#68645d;line-height:1.8;max-width:390px}
+.newsletter{background:#d5d0c7;color:#171715;padding:95px 8%;gap:40px}
+.newsletter h2{font-size:clamp(48px,7vw,88px)}
+.newsletter form label{font-size:9px;letter-spacing:1.8px;color:#625d55}
+.newsletter form>div{border-bottom:1px solid rgba(23,23,21,.55)}
+.newsletter input{color:#171715}
+.newsletter input::placeholder{color:#777168}
+.newsletter form button{color:#171715}
+footer{background:#171715;color:#f2f0eb;padding:75px 8% 25px}
+.footer-grid{gap:35px}
+footer h4{color:#aaa295;letter-spacing:1.5px}
+footer .footer-grid>div>button,footer .footer-grid>div>a{color:#c8c3ba}
+.footer-brand p{color:#a9a49b}
+.footer-bottom{border-color:rgba(242,240,235,.2);color:#9e998f}
+.floating-bag{background:#171715;color:#f2f0eb;border:1px solid #171715}
+.floating-whatsapp{background:#e7e4dc;color:#171715;border:1px solid rgba(23,23,21,.15)}
+/* Product cards retain all existing click and cart behavior. */
+.product-card,.product-tile{background:#e9e6df;border-color:var(--line)}
+.product-card img,.product-tile img{transition:transform .7s cubic-bezier(.2,.7,.2,1)}
+.product-card:hover img,.product-tile:hover img{transform:scale(1.035)}
+/* Quiet, consistent motion; respect reduced-motion preferences. */
+button,a{transition:color .22s ease,background-color .22s ease,border-color .22s ease,opacity .22s ease}
+@media(max-width:900px){
+ .hero{height: min(760px,calc(88svh - 60px));min-height:540px}
+ .hero-content{padding-left:7%;padding-right:7%}
+ .hero-content h1{font-size:clamp(68px,17vw,112px)}
+ .section{padding:76px 6%}
+ .story-grid{grid-template-columns:1fr;gap:28px}
+ .benefits{margin-top:50px}
+ .statement{padding:90px 6%;min-height:360px}
+ .newsletter{padding:75px 6%}
+ footer{padding:60px 6% 22px}
+}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
