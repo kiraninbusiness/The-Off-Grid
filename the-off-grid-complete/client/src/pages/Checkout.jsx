@@ -128,8 +128,8 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
-        const max = Math.max(1, Number(item.stock || 99));
-        const nextQty = Math.max(1, Math.min(max, Number(item.qty || 1) + delta));
+        const max = Math.max(0, Number(item.stock ?? 99));
+        const nextQty = Math.max(1, Math.min(Math.max(1, max), Number(item.qty || 1) + delta));
         // Sync to the server cart for logged-in users — previously this
         // only updated local state, so a quantity change made at
         // Checkout never reached the server and a second device could
@@ -401,6 +401,19 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     if (!cart.length) return;
     if (!user) {
       setError("Please sign in before checkout so your order can be securely saved to your account.");
+      return;
+    }
+    if (!/^[6-9][0-9]{9}$/.test(form.phone.trim())) {
+      setError("Enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+    if (!/^[1-9][0-9]{5}$/.test(form.pincode.trim())) {
+      setError("Enter a valid 6-digit Indian PIN code.");
+      return;
+    }
+    const unavailable = cart.find((item) => Number(item.stock ?? 99) < Number(item.qty || 1));
+    if (unavailable) {
+      setError(`${unavailable.name} has only ${Number(unavailable.stock ?? 0)} available. Update your bag before checkout.`);
       return;
     }
 
