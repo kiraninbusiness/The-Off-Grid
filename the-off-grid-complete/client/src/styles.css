@@ -903,3 +903,72 @@ button,a{transition:color .22s ease,background-color .22s ease,border-color .22s
  html{scroll-behavior:auto}
  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+
+
+/* VEXO-inspired editorial storefront rebuild — new composition, not just recolouring */
+.campaign-hero{min-height:calc(100svh - 118px);display:grid;grid-template-columns:.92fr 1.08fr;position:relative;background:#d8e0df;color:#111;padding:7.5vh 6.5% 68px;gap:4vw;overflow:hidden}
+.campaign-copy{display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2;padding:20px 0 65px}
+.campaign-kicker,.campaign-index,.campaign-caption,.campaign-bottomline,.manifesto-top,.manifesto-footer,.editorial-heading>div>span,.category-note,.type-break-top{font-size:9px;letter-spacing:1.8px;font-weight:700}
+.campaign-kicker{display:flex;align-items:center;gap:10px}.campaign-kicker i{width:7px;height:7px;border-radius:50%;background:#8d4f39;display:inline-block}
+.campaign-copy h1{font-family:"Space Grotesk",sans-serif;font-size:clamp(68px,9vw,142px);line-height:.79;letter-spacing:-.095em;margin:35px 0 28px;font-weight:700}
+.campaign-copy h1 em{font-style:normal;color:#7c8f91}
+.campaign-copy>p{max-width:360px;font-size:13px;line-height:1.8;color:#4d5858}
+.campaign-actions{display:flex;align-items:center;gap:25px;flex-wrap:wrap;margin-top:28px}
+.campaign-primary,.campaign-secondary,.manifesto-link,.type-break-bottom button{display:inline-flex;align-items:center;gap:12px;font-size:9px;letter-spacing:1.4px;font-weight:700}
+.campaign-primary{background:#111;color:#fff;padding:17px 20px;transition:background .25s,transform .25s}.campaign-primary:hover{background:#7c8f91;transform:translateY(-3px)}
+.campaign-secondary{border-bottom:1px solid #777;padding:13px 0}
+.campaign-index{position:absolute;bottom:0;left:0;right:0;border-top:1px solid #aeb8b7;padding-top:16px;display:flex;justify-content:space-between;color:#596463}
+.campaign-visual{position:relative;min-height:540px;align-self:stretch}
+.campaign-photo{position:absolute;overflow:hidden;background:#aeb8b7}.campaign-photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s cubic-bezier(.2,.7,.2,1)}.campaign-visual:hover .campaign-photo img{transform:scale(1.035)}
+.campaign-photo-main{inset:0 10% 5% 12%}.campaign-photo-small{width:33%;height:39%;left:0;bottom:0;border:9px solid #d8e0df}
+.campaign-stamp{position:absolute;right:0;top:9%;background:#a6b5b4;color:#111;width:112px;height:112px;border-radius:50%;display:grid;place-content:center;text-align:center;font-family:"Space Grotesk";font-size:18px;line-height:.9;font-weight:700;transform:rotate(10deg)}.campaign-stamp span{font-size:8px;position:absolute;right:18px;top:23px}
+.campaign-caption{position:absolute;right:10%;bottom:0;color:#4c5756;font-size:8px}
+.campaign-bottomline{position:absolute;bottom:22px;left:6.5%;right:6.5%;display:flex;justify-content:space-between;color:#657170;font-size:8px}
+.manifesto{background:#101212;color:#f0f1ed;padding-top:95px;padding-bottom:65px}
+.manifesto-top{display:flex;justify-content:space-between;color:#9da6a4}
+.manifesto-main{display:grid;grid-template-columns:1.2fr .8fr;align-items:end;gap:8vw;padding:75px 0 90px}
+.manifesto-main h2,.type-break h2{font-family:"Space Grotesk";font-size:clamp(66px,10vw,150px);line-height:.78;letter-spacing:-.09em;margin:0}
+.manifesto-main h2 em{font-style:normal;color:#9aadae}
+.manifesto-aside{max-width:330px;padding-bottom:5px}.manifesto-mark{font-size:10px;letter-spacing:2px;color:#9aadae}.manifesto-aside p{font-size:14px;line-height:1.9;color:#aeb5b2;margin:25px 0}.manifesto-link{border-bottom:1px solid #707977;padding:0 0 13px}
+.manifesto-footer{display:flex;justify-content:space-between;border-top:1px solid #343a39;padding-top:18px;color:#8e9996;font-size:8px}
+.category-editorial{background:#e8e9e4;color:#151817;padding-top:100px;padding-bottom:90px}
+.editorial-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:42px}
+.editorial-heading h2{font-family:"Space Grotesk";font-size:clamp(48px,6.6vw,92px);line-height:.83;letter-spacing:-.075em;margin:18px 0 0}
+.editorial-heading h2 em{font-style:normal;color:#879a9b}.editorial-heading>p{font-size:12px;line-height:1.7;color:#65706e;margin:0 4% 5px 0}
+.editorial-categories{display:grid;grid-template-columns:1.15fr .85fr .85fr 1.15fr;gap:12px;align-items:start}
+.editorial-categories .category{height:auto;aspect-ratio: .78;background:#c5ceca;color:#fff}
+.editorial-categories .category:nth-child(even){margin-top:65px;aspect-ratio:.83}
+.editorial-categories .category img{transition:transform .8s cubic-bezier(.2,.7,.2,1)}
+.editorial-categories .category:hover img{transform:scale(1.06)}
+.editorial-categories .category-overlay{background:linear-gradient(transparent 45%,rgba(0,0,0,.62))}
+.editorial-categories .category-info{left:22px;bottom:22px}.editorial-categories .category-info h3{font-size:clamp(27px,3.3vw,48px);letter-spacing:-2px}
+.category-note{display:flex;justify-content:space-between;border-top:1px solid #c5cbc7;margin-top:40px;padding-top:16px;color:#687371;font-size:8px}
+.type-break{background:#9eaeae;color:#111;padding:75px 7% 65px}
+.type-break-top{display:flex;justify-content:space-between;color:#465252}
+.type-break h2{font-size:clamp(75px,12vw,180px);margin:75px 0 55px}
+.type-break h2 em{font-style:normal;color:#e8e9e4}
+.type-break-bottom{display:flex;justify-content:space-between;align-items:end;border-top:1px solid #7f9191;padding-top:20px}
+.type-break-bottom p{font-size:13px;line-height:1.6;margin:0}.type-break-bottom button{border-bottom:1px solid #53605f;padding:0 0 12px}
+@media(max-width:850px){
+ .campaign-hero{grid-template-columns:1fr;padding:52px 6% 60px;gap:25px;min-height:0}
+ .campaign-copy{padding:10px 0 45px}.campaign-copy h1{font-size:clamp(68px,15vw,112px);margin:28px 0 20px}
+ .campaign-visual{min-height:430px}.campaign-photo-main{inset:0 7% 4% 10%}.campaign-photo-small{width:36%;height:38%}
+ .campaign-bottomline{bottom:17px}.manifesto-main{grid-template-columns:1fr;gap:45px;padding:60px 0}
+ .manifesto-main h2{font-size:clamp(72px,13vw,115px)}.manifesto-aside{margin-left:auto}
+ .editorial-categories{grid-template-columns:1fr 1fr;gap:12px}
+ .editorial-categories .category,.editorial-categories .category:nth-child(even){margin:0;aspect-ratio:.8}
+ .editorial-categories .category:nth-child(2),.editorial-categories .category:nth-child(4){margin-top:35px}
+}
+@media(max-width:520px){
+ .campaign-hero{padding-top:38px}.campaign-kicker{font-size:8px}.campaign-copy h1{font-size:19vw}
+ .campaign-actions{gap:17px}.campaign-primary{padding:15px 14px}.campaign-secondary{font-size:8px}
+ .campaign-visual{min-height:340px}.campaign-stamp{width:82px;height:82px;font-size:14px}
+ .campaign-caption{font-size:6px}.campaign-bottomline{font-size:7px}
+ .manifesto{padding-top:65px}.manifesto-top{font-size:7px}.manifesto-main{padding:55px 0}
+ .manifesto-main h2{font-size:16vw}.manifesto-footer{gap:10px;flex-wrap:wrap;font-size:7px}
+ .category-editorial{padding-top:70px}.editorial-heading{align-items:start;gap:18px;flex-direction:column}
+ .editorial-heading h2{font-size:12vw}.editorial-heading>p{margin:0}
+ .editorial-categories .category-info{left:13px;bottom:14px}.editorial-categories .category-info h3{font-size:28px}
+ .category-note{font-size:7px;gap:12px}.type-break{padding:55px 6%}.type-break h2{font-size:17vw;margin:60px 0 40px}
+ .type-break-top,.type-break-bottom{font-size:7px;gap:15px}.type-break-bottom{align-items:start;flex-direction:column}
+}
