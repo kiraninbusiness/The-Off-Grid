@@ -1502,3 +1502,23 @@ footer{background:#090707;border-top:1px solid var(--line)}
 .quick-color-select>div button.active,.quick-color-select>div button:hover{background:var(--orange);border-color:var(--orange);color:var(--paper)}
 .quick-variant-stock{font-size:9px;letter-spacing:1px;color:#d89b8c;line-height:1.6}
 .product-color-preview span{width:11px;height:11px;border-radius:50%;display:inline-block;margin-right:4px;box-shadow:0 0 0 1px rgba(209,214,216,.25)}
+
+/* Recently viewed — compact editorial rail */
+.recently-viewed{padding-top:90px;padding-bottom:90px;border-top:1px solid var(--line)}
+.recently-viewed-head{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:28px}
+.recently-viewed-head>div>span{font-size:9px;letter-spacing:2px;color:var(--orange)}
+.recently-viewed-head h2{font:600 clamp(28px,4vw,52px)/.98 "Space Grotesk",sans-serif;letter-spacing:-.06em;margin:12px 0 0}
+.recently-viewed-head h2 em{font-style:normal;color:var(--orange)}
+.recently-viewed-head>button{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:1px;color:var(--vexo-muted);padding:10px;border-bottom:1px solid var(--line)}
+.recently-viewed-head>button:hover{color:var(--orange);border-color:var(--orange)}
+.recently-viewed-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.recently-viewed-card{min-width:0}
+.recently-viewed-image{display:block;width:100%;aspect-ratio:3/4;position:relative;overflow:hidden;background:var(--surface);padding:0;text-align:left}
+.recently-viewed-image img{width:100%;height:100%;object-fit:cover;transition:transform .7s cubic-bezier(.2,.7,.2,1);filter:saturate(.8)}
+.recently-viewed-image:hover img{transform:scale(1.045);filter:saturate(1)}
+.recently-viewed-image>span{position:absolute;bottom:12px;left:12px;display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:1.2px;background:rgba(11,8,8,.85);padding:9px 11px}
+.recently-viewed-card>div{display:grid;gap:6px;padding:12px 2px}
+.recently-viewed-card>div span{font-size:8px;letter-spacing:1.5px;color:var(--vexo-muted)}
+.recently-viewed-card>div strong{font-size:12px;font-weight:500}
+.recently-viewed-card>div b{font-size:12px;color:var(--orange)}
+@media(max-width:640px){.recently-viewed{padding-top:55px;padding-bottom:55px}.recently-viewed-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px}.recently-viewed-head{align-items:start;flex-direction:column;gap:14px}}
