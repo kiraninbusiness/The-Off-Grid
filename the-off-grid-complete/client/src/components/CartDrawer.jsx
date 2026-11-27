@@ -26,7 +26,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
-        const max = Math.max(1, Number(item.stock || 99));
+        const max = Math.max(1, Number(item.stock ?? 99));
         const nextQty = Math.max(1, Math.min(max, Number(item.qty || 1) + delta));
         if (user?.id) {
           api("/cart/item", {
@@ -69,7 +69,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
 
         <div className="cart-drawer-shipping">
           <span>{remaining > 0 ? `ADD ${money(remaining)} MORE FOR FREE SHIPPING` : "FREE SHIPPING UNLOCKED"}</span>
-          <div className="cart-drawer-progress"><div style={{ width: `${progress}%` }} /></div>
+          <div className="cart-drawer-progress" role="progressbar" aria-label="Free shipping progress" aria-valuemin={0} aria-valuemax={FREE_SHIPPING_THRESHOLD} aria-valuenow={Math.min(subtotal, FREE_SHIPPING_THRESHOLD)}><div style={{ width: `${progress}%` }} /></div>
         </div>
 
         <div className="cart-drawer-items">
@@ -90,9 +90,9 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
                     </span>
                   )}
                   <div className="quantity-line">
-                    <button type="button" onClick={() => change(index, -1)}><Minus size={13} /></button>
+                    <button type="button" onClick={() => change(index, -1)} disabled={Number(item.qty || 1) <= 1} aria-label="Decrease quantity"><Minus size={13} /></button>
                     <span>{item.qty || 1}</span>
-                    <button type="button" onClick={() => change(index, 1)}><Plus size={13} /></button>
+                    <button type="button" onClick={() => change(index, 1)} disabled={Number(item.qty || 1) >= Number(item.stock ?? 99)} aria-label="Increase quantity"><Plus size={13} /></button>
                     <button type="button" onClick={() => removeItem(index)}><Trash2 size={13} /></button>
                   </div>
                 </div>
