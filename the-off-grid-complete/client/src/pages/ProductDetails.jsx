@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from "react";
+import React,{useEffect,useMemo,useRef,useState} from "react";
 import {Link,useNavigate} from "react-router-dom";
 import {ArrowLeft,Heart,ShoppingBag,Truck,ShieldCheck,RotateCcw,Minus,Plus,Bell,ZoomIn,Check,ChevronLeft,ChevronRight,Ruler,Share2,Copy} from "lucide-react";
 import SizeGuideModal from "../components/SizeGuideModal";
@@ -19,7 +19,7 @@ const colorClass=(c)=>String(c||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user,openCart}){
  const nav=useNavigate();
  const [qty,setQty]=useState(1),[size,setSize]=useState(""),[color,setColor]=useState(product?.color||""),[guide,setGuide]=useState(false),[finder,setFinder]=useState(false),[zoom,setZoom]=useState(false),[imageIndex,setImageIndex]=useState(0);
- const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle"),[shareCopied,setShareCopied]=useState(false);
+ const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle"),[shareCopied,setShareCopied]=useState(false);\n const touchStartX=useRef(null);
 
  useSeo(product ? {
   title: product.meta_title || `${product.name} | THE OFF GRID`,
@@ -95,7 +95,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
    <div className="product-gallery">
     <div className="product-gallery-thumbs">{images.map((src,i)=><button key={src+i} className={i===imageIndex?"active":""} onClick={()=>setImageIndex(i)}><img src={src} alt={`${product.name} view ${i+1}`}/></button>)}{product.video&&<button className={imageIndex==="video"?"active":""} onClick={()=>setImageIndex("video")}><span className="video-thumb-badge">▶</span></button>}</div>
     {imageIndex==="video"&&product.video?<div className="product-details-image product-gallery-main product-gallery-video"><video src={product.video} controls autoPlay muted loop playsInline/></div>:
-    <div className="product-details-image product-gallery-main"><img src={images[imageIndex]} alt={product.name} onClick={()=>setZoom(true)}/><button className="gallery-zoom" onClick={()=>setZoom(true)}><ZoomIn size={15}/> ZOOM</button><button className="gallery-arrow gallery-prev" onClick={prev} aria-label="Previous image"><ChevronLeft/></button><button className="gallery-arrow gallery-next" onClick={next} aria-label="Next image"><ChevronRight/></button><div className="product-details-image-badge">{discount>0&&<span>-{discount}%</span>}<span>{product.condition}</span></div></div>}
+    <div className="product-details-image product-gallery-main" onTouchStart={e=>{touchStartX.current=e.touches[0]?.clientX??null}} onTouchEnd={e=>{const end=e.changedTouches[0]?.clientX;const delta=touchStartX.current==null?0:end-touchStartX.current;if(Math.abs(delta)>45)(delta<0?next():prev)();touchStartX.current=null}}><img src={images[imageIndex]} alt={product.name} onClick={()=>setZoom(true)}/><button className="gallery-zoom" onClick={()=>setZoom(true)}><ZoomIn size={15}/> ZOOM</button><button className="gallery-arrow gallery-prev" onClick={prev} aria-label="Previous image"><ChevronLeft/></button><button className="gallery-arrow gallery-next" onClick={next} aria-label="Next image"><ChevronRight/></button><div className="product-details-image-badge">{discount>0&&<span>-{discount}%</span>}<span>{product.condition}</span></div></div>}
    </div>
    <div className="product-details-info"><div className="product-details-number">01 / THE OFF GRID</div><div className="product-details-category">{product.category} · {product.gender}<button type="button" className="product-share-btn" onClick={shareProduct} aria-label="Share this product">{shareCopied?<Check size={14}/>:<Share2 size={14}/>} {shareCopied?"LINK COPIED":"SHARE"}</button></div><h1>{product.name}</h1><div className="product-details-price"><strong>{money(product.price)}</strong>{product.old_price&&<del>{money(product.old_price)}</del>}{discount>0&&<span>SAVE {discount}%</span>}</div><p className="product-details-description">{product.description}</p>
     <div className="product-details-specs"><div><span>COLOR</span><strong>{color||product.color}</strong></div><div><span>FIT</span><strong>{product.fit}</strong></div><div><span>MATERIAL</span><strong>{product.material||"Premium fabric"}</strong></div></div>
