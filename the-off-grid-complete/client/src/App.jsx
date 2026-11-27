@@ -219,18 +219,36 @@ export default function App() {
   };
   const cancelOrder = async (id) => { try { const response = await api(`/orders/${id}/cancel`, { method: "PATCH" }); setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order)); } catch (error) { window.alert(error.message || "This order cannot be cancelled."); } };
   useEffect(() => { const handler = (event) => { if (event?.detail != null) cancelOrder(event.detail); }; window.addEventListener("offgrid-cancel-order", handler); return () => window.removeEventListener("offgrid-cancel-order", handler); }, []);
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
   const addCart = (product) => {
     const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || "");
-    setCart((current) => {
-      const existing = current.find(same);
-      if (existing) return current.map((item) => same(item) ? { ...item, qty: Number(item.qty || 1) + 1 } : item);
-      return [...current, { ...product, qty: 1 }];
-    });
+    const current = cartRef.current;
+    const existing = current.find(same);
+    const maxStock = Math.max(0, Number(product.stock ?? existing?.stock ?? 99));
+    const nextQty = Number(existing?.qty || 0) + 1;
+    if (maxStock <= 0 || nextQty > maxStock) {
+      window.alert(maxStock <= 0 ? "THIS ITEM IS OUT OF STOCK." : "YOU HAVE REACHED THE AVAILABLE STOCK LIMIT.");
+      setCartOpen(true);
+      return;
+    }
+    const nextCart = existing
+      ? current.map((item) => same(item) ? { ...item, qty: nextQty, stock: maxStock } : item)
+      : [...current, { ...product, stock: maxStock, qty: 1 }];
+    cartRef.current = nextCart;
+    setCart(nextCart);
     if (user?.id) {
-      const qty = (cart.find(same)?.qty || 0) + 1;
-      api("/cart/item", { method: "PUT", body: JSON.stringify({ product_id: product.id, quantity: qty, selected_size: product.selectedSize || null, selected_color: product.selectedColor || null }) })
-        .then((row) => { if (row?.id) setCart((current) => current.map((item) => same(item) ? { ...item, cartItemId: row.id } : item)); })
-        .catch(() => {});
+      api("/cart/item", { method: "PUT", body: JSON.stringify({ product_id: product.id, quantity: nextQty, selected_size: product.selectedSize || null, selected_color: product.selectedColor || null }) })
+        .then((row) => {
+          if (!row?.id) return;
+          const updated = cartRef.current.map((item) => same(item) ? { ...item, cartItemId: row.id } : item);
+          cartRef.current = updated;
+          setCart(updated);
+        })
+        .catch((error) => {
+          console.error("Unable to sync cart item", error);
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-error"));
+        });
     }
     setCartOpen(true);
   };
