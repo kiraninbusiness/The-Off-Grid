@@ -1326,3 +1326,173 @@ footer{padding:72px 8% 24px}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* =========================================================
+   VEXO EXPERIENCE SYSTEM — storefront-wide visual + motion pass
+   Palette adapted from the supplied VEXO concept. Existing
+   commerce components and API flows remain the source of truth.
+   ========================================================= */
+:root{
+  --ink:#d1d6d8;
+  --paper:#0b0808;
+  --orange:#98aeb3;
+  --line:rgba(209,214,216,.17);
+  --surface:#171514;
+  --vexo-muted:#8f999b;
+  --vexo-taupe:#5d4d45;
+  --vexo-sand:#967d6a;
+  color-scheme:dark;
+}
+html{scroll-padding-top:92px}
+body{background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+::selection{background:var(--orange);color:#0b0808}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--orange);outline-offset:4px}
+.topbar{background:var(--orange);color:#0b0808;font-weight:700}
+.navbar{position:sticky;top:0;backdrop-filter:blur(18px);background:rgba(11,8,8,.88);border-bottom-color:var(--line);transition:height .35s ease,background .35s ease,box-shadow .35s ease}
+.navbar:after{content:"";position:absolute;bottom:-1px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--orange),transparent);opacity:.45;pointer-events:none}
+.nav-left button,.nav-right button{transition:color .25s ease,opacity .25s ease,transform .25s ease}
+.nav-left button:hover,.nav-right button:hover{color:var(--orange);transform:translateY(-2px)}
+.logo strong,.product-details-logo strong,.footer-brand strong{letter-spacing:-2px}
+.vexo-hero{isolation:isolate;background:radial-gradient(ellipse at 50% 42%,rgba(152,174,179,.13),transparent 48%),var(--paper)}
+.vexo-hero-title h1{letter-spacing:-.075em}
+.vexo-hero-title h1 em,.manifesto-main h2 em,.editorial-heading h2 em,.offgrid-campaign-copy h2 i,.offgrid-edit-head h2 i,.type-break h2 em,.journal-content h2 em,.newsletter h2 em{color:var(--orange)}
+.vexo-model-image img,.vexo-floating-card img,.offgrid-campaign-art img,.og-edit-card img,.journal-image img{filter:saturate(.78) contrast(1.04);transition:transform .9s cubic-bezier(.2,.7,.2,1),filter .6s ease}
+.vexo-model-image:hover img,.vexo-floating-card:hover img,.offgrid-campaign-art:hover img,.og-edit-card:hover img,.journal-image:hover img{transform:scale(1.045);filter:saturate(1) contrast(1.04)}
+.vexo-orbit{border-color:rgba(152,174,179,.23)}
+.vexo-round-badge{background:var(--orange);color:var(--paper)}
+.vexo-hero-actions button:first-child,.offgrid-campaign-copy button,.type-break-bottom button{background:var(--orange);color:var(--paper);border-color:var(--orange)}
+.vexo-hero-actions button:first-child:hover,.offgrid-campaign-copy button:hover,.type-break-bottom button:hover{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.marquee{background:var(--orange);color:var(--paper)}
+.marquee span{color:var(--vexo-taupe)}
+.manifesto,.category-editorial,.offgrid-edit,.type-break,.journal,.newsletter{border-color:var(--line)}
+.manifesto-mark,.og-eyebrow,.offgrid-edit-head>div>span,.type-break-top span:first-child,.journal-content>span,.newsletter>div>span{color:var(--orange)}
+.category{border:1px solid var(--line);background:var(--surface)}
+.category-info h3{transition:transform .35s ease,color .35s ease}
+.category:hover .category-info h3{transform:translateX(7px);color:var(--orange)}
+.category-overlay{background:linear-gradient(0deg,rgba(11,8,8,.88),transparent 65%)}
+.category-note,.manifesto-footer,.vexo-hero-bottom,.og-campaign-foot{color:var(--vexo-muted)}
+.offgrid-campaign{background:linear-gradient(120deg,#171514,#0b0808 65%)}
+.og-art-backdrop{background:var(--vexo-taupe)}
+.og-art-caption{color:var(--orange)}
+.type-break{background:linear-gradient(135deg,#171514,#0b0808)}
+.newsletter{background:#171514}
+.newsletter form>div{border-bottom-color:var(--orange)}
+.newsletter input{color:var(--ink)}
+footer{background:#090707;border-top:1px solid var(--line)}
+.footer-grid h4{color:var(--orange)}
+.footer-grid button,.footer-grid a{transition:color .2s ease,transform .2s ease}
+.footer-grid button:hover,.footer-grid a:hover{color:var(--orange);transform:translateX(3px)}
+/* Product discovery: editorial controls, clean grid and deliberate hover states */
+.product-discovery{position:relative}
+.discovery-intro{align-items:end}
+.discovery-intro h1,.discovery-intro h2{letter-spacing:-.065em}
+.discovery-toolbar{position:relative;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.discovery-filter-label,.discovery-toolbar button,.discovery-toolbar select{transition:color .2s ease,border-color .2s ease,background .2s ease}
+.discovery-toolbar button:hover,.discovery-toolbar select:hover{color:var(--orange);border-color:var(--orange)}
+.product-card{background:transparent;border:1px solid transparent;transition:border-color .35s ease,transform .4s cubic-bezier(.2,.7,.2,1),background .35s ease}
+.product-card:hover{border-color:var(--line);background:rgba(209,214,216,.025);transform:translateY(-5px)}
+.product-image-wrap{background:#171514;overflow:hidden}
+.product-card-image img{transition:transform .75s cubic-bezier(.2,.7,.2,1),opacity .35s ease}
+.product-card:hover .product-card-image img{transform:scale(1.045)}
+.product-hover-image{transition:opacity .55s ease,transform .8s ease}
+.product-card:hover .product-hover-image{transform:scale(1.045)}
+.product-badges .badge{backdrop-filter:blur(10px)}
+.badge.sale,.badge.bestseller{background:var(--orange);color:var(--paper)}
+.wishlist-button{background:rgba(11,8,8,.72);backdrop-filter:blur(12px);transition:transform .25s ease,color .25s ease,background .25s ease}
+.wishlist-button:hover,.wishlist-button.active{color:var(--orange);transform:scale(1.08)}
+.quick-view-button{background:rgba(11,8,8,.86);border:1px solid var(--line);backdrop-filter:blur(12px);transition:background .25s ease,color .25s ease,transform .25s ease}
+.quick-view-button:hover{background:var(--orange);color:var(--paper);transform:translateY(-3px)}
+.product-content{padding:15px 12px 13px}
+.product-category,.product-meta,.product-color-preview small{color:var(--vexo-muted)}
+.product-info h3 a{transition:color .2s ease}
+.product-info h3 a:hover{color:var(--orange)}
+.product-price strong{font-family:"Space Grotesk",sans-serif}
+.product-add-button{background:var(--ink);color:var(--paper);transition:background .25s ease,color .25s ease,letter-spacing .25s ease}
+.product-add-button:hover:not(:disabled){background:var(--orange);color:var(--paper);letter-spacing:1.8px}
+.product-add-button.added{background:#b7c8bd;color:#0b0808}
+.product-add-button:disabled{opacity:.4;cursor:not-allowed}
+.product-color-preview span{border:1px solid rgba(209,214,216,.28)}
+/* Quick view and overlays */
+.quick-view-overlay,.search-overlay{backdrop-filter:blur(12px);background:rgba(5,4,4,.82)}
+.quick-view-modal{background:#171514;border:1px solid var(--line);box-shadow:0 35px 100px rgba(0,0,0,.55)}
+.quick-view-close,.search-close{transition:transform .25s ease,color .25s ease}
+.quick-view-close:hover,.search-close:hover{color:var(--orange);transform:rotate(90deg)}
+.quick-view-details h2{letter-spacing:-.055em}
+.quick-size button.active,.quick-size button:hover{background:var(--orange);border-color:var(--orange);color:var(--paper)}
+.product-detail-add,.orange-btn{background:var(--orange);color:var(--paper);border-color:var(--orange);transition:background .25s ease,color .25s ease,transform .25s ease}
+.product-detail-add:hover,.orange-btn:hover{background:var(--ink);border-color:var(--ink);color:var(--paper);transform:translateY(-2px)}
+.outline-btn{border-color:var(--line);transition:border-color .2s ease,color .2s ease}
+.outline-btn:hover{border-color:var(--orange);color:var(--orange)}
+/* Product detail and gallery */
+.product-details-header,.simple-header{background:rgba(11,8,8,.94);backdrop-filter:blur(14px);border-color:var(--line)}
+.product-details-main{gap:clamp(28px,5vw,84px)}
+.product-details-image,.product-gallery-thumbs button{background:#171514}
+.product-gallery-thumbs button{border:1px solid transparent;transition:border-color .25s ease,opacity .25s ease}
+.product-gallery-thumbs button.active,.product-gallery-thumbs button:hover{border-color:var(--orange);opacity:1}
+.product-details-info h1,.product-details-copy h1{letter-spacing:-.065em}
+.product-details-extra,.product-reviews,.related-products{border-color:var(--line)}
+.product-details-extra h2,.product-reviews h2,.related-products h2{letter-spacing:-.045em}
+.product-size-options button,.product-color-options button{transition:background .2s ease,color .2s ease,border-color .2s ease}
+.product-size-options button:hover,.product-size-options button.active{background:var(--orange);border-color:var(--orange);color:var(--paper)}
+/* Cart drawer */
+.cart-drawer-overlay{background:rgba(0,0,0,.68);backdrop-filter:blur(7px)}
+.cart-drawer{background:#11100f;border-left:1px solid var(--line);box-shadow:-25px 0 90px rgba(0,0,0,.4)}
+.cart-drawer-head,.cart-drawer-footer{border-color:var(--line)}
+.cart-drawer-head h2{letter-spacing:-.055em}
+.cart-drawer-progress{background:#393533}
+.cart-drawer-progress>div{background:var(--orange)}
+.cart-drawer-item{border-color:var(--line)}
+.quantity-line button{transition:color .2s ease,transform .2s ease}
+.quantity-line button:hover{color:var(--orange);transform:scale(1.12)}
+.cart-drawer-checkout{width:100%}
+.floating-bag{background:var(--orange);color:var(--paper);box-shadow:0 12px 35px rgba(0,0,0,.35);transition:transform .25s ease}
+.floating-bag:hover{transform:translateY(-4px)}
+.floating-whatsapp{box-shadow:0 8px 28px rgba(0,0,0,.35)}
+/* Checkout, account, wishlist, orders and content pages */
+.checkout-page,.account-page,.orders-page,.wishlist-page,.track-order-page,.gift-cards-page,.lookbook-page,.journal-page,.contact-page,.faq-page{background:var(--paper);color:var(--ink)}
+.checkout-page .checkout-card,.checkout-page .checkout-summary,.account-panel,.account-sidebar,.wishlist-card,.order-card,.track-order-card,.gift-card-panel{background:#141211;border-color:var(--line)}
+.checkout-page input,.checkout-page select,.checkout-page textarea,.account-page input,.account-page select,.account-page textarea,.contact-page input,.contact-page textarea{background:#0f0d0c;color:var(--ink);border-color:var(--line)}
+.checkout-page input:focus,.account-page input:focus,.contact-page input:focus,.contact-page textarea:focus{border-color:var(--orange)}
+.checkout-page h1,.account-page h1,.wishlist-page h1,.orders-page h1,.lookbook-page h1,.journal-page h1{letter-spacing:-.06em}
+.account-sidebar button.active,.account-sidebar button:hover{color:var(--orange)}
+.order-status,.success-mark{color:var(--orange)}
+/* Responsive layout polish */
+@media(max-width:900px){
+ .navbar{height:72px;padding:0 20px}
+ .nav-left{gap:14px}
+ .nav-left button{font-size:9px}
+ .product-details-main{grid-template-columns:1fr;gap:28px}
+ .product-gallery{position:relative;top:auto}
+}
+@media(max-width:640px){
+ html{scroll-padding-top:76px}
+ .navbar{height:66px;padding:0 15px}
+ .nav-left{display:none}
+ .nav-right{gap:13px}
+ .nav-right button span{display:none}
+ .vexo-hero{min-height:690px}
+ .vexo-hero-title h1{font-size:clamp(54px,15vw,94px)}
+ .vexo-model-stage{min-height:360px}
+ .vexo-floating-card{transform:scale(.78)}
+ .vexo-card-left{left:-8px}
+ .vexo-card-right{right:-8px}
+ .vexo-round-badge{right:8%;bottom:2%}
+ .manifesto-main{grid-template-columns:1fr;gap:25px}
+ .editorial-categories{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .product-image-wrap{height:auto;aspect-ratio:3/4}
+ .product-content{padding:12px 8px}
+ .product-info{gap:8px}
+ .product-info h3{font-size:12px}
+ .product-add-button{height:40px;font-size:8px}
+ .quick-view-modal{width:calc(100vw - 24px);max-height:90vh;overflow:auto;grid-template-columns:1fr}
+ .quick-view-image{max-height:42vh}
+ .cart-drawer{width:100vw}
+ .newsletter{grid-template-columns:1fr;gap:25px}
+ .footer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 18px}
+ .footer-brand{grid-column:1/-1}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
