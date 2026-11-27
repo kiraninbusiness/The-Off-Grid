@@ -1531,3 +1531,10 @@ footer{background:#090707;border-top:1px solid var(--line)}
 .discovery-load-more button span{color:var(--orange)}
 .discovery-load-more button:hover{background:var(--orange);border-color:var(--orange);color:var(--paper)}
 .discovery-load-more button:hover span{color:var(--paper)}
+
+.wishlist-share-btn{display:inline-flex;align-items:center;gap:10px;margin-top:20px;padding:13px 18px;border:1px solid var(--line);font-size:9px;letter-spacing:1.4px;transition:all .25s ease}
+.wishlist-share-btn:hover{background:var(--orange);border-color:var(--orange);color:var(--paper)}
+.wishlist-page .page-head>p{color:var(--vexo-muted);font-size:13px;line-height:1.7}
+.wishlist-page .empty-box{display:grid;justify-items:center;gap:12px;text-align:center;padding:75px 20px;border:1px solid var(--line);background:var(--surface)}
+.wishlist-page .empty-box>svg{color:var(--orange)}
+.wishlist-page .empty-box p{max-width:360px;color:var(--vexo-muted);line-height:1.7}
