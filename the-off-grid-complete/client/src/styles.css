@@ -1113,3 +1113,26 @@ footer{background:#0b0808}
 .og-edit-note p i{font-style:normal;color:#c6b9af}
 @media(max-width:850px){.offgrid-campaign{grid-template-columns:1fr;padding:75px 7% 90px;gap:35px}.offgrid-campaign-art{min-height:440px}.offgrid-campaign-copy h2{font-size:clamp(68px,13vw,105px)}.offgrid-edit{padding:80px 6%}.offgrid-edit-grid{grid-template-columns:1fr 1fr}.og-edit-large{min-height:420px}.og-edit-note{grid-column:1/-1;min-height:230px}.offgrid-edit-head h2{font-size:clamp(58px,10vw,88px)}}
 @media(max-width:520px){.offgrid-campaign{padding:60px 6% 90px}.offgrid-campaign-art{min-height:330px}.offgrid-campaign-copy h2{font-size:17vw}.offgrid-campaign-copy>small{margin-top:32px}.og-campaign-foot{left:6%;right:6%;font-size:6px;gap:15px}.offgrid-edit{padding:65px 5%}.offgrid-edit-head{display:block}.offgrid-edit-head h2{font-size:14vw;margin-top:22px}.offgrid-edit-head>p{margin-top:22px}.offgrid-edit-grid{gap:9px}.og-edit-card,.og-edit-large{min-height:300px}.og-edit-card>span{left:12px;top:13px;font-size:6px}.og-edit-card>strong{left:12px;bottom:14px;font-size:25px}.og-edit-note{padding:18px;min-height:190px}.og-edit-note p{font-size:43px}}
+
+
+/* Final polish: reveal every editorial campaign, keep anchors clear of the
+   floating navigation, and make keyboard focus visible without changing
+   any commerce behavior. */
+.offgrid-campaign,.offgrid-edit{scroll-margin-top:105px}
+#home,#story,#categories,#shop,#journal{scroll-margin-top:105px}
+.offgrid-campaign,.offgrid-edit{opacity:1}
+.vexo-reveal{will-change:opacity,transform}
+:focus-visible{outline:2px solid #718994;outline-offset:4px}
+.category img{display:block}
+@media(max-width:850px){
+  .navbar{margin-bottom:0}
+  .vexo-hero{margin-top:12px}
+  .offgrid-campaign-art{min-height:clamp(320px,72vw,440px)}
+}
+@media(max-width:520px){
+  .vexo-hero{margin-top:8px}
+  .vexo-hero-top{gap:8px}
+  .vexo-hero-title{padding-top:34px}
+  .vexo-model-stage{overflow:visible}
+  .offgrid-campaign-art{min-height:330px}
+}
