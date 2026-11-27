@@ -84,7 +84,7 @@ export default function App() {
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterStatus, setNewsletterStatus] = useState("idle");
   useEffect(() => {
-    const targets = document.querySelectorAll(".manifesto,.category-editorial,.shop,.type-break,.journal,.newsletter");
+    const targets = document.querySelectorAll(".manifesto,.category-editorial,.shop,.type-break,.journal,.newsletter,.offgrid-campaign,.offgrid-edit");
     if (!("IntersectionObserver" in window)) { targets.forEach((el) => el.classList.add("vexo-visible")); return; }
     const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
       if (entry.isIntersecting) { entry.target.classList.add("vexo-visible"); observer.unobserve(entry.target); }
