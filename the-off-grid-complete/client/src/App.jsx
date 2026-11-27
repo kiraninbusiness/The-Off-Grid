@@ -77,7 +77,7 @@ export default function App() {
   const [cart, setCart] = useState(() => { try { return dedupeCart(JSON.parse(localStorage.getItem("offgrid_cart")) || []); } catch { return []; } });
   const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; } });
   const [products, setProducts] = useState(PRODUCTS);
-  const [recentlyViewed, setRecentlyViewed] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_recently_viewed")) || []; } catch { return []; } });
+  const [recentlyViewed, setRecentlyViewed] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_recently_viewed_home")) || []; } catch { return []; } });
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_user")) || null; } catch { return null; } });
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -102,7 +102,7 @@ export default function App() {
 
   // Keep a small, private on-device browsing history for faster return visits.
   useEffect(() => {
-    try { localStorage.setItem("offgrid_recently_viewed", JSON.stringify(recentlyViewed.slice(0, 8))); } catch {}
+    try { localStorage.setItem("offgrid_recently_viewed_home", JSON.stringify(recentlyViewed.slice(0, 8))); } catch {}
   }, [recentlyViewed]);
   useEffect(() => {
     const match = location.pathname.match(/^\/product\/([^/]+)/);
