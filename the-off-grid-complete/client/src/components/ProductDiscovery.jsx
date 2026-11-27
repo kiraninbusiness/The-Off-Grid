@@ -41,7 +41,6 @@ export default function ProductDiscovery({ products = [], add, wishlist = [], to
   const [visibleCount, setVisibleCount] = useState(12);
 
   useEffect(() => setCategory(initialCategory || "ALL"), [initialCategory]);
-  useEffect(() => setVisibleCount(12), [result]);
 
   const categories = useMemo(() => ["ALL", ...new Set(products.map((p) => p.category).filter(Boolean))], [products]);
   const genders = useMemo(() => ["ALL", ...new Set(products.map((p) => p.gender).filter(Boolean))], [products]);
@@ -94,6 +93,8 @@ export default function ProductDiscovery({ products = [], add, wishlist = [], to
     });
     return list;
   }, [products, category, gender, fit, color, size, stock, saleOnly, price, sort, quickTab, searchText]);
+
+  useEffect(() => setVisibleCount(12), [result]);
 
   const activeFilters = [category, gender, fit, color, size, stock, price].filter((v) => v !== "ALL").length + (saleOnly ? 1 : 0);
   const hasSearch = String(searchText || "").trim().length > 0;
