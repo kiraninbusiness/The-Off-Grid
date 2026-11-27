@@ -14,14 +14,14 @@ export default function ProductCard({p,add,wish=[],toggle}){
 }
 function QuickViewModal({product,onClose,isWishlisted,onAdd,onToggleWishlist}){
  const navigate=useNavigate();
- const sizes=product.sizes?.length?product.sizes:String(product.size||"").split("/").map(x=>x.trim()).filter(Boolean);
- const colors=product.colors?.length?product.colors:[product.color].filter(Boolean);
+ const variants=Array.isArray(product.variants)?product.variants:[];
+ const sizes=product.sizes?.length?product.sizes:variants.length?[...new Set(variants.map(v=>v.size).filter(Boolean))]:String(product.size||"").split("/").map(x=>x.trim()).filter(Boolean);
+ const colors=product.colors?.length?product.colors:variants.length?[...new Set(variants.map(v=>v.color).filter(Boolean))]:[product.color].filter(Boolean);
  const [size,setSize]=useState("");
  const [color,setColor]=useState(product.color||colors[0]||"");
  const discount=product.old_price?Math.round((product.old_price-product.price)/product.old_price*100):0;
- const variants=Array.isArray(product.variants)?product.variants:[];
- const selectedVariant=variants.length&&size?variants.find(v=>String(v.size)===String(size)&&String(v.color||"")===String(color||"")):null;
- const variantSoldOut=Boolean(variants.length&&size&&(!selectedVariant||Number(selectedVariant.stock)<=0));
+ const selectedVariant=variants.length?variants.find(v=>(!size||String(v.size)===String(size))&&(!color||String(v.color||"")===String(color))):null;
+ const variantSoldOut=Boolean(variants.length&&(size||!sizes.length)&&(!selectedVariant||Number(selectedVariant.stock)<=0));
  const go=()=>{
   if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}
   if(!product.stock||variantSoldOut)return;
