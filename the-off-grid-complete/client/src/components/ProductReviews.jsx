@@ -45,7 +45,7 @@ export default function ProductReviews({ productId, user }) {
       }
       const result=await api(`/reviews/${productId}`,{
         method:"POST",
-        body:JSON.stringify({rating,comment:text.trim(),photos:uploaded})
+        body:JSON.stringify({rating,comment:text.trim(),...(files.length?{photos:uploaded}:{})})
       });
       setText("");setFiles([]);
       setMessage(result.photos_pending? "Your review is live. Your photos will appear after moderation.":"Your review has been posted.");
