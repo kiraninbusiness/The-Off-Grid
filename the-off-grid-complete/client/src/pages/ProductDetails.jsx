@@ -19,7 +19,8 @@ const colorClass=(c)=>String(c||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user,openCart}){
  const nav=useNavigate();
  const [qty,setQty]=useState(1),[size,setSize]=useState(""),[color,setColor]=useState(product?.color||""),[guide,setGuide]=useState(false),[finder,setFinder]=useState(false),[zoom,setZoom]=useState(false),[imageIndex,setImageIndex]=useState(0);
- const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle"),[shareCopied,setShareCopied]=useState(false);\n const touchStartX=useRef(null);
+ const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle"),[shareCopied,setShareCopied]=useState(false);
+ const touchStartX=useRef(null);
 
  useSeo(product ? {
   title: product.meta_title || `${product.name} | THE OFF GRID`,
