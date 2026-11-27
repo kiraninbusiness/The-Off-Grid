@@ -77,6 +77,7 @@ export default function App() {
   const [cart, setCart] = useState(() => { try { return dedupeCart(JSON.parse(localStorage.getItem("offgrid_cart")) || []); } catch { return []; } });
   const [wishlist, setWishlist] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_wishlist")) || []; } catch { return []; } });
   const [products, setProducts] = useState(PRODUCTS);
+  const [recentlyViewed, setRecentlyViewed] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_recently_viewed")) || []; } catch { return []; } });
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("offgrid_user")) || null; } catch { return null; } });
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -98,6 +99,19 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("offgrid_cart", JSON.stringify(cart)); } catch {} }, [cart]);
   useEffect(() => { try { localStorage.setItem("offgrid_wishlist", JSON.stringify(wishlist)); } catch {} }, [wishlist]);
   useEffect(() => { let cancelled = false; api("/products").then((data) => { if (!cancelled && Array.isArray(data) && data.length) setProducts(data); }).catch(() => {}); return () => { cancelled = true; }; }, []);
+
+  // Keep a small, private on-device browsing history for faster return visits.
+  useEffect(() => {
+    try { localStorage.setItem("offgrid_recently_viewed", JSON.stringify(recentlyViewed.slice(0, 8))); } catch {}
+  }, [recentlyViewed]);
+  useEffect(() => {
+    const match = location.pathname.match(/^\/product\/([^/]+)/);
+    if (!match) return;
+    const viewed = products.find((item) => String(item.id) === String(match[1])) || PRODUCTS.find((item) => String(item.id) === String(match[1]));
+    if (!viewed) return;
+    setRecentlyViewed((current) => [viewed, ...current.filter((item) => String(item.id) !== String(viewed.id))].slice(0, 8));
+  }, [location.pathname, products]);
+
 
   /*
     CART/WISHLIST — LOAD vs MERGE, KEPT STRICTLY SEPARATE
@@ -280,6 +294,7 @@ export default function App() {
       <div className="og-campaign-foot"><span>DESIGNED FOR THE UNCONVENTIONAL</span><span>01 — 04 / COLLECTION NOTES</span></div>
     </section>
     <section className="shop section" id="shop"><ProductDiscovery products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} initialCategory={activeCategory} searchText={searchText} setSearchText={setSearchText} /></section>
+    {recentlyViewed.length > 0 && <section className="recently-viewed section"><div className="recently-viewed-head"><div><span>YOUR BROWSING HISTORY</span><h2>BACK IN YOUR <em>ROTATION.</em></h2></div><button type="button" onClick={() => setRecentlyViewed([])}>CLEAR HISTORY <X size={14}/></button></div><div className="recently-viewed-grid">{recentlyViewed.slice(0,4).map((p) => <div key={p.id} className="recently-viewed-card"><button type="button" className="recently-viewed-image" onClick={() => navigate(productUrl(p))}><img src={p.image} alt={p.name} loading="lazy"/><span>VIEW AGAIN <ArrowUpRight size={14}/></span></button><div><span>{p.category || "THE OFF GRID"}</span><strong>{p.name}</strong><b>₹{Number(p.price || 0).toLocaleString("en-IN")}</b></div></div>)}</div></section>}
     <section className="offgrid-edit">
       <div className="offgrid-edit-head"><div><span className="og-eyebrow">04 / THE ROTATION, REWORKED</span><h2>GOOD PIECES.<br/><i>NO RULES.</i></h2></div><p>Build a wardrobe that feels like<br/>you — one considered piece at a time.</p></div>
       <div className="offgrid-edit-grid">
