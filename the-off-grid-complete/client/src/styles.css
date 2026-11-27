@@ -1538,3 +1538,7 @@ footer{background:#090707;border-top:1px solid var(--line)}
 .wishlist-page .empty-box{display:grid;justify-items:center;gap:12px;text-align:center;padding:75px 20px;border:1px solid var(--line);background:var(--surface)}
 .wishlist-page .empty-box>svg{color:var(--orange)}
 .wishlist-page .empty-box p{max-width:360px;color:var(--vexo-muted);line-height:1.7}
+
+.product-details-category{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.product-share-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 0;color:var(--vexo-muted);font-size:9px;letter-spacing:1.2px;white-space:nowrap;transition:color .2s ease}
+.product-share-btn:hover{color:var(--orange)}
