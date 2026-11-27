@@ -284,7 +284,7 @@ export default function App() {
       <div className="offgrid-edit-head"><div><span className="og-eyebrow">04 / THE ROTATION, REWORKED</span><h2>GOOD PIECES.<br/><i>NO RULES.</i></h2></div><p>Build a wardrobe that feels like<br/>you — one considered piece at a time.</p></div>
       <div className="offgrid-edit-grid">
         <button type="button" className="og-edit-card og-edit-large" onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1100&q=85" alt="Everyday essentials"/><span>01 / EVERYDAY ESSENTIALS</span><strong>THE<br/>FOUNDATION <ArrowUpRight/></strong></button>
-        <button type="button" className="og-edit-card" onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-151 pants?auto=format&fit=crop&w=700&q=80" alt="Streetwear styling" onError={(e)=>{e.currentTarget.src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=700&q=85";}}/><span>02 / MAKE IT YOURS</span><strong>OWN<br/>THE LOOK <ArrowUpRight/></strong></button>
+        <button type="button" className="og-edit-card" onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=700&q=85" alt="Streetwear styling" loading="lazy" decoding="async"/><span>02 / MAKE IT YOURS</span><strong>OWN<br/>THE LOOK <ArrowUpRight/></strong></button>
         <div className="og-edit-note"><span>THE OFF GRID CODE</span><p>Less noise.<br/>More <i>you.</i></p><small>WEAR WHAT MOVES YOU.</small></div>
       </div>
     </section>
@@ -298,4 +298,4 @@ export default function App() {
   </div>;
 }
 
-function Category({ title, number, image, click }) { return <button type="button" className="category" onClick={click}><img src={image} alt={title} /><div className="category-overlay"></div><div className="category-info"><span>{number} / CATEGORY <ArrowRight size={13}/></span><h3>{title}</h3></div></button>; }
+function Category({ title, number, image, click }) { return <button type="button" className="category" onClick={click}><img src={image} alt={title} loading="lazy" decoding="async" /><div className="category-overlay"></div><div className="category-info"><span>{number} / CATEGORY <ArrowRight size={13}/></span><h3>{title}</h3></div></button>; }
