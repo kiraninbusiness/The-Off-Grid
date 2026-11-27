@@ -33,11 +33,11 @@ export async function api(path, options = {}) {
 // File uploads use multipart/form-data — the browser sets its own
 // Content-Type with a boundary, so this deliberately skips the JSON
 // header api() adds above.
-export async function apiUpload(file) {
+export async function apiUpload(file, endpoint = "/upload") {
   const token = localStorage.getItem("offgrid_token");
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${BASE}/upload`, {
+  const res = await fetch(`${BASE}${endpoint}`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: form,
