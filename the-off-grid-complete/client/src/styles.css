@@ -1542,3 +1542,6 @@ footer{background:#090707;border-top:1px solid var(--line)}
 .product-details-category{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .product-share-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 0;color:var(--vexo-muted);font-size:9px;letter-spacing:1.2px;white-space:nowrap;transition:color .2s ease}
 .product-share-btn:hover{color:var(--orange)}
+
+.product-gallery-main{touch-action:pan-y;overscroll-behavior:contain}
+.product-gallery-main>img{user-select:none;-webkit-user-drag:none}
