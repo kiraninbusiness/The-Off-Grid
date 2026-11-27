@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from "react";
 import {Link,useNavigate} from "react-router-dom";
-import {ArrowLeft,Heart,ShoppingBag,Truck,ShieldCheck,RotateCcw,Minus,Plus,Bell,ZoomIn,Check,ChevronLeft,ChevronRight,Ruler} from "lucide-react";
+import {ArrowLeft,Heart,ShoppingBag,Truck,ShieldCheck,RotateCcw,Minus,Plus,Bell,ZoomIn,Check,ChevronLeft,ChevronRight,Ruler,Share2,Copy} from "lucide-react";
 import SizeGuideModal from "../components/SizeGuideModal";
 import SizeFinderModal from "../components/SizeFinderModal";
 import ProductReviews from "../components/ProductReviews";
@@ -19,7 +19,7 @@ const colorClass=(c)=>String(c||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
 export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[],toggle,user,openCart}){
  const nav=useNavigate();
  const [qty,setQty]=useState(1),[size,setSize]=useState(""),[color,setColor]=useState(product?.color||""),[guide,setGuide]=useState(false),[finder,setFinder]=useState(false),[zoom,setZoom]=useState(false),[imageIndex,setImageIndex]=useState(0);
- const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle");
+ const [notifyEmail,setNotifyEmail]=useState(""),[notifyStatus,setNotifyStatus]=useState("idle"),[shareCopied,setShareCopied]=useState(false);
 
  useSeo(product ? {
   title: product.meta_title || `${product.name} | THE OFF GRID`,
@@ -76,6 +76,17 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const discount=product.old_price?Math.round((Number(product.old_price)-Number(product.price))/Number(product.old_price)*100):0;
  const related=products.filter(p=>String(p.id)!==String(product.id)).sort((a,b)=>(a.category===product.category?0:1)-(b.category===product.category?0:1)).slice(0,3);
  const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,selectedSize:size||null,selectedColor:color||null});if(openCart)openCart();else nav("/checkout")};
+ const shareProduct=async()=>{
+  const url=`${window.location.origin}${productUrl(product)}`;
+  try{
+   if(navigator.share){await navigator.share({title:`${product.name} | THE OFF GRID`,text:product.description||"Discover this piece from THE OFF GRID.",url});return;}
+   await navigator.clipboard.writeText(url);
+   setShareCopied(true);window.setTimeout(()=>setShareCopied(false),2200);
+  }catch(error){
+   if(error?.name==="AbortError")return;
+   try{const field=document.createElement("textarea");field.value=url;document.body.appendChild(field);field.select();document.execCommand("copy");field.remove();setShareCopied(true);window.setTimeout(()=>setShareCopied(false),2200);}catch{}
+  }
+ };
  const notifyMe=async e=>{e.preventDefault();if(!/^\S+@\S+\.\S+$/.test(notifyEmail.trim())){setNotifyStatus("error");return}setNotifyStatus("loading");try{await api(`/products/${product.id}/notify`,{method:"POST",body:JSON.stringify({email:notifyEmail.trim(),size:size||null,color:color||null})});setNotifyStatus("success")}catch{setNotifyStatus("error")}};
  const prev=()=>setImageIndex(i=>(i-1+images.length)%images.length),next=()=>setImageIndex(i=>(i+1)%images.length);
  return <div className="product-details-page">
@@ -86,7 +97,7 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
     {imageIndex==="video"&&product.video?<div className="product-details-image product-gallery-main product-gallery-video"><video src={product.video} controls autoPlay muted loop playsInline/></div>:
     <div className="product-details-image product-gallery-main"><img src={images[imageIndex]} alt={product.name} onClick={()=>setZoom(true)}/><button className="gallery-zoom" onClick={()=>setZoom(true)}><ZoomIn size={15}/> ZOOM</button><button className="gallery-arrow gallery-prev" onClick={prev} aria-label="Previous image"><ChevronLeft/></button><button className="gallery-arrow gallery-next" onClick={next} aria-label="Next image"><ChevronRight/></button><div className="product-details-image-badge">{discount>0&&<span>-{discount}%</span>}<span>{product.condition}</span></div></div>}
    </div>
-   <div className="product-details-info"><div className="product-details-number">01 / THE OFF GRID</div><div className="product-details-category">{product.category} · {product.gender}</div><h1>{product.name}</h1><div className="product-details-price"><strong>{money(product.price)}</strong>{product.old_price&&<del>{money(product.old_price)}</del>}{discount>0&&<span>SAVE {discount}%</span>}</div><p className="product-details-description">{product.description}</p>
+   <div className="product-details-info"><div className="product-details-number">01 / THE OFF GRID</div><div className="product-details-category">{product.category} · {product.gender}<button type="button" className="product-share-btn" onClick={shareProduct} aria-label="Share this product">{shareCopied?<Check size={14}/>:<Share2 size={14}/>} {shareCopied?"LINK COPIED":"SHARE"}</button></div><h1>{product.name}</h1><div className="product-details-price"><strong>{money(product.price)}</strong>{product.old_price&&<del>{money(product.old_price)}</del>}{discount>0&&<span>SAVE {discount}%</span>}</div><p className="product-details-description">{product.description}</p>
     <div className="product-details-specs"><div><span>COLOR</span><strong>{color||product.color}</strong></div><div><span>FIT</span><strong>{product.fit}</strong></div><div><span>MATERIAL</span><strong>{product.material||"Premium fabric"}</strong></div></div>
     {colors.length>1&&<div className="product-option-section"><div className="product-size-title"><span>SELECT COLOR</span><strong>{color}</strong></div><div className="product-color-options">{colors.map(c=><button key={c} className={color===c?"active":""} onClick={()=>setColor(c)}><i className={`swatch swatch-${colorClass(c)}`}></i>{c}{color===c&&<Check size={13}/>}</button>)}</div></div>}
     {sizes.length>0&&<div className="product-size-section"><div className="product-size-title"><span>SELECT SIZE</span><div className="product-size-title-links"><button className="link-like" onClick={()=>setFinder(true)}><Ruler size={13}/> FIND MY SIZE</button><button className="link-like" onClick={()=>setGuide(true)}><Ruler size={13}/> SIZE GUIDE</button></div></div><div className="product-size-buttons">{sizes.map(s=><button key={s} disabled={sizeSoldOut(s)} className={`${size===s?"active":""} ${sizeSoldOut(s)?"size-sold-out":""}`} onClick={()=>setSize(s)}>{s}</button>)}</div><p className="fit-helper">{product.fit} FIT · {product.model||"Check the size guide for measurements"}</p>{hasVariants&&size&&<p className={selectedVariantStock>0?"variant-stock-ok":"variant-stock-out"}>{selectedVariantStock>0?`${selectedVariantStock} left in ${size}${color?` / ${color}`:""}`:`${size}${color?` / ${color}`:""} is out of stock`}</p>}</div>}
