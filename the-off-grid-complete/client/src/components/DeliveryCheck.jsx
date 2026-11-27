@@ -1,43 +1,38 @@
 import React, { useState } from "react";
 import { Truck, RotateCcw } from "lucide-react";
-
-// Lightweight, dependency-free delivery estimator. Real courier/pincode
-// serviceability APIs need a paid integration (Shiprocket/Delhivery); until
-// that's wired up this gives shoppers the same reassurance competitors show
-// (estimated delivery date + COD availability) using a deterministic estimate
-// based on the pincode's zone digit, so the same pincode always shows the same result.
-function estimate(pincode) {
- const zone = Number(String(pincode)[0]) || 5;
- const metro = ["1", "4", "5", "6"].includes(String(pincode)[0]);
- const days = metro ? 2 + (zone % 2) : 4 + (zone % 3);
- const date = new Date();
- date.setDate(date.getDate() + days);
- const label = date.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
- return { days, label, cod: true };
-}
+import { api } from "../api";
 
 export default function DeliveryCheck() {
- const [pin, setPin] = useState("");
- const [result, setResult] = useState(null);
- const [err, setErr] = useState("");
+ const [pin,setPin]=useState("");
+ const [result,setResult]=useState(null);
+ const [status,setStatus]=useState("idle");
+ const [err,setErr]=useState("");
 
- const check = (e) => {
+ const check=async(e)=>{
   e.preventDefault();
-  if (!/^\d{6}$/.test(pin.trim())) { setErr("ENTER A VALID 6-DIGIT PINCODE"); setResult(null); return; }
-  setErr("");
-  setResult(estimate(pin.trim()));
+  const value=pin.trim();
+  if(!/^[1-9]\d{5}$/.test(value)){setErr("ENTER A VALID 6-DIGIT PINCODE");setResult(null);setStatus("idle");return;}
+  setErr("");setResult(null);setStatus("loading");
+  try{
+   const estimate=await api(`/orders/delivery-estimate?pincode=${encodeURIComponent(value)}`);
+   setResult(estimate);setStatus("success");
+  }catch(error){
+   setErr(error.message||"WE COULDN'T CHECK THIS PINCODE. TRY AGAIN.");
+   setStatus("error");
+  }
  };
 
  return <div className="delivery-check">
-  <div className="delivery-check-title"><Truck size={16} /><span>CHECK DELIVERY</span></div>
+  <div className="delivery-check-title"><Truck size={16}/><span>CHECK DELIVERY ESTIMATE</span></div>
   <form onSubmit={check}>
-   <input value={pin} maxLength={6} inputMode="numeric" placeholder="ENTER PINCODE" onChange={e => setPin(e.target.value.replace(/\D/g, ""))} />
-   <button type="submit">CHECK</button>
+   <input value={pin} maxLength={6} inputMode="numeric" autoComplete="postal-code" placeholder="ENTER 6-DIGIT PINCODE" aria-label="Delivery pincode" onChange={e=>{setPin(e.target.value.replace(/\D/g,""));setResult(null);if(err)setErr("");}}/>
+   <button type="submit" disabled={status==="loading"}>{status==="loading"?"CHECKING...":"CHECK"}</button>
   </form>
-  {err && <p className="delivery-check-error">{err}</p>}
-  {result && <div className="delivery-check-result">
-   <p><strong>Delivery by {result.label}</strong> ({result.days} {result.days === 1 ? "day" : "days"})</p>
-   <p className="delivery-check-cod"><RotateCcw size={13} /> Cash on Delivery available in this area</p>
+  {err&&<p className="delivery-check-error" role="alert">{err}</p>}
+  {result&&<div className="delivery-check-result" role="status">
+   <p><strong>Estimated delivery: {result.label}</strong></p>
+   <p>{result.estimated_days} · {result.zone==="metro"?"Metro zone":result.zone==="remote"?"Remote zone":"Standard zone"}</p>
+   <p className="delivery-check-cod"><RotateCcw size={13}/> {result.note}</p>
   </div>}
  </div>;
 }
