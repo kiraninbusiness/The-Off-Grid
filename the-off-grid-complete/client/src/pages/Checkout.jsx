@@ -482,7 +482,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
               <div className="checkout-address-form">
                 <div className="checkout-form-row">
                   <input required value={form.name} placeholder="FULL NAME" onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} />
-                  <input required value={form.phone} placeholder="PHONE" type="text" inputMode="numeric" maxLength={10} onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))} />
+                  <input required value={form.phone} placeholder="PHONE" type="tel" inputMode="numeric" pattern="[6-9][0-9]{9}" title="Enter a valid 10-digit Indian mobile number" maxLength={10} onChange={(e) => setForm((c) => ({ ...c, phone: e.target.value }))} />
                 </div>
                 <input required value={form.email} placeholder="EMAIL" type="email" onChange={(e) => setForm((c) => ({ ...c, email: e.target.value }))} />
                 <input required value={form.address} placeholder="ADDRESS LINE 1" onChange={(e) => setForm((c) => ({ ...c, address: e.target.value }))} />
@@ -490,7 +490,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
                   <input required value={form.city} placeholder="CITY" onChange={(e) => setForm((c) => ({ ...c, city: e.target.value }))} />
                   <input required value={form.state} placeholder="STATE" onChange={(e) => setForm((c) => ({ ...c, state: e.target.value }))} />
                 </div>
-                <input required value={form.pincode} placeholder="PINCODE" type="text" inputMode="numeric" maxLength={6} onChange={(e) => setForm((c) => ({ ...c, pincode: e.target.value }))} />
+                <input required value={form.pincode} placeholder="PINCODE" type="text" inputMode="numeric" pattern="[1-9][0-9]{5}" title="Enter a valid 6-digit Indian PIN code" maxLength={6} onChange={(e) => setForm((c) => ({ ...c, pincode: e.target.value }))} />
               </div>
             )}
 
