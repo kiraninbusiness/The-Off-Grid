@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Star, CheckCircle2, ImagePlus, X } from "lucide-react";
 import { api, apiUpload } from "../api";
 
@@ -12,6 +12,8 @@ export default function ProductReviews({ productId, user }) {
   const [posting,setPosting]=useState(false);
   const [message,setMessage]=useState("");
   const [error,setError]=useState("");
+  const previews=useMemo(()=>files.map(file=>({file,url:URL.createObjectURL(file)})),[files]);
+  useEffect(()=>()=>previews.forEach(item=>URL.revokeObjectURL(item.url)),[previews]);
 
   const loadReviews=async()=>{
     setLoading(true);
@@ -60,7 +62,7 @@ export default function ProductReviews({ productId, user }) {
       <div className="stars-input" aria-label="Choose rating">{[1,2,3,4,5].map(n=><button type="button" key={n} onClick={()=>setRating(n)} aria-label={`${n} stars`}><Star size={18} fill={n<=rating?"currentColor":"none"}/></button>)}</div>
       <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Tell us about the fit, feel and quality..." maxLength={1000}/>
       <label className="review-photo-picker"><ImagePlus size={16}/><span>ADD PHOTOS</span><small>{files.length}/3 · MAX 8 MB EACH</small><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={chooseFiles}/></label>
-      {files.length>0&&<div className="review-photo-previews">{files.map((file,index)=><div key={file.name+index}><img src={URL.createObjectURL(file)} alt={file.name}/><button type="button" onClick={()=>setFiles(current=>current.filter((_,i)=>i!==index))} aria-label="Remove photo"><X size={13}/></button></div>)}</div>}
+      {files.length>0&&<div className="review-photo-previews">{previews.map(({file,url},index)=><div key={file.name+index}><img src={url} alt={file.name}/><button type="button" onClick={()=>setFiles(current=>current.filter((_,i)=>i!==index))} aria-label="Remove photo"><X size={13}/></button></div>)}</div>}
       {error&&<p className="notify-me-error" role="alert">{error}</p>}{message&&<p className="notify-me-success" role="status">{message}</p>}
       <button className="orange-btn" disabled={posting}>{posting?"UPLOADING & POSTING...":"POST REVIEW"}</button>
     </form>:<div className="review-login-note"><p>Sign in to share your fit, feel and quality experience.</p>{error&&<p className="notify-me-error">{error}</p>}</div>}
