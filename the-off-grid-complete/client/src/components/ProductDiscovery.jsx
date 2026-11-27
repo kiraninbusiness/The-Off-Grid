@@ -38,8 +38,10 @@ export default function ProductDiscovery({ products = [], add, wishlist = [], to
   const [price, setPrice] = useState("ALL");
   const [quickTab, setQuickTab] = useState("ALL");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(12);
 
   useEffect(() => setCategory(initialCategory || "ALL"), [initialCategory]);
+  useEffect(() => setVisibleCount(12), [result]);
 
   const categories = useMemo(() => ["ALL", ...new Set(products.map((p) => p.category).filter(Boolean))], [products]);
   const genders = useMemo(() => ["ALL", ...new Set(products.map((p) => p.gender).filter(Boolean))], [products]);
@@ -132,8 +134,8 @@ export default function ProductDiscovery({ products = [], add, wishlist = [], to
 
       <div className="discovery-results-head"><span>{hasSearch ? <><Search size={13} /> SEARCH RESULTS FOR “{searchText}”</> : quickTab === "NEW" ? "NEW ARRIVALS" : quickTab === "BESTSELLERS" ? "BESTSELLERS" : quickTab === "SALE" || saleOnly ? "SALE EDIT" : "THE OFF GRID COLLECTION"}</span><strong>{result.length} {result.length === 1 ? "PRODUCT" : "PRODUCTS"}</strong></div>
 
-      {result.length ? <div className="products discovery-grid">{result.map((product) => <ProductCard key={product.id} p={product} add={add} wish={wishlist} toggle={toggle} />)}</div> : <div className="discovery-empty"><Sparkles size={18} /><span>NO MATCHES</span><h3>NOTHING HERE.</h3><p>Try clearing a filter or searching for another piece.</p><button type="button" onClick={clearAll}>VIEW ALL PRODUCTS</button></div>}
-      <div className="shop-count">SHOWING <strong>{result.length}</strong> OF <strong>{products.length}</strong> PRODUCTS</div>
+      {result.length ? <><div className="products discovery-grid">{result.slice(0, visibleCount).map((product) => <ProductCard key={product.id} p={product} add={add} wish={wishlist} toggle={toggle} />)}</div>{visibleCount < result.length && <div className="discovery-load-more"><span>SHOWING {Math.min(visibleCount, result.length)} OF {result.length}</span><div className="discovery-progress"><i style={{width:`${Math.min(100, visibleCount / result.length * 100)}%`}} /></div><button type="button" onClick={() => setVisibleCount((count) => Math.min(result.length, count + 12))}>LOAD MORE <span>+12</span></button></div>}</> : <div className="discovery-empty"><Sparkles size={18} /><span>NO MATCHES</span><h3>NOTHING HERE.</h3><p>Try clearing a filter or searching for another piece.</p><button type="button" onClick={clearAll}>VIEW ALL PRODUCTS</button></div>}
+      <div className="shop-count">SHOWING <strong>{Math.min(visibleCount, result.length)}</strong> OF <strong>{result.length}</strong> MATCHING PRODUCTS · {products.length} IN STORE</div>
     </div>
   );
 }
