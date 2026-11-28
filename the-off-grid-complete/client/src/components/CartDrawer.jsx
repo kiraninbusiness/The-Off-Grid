@@ -20,9 +20,12 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
 
   const subtotal = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 1), 0);
   const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
-  const progress = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);\n  const unavailableItems = cart.filter((item) => Number(item.stock ?? 99) < Number(item.qty || 1) || Number(item.stock ?? 99) <= 0);\n  const [syncError, setSyncError] = React.useState("");
+  const progress = Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100);
+  const unavailableItems = cart.filter((item) => Number(item.stock ?? 99) < Number(item.qty || 1) || Number(item.stock ?? 99) <= 0);
+  const [syncError, setSyncError] = React.useState("");
 
-  const change = (index, delta) => {\n    setSyncError("");
+  const change = (index, delta) => {
+    setSyncError("");
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
@@ -72,7 +75,9 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
           <div className="cart-drawer-progress" role="progressbar" aria-label="Free shipping progress" aria-valuemin={0} aria-valuemax={FREE_SHIPPING_THRESHOLD} aria-valuenow={Math.min(subtotal, FREE_SHIPPING_THRESHOLD)}><div style={{ width: `${progress}%` }} /></div>
         </div>
 
-        {syncError && <p className="cart-drawer-note" role="alert">{syncError}</p>}\n\n        <div className="cart-drawer-items">
+        {syncError && <p className="cart-drawer-note" role="alert">{syncError}</p>}
+
+        <div className="cart-drawer-items">
           {!cart.length ? (
             <div className="cart-drawer-empty">
               <p>YOUR BAG IS EMPTY.</p>
@@ -83,7 +88,9 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
               <div className="cart-drawer-item" key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
                 <img src={item.image} alt={item.name} />
                 <div>
-                  <strong>{item.name}</strong>\n                  {Number(item.stock ?? 99) <= 0 && <span className="cart-drawer-variant" role="alert">OUT OF STOCK</span>}\n                  {Number(item.stock ?? 99) > 0 && Number(item.qty || 1) > Number(item.stock ?? 99) && <span className="cart-drawer-variant" role="alert">ONLY {item.stock} LEFT — UPDATE QUANTITY</span>
+                  <strong>{item.name}</strong>
+                  {Number(item.stock ?? 99) <= 0 && <span className="cart-drawer-variant" role="alert">OUT OF STOCK</span>}
+                  {Number(item.stock ?? 99) > 0 && Number(item.qty || 1) > Number(item.stock ?? 99) && <span className="cart-drawer-variant" role="alert">ONLY {item.stock} LEFT — UPDATE QUANTITY</span>
                   {(item.selectedSize || item.selectedColor) && (
                     <span className="cart-drawer-variant">
                       {[item.selectedSize && `SIZE ${item.selectedSize}`, item.selectedColor].filter(Boolean).join(" · ")}
