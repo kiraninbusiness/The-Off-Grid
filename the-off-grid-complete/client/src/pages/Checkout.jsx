@@ -58,8 +58,13 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
 
   useEffect(() => {
     const onSyncError = () => setCartSyncError("Your bag could not sync with your account. Please retry before placing the order.");
+    const onSyncSuccess = () => setCartSyncError("");
     window.addEventListener("offgrid-cart-sync-error", onSyncError);
-    return () => window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+    window.addEventListener("offgrid-cart-sync-success", onSyncSuccess);
+    return () => {
+      window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+      window.removeEventListener("offgrid-cart-sync-success", onSyncSuccess);
+    };
   }, []);
 
   useEffect(() => {
@@ -142,42 +147,41 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const grand = Math.max(0, total + shipping - discount);
 
   const change = (index, delta) => {
+    const item = cart[index];
+    if (!item) return;
     setCartSyncError("");
-    setCart((current) =>
-      current.map((item, i) => {
-        if (i !== index) return item;
-        const max = Math.max(0, Number(item.stock ?? 99));
-        const nextQty = Math.max(1, Math.min(Math.max(1, max), Number(item.qty || 1) + delta));
-        // Sync to the server cart for logged-in users — previously this
-        // only updated local state, so a quantity change made at
-        // Checkout never reached the server and a second device could
-        // still see the old quantity.
-        if (user?.id) {
-          api("/cart/item", {
-            method: "PUT",
-            body: JSON.stringify({
-              product_id: item.id,
-              quantity: nextQty,
-              selected_size: item.selectedSize || null,
-              selected_color: item.selectedColor || null,
-            }),
-          }).catch(() => setCartSyncError("Could not sync quantity to your account. Please retry."));
-        }
-        return { ...item, qty: nextQty };
-      })
-    );
+    const max = Math.max(1, Number(item.stock ?? 99));
+    const nextQty = Math.max(1, Math.min(Math.max(1, max), Number(item.qty || 1) + delta));
+    setCart(cart.map((entry, i) => i === index ? { ...entry, qty: nextQty } : entry));
+    if (user?.id) {
+      api("/cart/item", {
+        method: "PUT",
+        body: JSON.stringify({
+          product_id: item.id,
+          quantity: nextQty,
+          selected_size: item.selectedSize || null,
+          selected_color: item.selectedColor || null,
+        }),
+      }).then(() => window.dispatchEvent(new CustomEvent("offgrid-cart-sync-success")))
+        .catch(() => {
+          setCartSyncError("Could not sync quantity to your account. Please retry.");
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-error"));
+        });
+    }
   };
 
   const removeItem = (index) => {
-    setCart((current) => {
-      const item = current[index];
-      // Same gap as quantity changes above — removing a line item here
-      // now also deletes it from the server cart, not just locally.
-      if (user?.id && item?.cartItemId) {
-        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => setCartSyncError("Could not sync item removal to your account. Please retry."));
-      }
-      return current.filter((_, i) => i !== index);
-    });
+    const item = cart[index];
+    if (!item) return;
+    setCart(cart.filter((_, i) => i !== index));
+    if (user?.id && item.cartItemId) {
+      api(`/cart/item/${item.cartItemId}`, { method: "DELETE" })
+        .then(() => window.dispatchEvent(new CustomEvent("offgrid-cart-sync-success")))
+        .catch(() => {
+          setCartSyncError("Could not sync item removal to your account. Please retry.");
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-error"));
+        });
+    }
   };
 
   const applyCoupon = async (e) => {
