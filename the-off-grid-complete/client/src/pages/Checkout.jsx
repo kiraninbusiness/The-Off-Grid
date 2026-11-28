@@ -45,6 +45,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const [coupon, setCoupon] = useState(null);
   const [couponStatus, setCouponStatus] = useState("idle");
   const [couponMsg, setCouponMsg] = useState("");
+  const [couponSubtotal, setCouponSubtotal] = useState(null);
   const [giftCardCode, setGiftCardCode] = useState("");
   const [giftCard, setGiftCard] = useState(null);
   const [giftCardStatus, setGiftCardStatus] = useState("idle");
@@ -115,6 +116,15 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
     [cart]
   );
 
+  useEffect(() => {
+    if (coupon && couponSubtotal !== null && Number(couponSubtotal) !== Number(total)) {
+      setCoupon(null);
+      setCouponStatus("idle");
+      setCouponMsg("Cart changed. Please reapply your coupon.");
+      setCouponSubtotal(null);
+    }
+  }, [total, coupon, couponSubtotal]);
+
   // Keep this aligned with the backend source of truth.
   const shipping = total >= 1499 ? 0 : 79;
   const couponDiscount = Number(coupon?.discount || 0);
@@ -158,7 +168,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
       // Same gap as quantity changes above — removing a line item here
       // now also deletes it from the server cart, not just locally.
       if (user?.id && item?.cartItemId) {
-        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => {});
+        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => setCartSyncError("Could not sync item removal to your account. Please retry."));
       }
       return current.filter((_, i) => i !== index);
     });
