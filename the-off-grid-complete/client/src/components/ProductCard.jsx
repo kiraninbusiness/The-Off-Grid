@@ -17,10 +17,10 @@ function QuickViewModal({product,onClose,isWishlisted,onAdd,onToggleWishlist}){
  const variants=Array.isArray(product.variants)?product.variants:[];
  const sizes=product.sizes?.length?product.sizes:variants.length?[...new Set(variants.map(v=>v.size).filter(Boolean))]:String(product.size||"").split("/").map(x=>x.trim()).filter(Boolean);
  const colors=product.colors?.length?product.colors:variants.length?[...new Set(variants.map(v=>v.color).filter(Boolean))]:[product.color].filter(Boolean);
- const [size,setSize]=useState("");
+ const [size,setSize]=useState("");\n React.useEffect(()=>{const handler=(e)=>{if(e.key==="Escape")onClose();};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[onClose]);
  const [color,setColor]=useState(product.color||colors[0]||"");
  const discount=product.old_price?Math.round((product.old_price-product.price)/product.old_price*100):0;
- const selectedVariant=variants.length?variants.find(v=>(!size||String(v.size)===String(size))&&(!color||String(v.color||"")===String(color))):null;
+ const selectedVariant=variants.length?variants.find(v=>(!size||String(v.size)===String(size))&&(!color||String(v.color||"")===String(color))):null;\n const sizeStock=(s)=>variants.length?Number(variants.find(v=>String(v.size)===String(s)&&(!color||String(v.color||"")===String(color)))?.stock||0):Number(product.stock||0);
  const variantSoldOut=Boolean(variants.length&&(size||!sizes.length)&&(!selectedVariant||Number(selectedVariant.stock)<=0));
  const go=()=>{
   if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}
@@ -31,14 +31,14 @@ function QuickViewModal({product,onClose,isWishlisted,onAdd,onToggleWishlist}){
  return <div className="quick-view-overlay" role="presentation" onClick={e=>e.target===e.currentTarget&&onClose()}>
   <div className="quick-view-modal quick-view-premium" role="dialog" aria-modal="true" aria-label={`Quick view: ${product.name}`}>
    <button className="quick-view-close" onClick={onClose} aria-label="Close quick view"><X size={20}/></button>
-   <div className="quick-view-image"><img src={product.image} alt={product.name}/></div>
+   <div className="quick-view-image"><img src={(Array.isArray(product.images)&&product.images[0])||product.image} alt={product.name}/></div>
    <div className="quick-view-details">
     <div className="product-category">{product.category}{product.gender? ` · ${product.gender}`:""}</div>
     <h2>{product.name}</h2>
     <div className="quick-view-price"><strong>{money(product.price)}</strong>{product.old_price&&<del>{money(product.old_price)}</del>}{discount>0&&<span>SAVE {discount}%</span>}</div>
     <p className="quick-view-description">{product.description}</p>
     {colors.length>0&&<div className="quick-size quick-color-select"><span>SELECT COLOUR · {color||"CHOOSE"}</span><div>{colors.map(c=><button type="button" className={color===c?"active":""} key={c} onClick={()=>setColor(c)} aria-pressed={color===c}>{c}</button>)}</div></div>}
-    {sizes.length>0&&<div className="quick-size"><span>SELECT SIZE</span><div>{sizes.map(s=><button type="button" className={size===s?"active":""} key={s} onClick={()=>setSize(s)} aria-pressed={size===s}>{s}</button>)}</div></div>}
+    {sizes.length>0&&<div className="quick-size"><span>SELECT SIZE</span><div>{sizes.map(s=><button type="button" className={`${size===s?"active":""}${sizeStock(s)<=0?" unavailable":""}`} key={s} onClick={()=>setSize(s)} disabled={sizeStock(s)<=0} aria-pressed={size===s} aria-label={`${s}${sizeStock(s)<=0?" unavailable":""}`}>{s}</button>)}</div></div>}
     {variantSoldOut&&<p className="quick-variant-stock" role="status">THIS SIZE AND COLOUR ARE CURRENTLY UNAVAILABLE.</p>}
     <div className="quick-view-actions"><button className="product-detail-add" disabled={!product.stock||variantSoldOut} onClick={go}>{!product.stock?"SOLD OUT":variantSoldOut?"UNAVAILABLE":"ADD TO BAG"}<ShoppingBag size={18}/></button><button className={`product-detail-wishlist ${isWishlisted?"active":""}`} onClick={()=>onToggleWishlist?.(product.id)} aria-label="Toggle wishlist"><Heart fill={isWishlisted?"currentColor":"none"}/></button></div>
     <button className="quick-view-details-link" onClick={()=>{onClose();navigate(productUrl(product))}}>VIEW FULL DETAILS <ArrowRight size={15}/></button>
