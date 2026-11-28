@@ -548,16 +548,16 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             <>
               <div className="checkout-sidebar-items">
                 {cart.map((item, index) => (
-                  <article className="checkout-item" key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
+                  <article className={`checkout-item ${Number(item.stock ?? 99) < Number(item.qty || 1) ? "checkout-item-unavailable" : ""}`} key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
                     <img src={item.image} alt={item.name} />
                     <div>
                       <h3>{item.name}</h3>
                       {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}{item.selectedColor && <p>COLOR: {item.selectedColor}</p>}
-                      <strong>{money(item.price)}</strong>
+                      <strong>{money(item.price)}</strong>\n                      {Number(item.stock ?? 99) <= 0 ? <p className="notify-me-error">OUT OF STOCK</p> : Number(item.qty || 1) > Number(item.stock ?? 99) ? <p className="notify-me-error">ONLY {item.stock} LEFT — UPDATE QUANTITY</p> : null}
                       <div className="quantity-line">
-                        <button type="button" onClick={() => change(index, -1)}><Minus /></button>
+                        <button type="button" onClick={() => change(index, -1)} disabled={Number(item.qty || 1) <= 1} aria-label={`Decrease quantity of ${item.name}`}><Minus /></button>
                         <span>{item.qty || 1}</span>
-                        <button type="button" onClick={() => change(index, 1)}><Plus /></button>
+                        <button type="button" onClick={() => change(index, 1)} disabled={Number(item.qty || 1) >= Number(item.stock ?? 99)} aria-label={`Increase quantity of ${item.name}`}><Plus /></button>
                         <button type="button" onClick={() => removeItem(index)}><Trash2 /></button>
                       </div>
                     </div>
@@ -616,7 +616,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
                 <strong>TOTAL <b>{money(grand)}</b></strong>
               </div>
 
-              <button form="checkout-form" className="orange-btn checkout-submit" disabled={loading || !cart.length}>
+              <button form="checkout-form" className="orange-btn checkout-submit" disabled={loading || !cart.length || cart.some((item) => Number(item.stock ?? 99) < Number(item.qty || 1) || Number(item.stock ?? 99) <= 0)}>
                 {loading ? (method === "ONLINE" ? "OPENING PAYMENT..." : "PLACING ORDER...") : method === "ONLINE" ? `PAY ${money(grand)}` : "PLACE ORDER — COD"}
               </button>
             </>
