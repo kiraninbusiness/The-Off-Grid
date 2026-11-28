@@ -40,7 +40,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
               selected_size: item.selectedSize || null,
               selected_color: item.selectedColor || null,
             }),
-          }).catch(() => {});
+          }).catch(() => setSyncError("Could not sync quantity to your account. Please retry."));
         }
         return { ...item, qty: nextQty };
       })
@@ -51,7 +51,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
     setCart((current) => {
       const item = current[index];
       if (user?.id && item?.cartItemId) {
-        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => {});
+        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => setSyncError("Could not sync item removal to your account. Please retry."));
       }
       return current.filter((_, i) => i !== index);
     });
