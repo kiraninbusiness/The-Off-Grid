@@ -57,6 +57,12 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const [redeemPoints, setRedeemPoints] = useState(false);
 
   useEffect(() => {
+    const onSyncError = () => setCartSyncError("Your bag could not sync with your account. Please retry before placing the order.");
+    window.addEventListener("offgrid-cart-sync-error", onSyncError);
+    return () => window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+  }, []);
+
+  useEffect(() => {
     if (user) {
       setForm((current) => ({
         ...current,
@@ -155,7 +161,7 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
               selected_size: item.selectedSize || null,
               selected_color: item.selectedColor || null,
             }),
-          }).catch(() => {});
+          }).catch(() => setCartSyncError("Could not sync quantity to your account. Please retry."));
         }
         return { ...item, qty: nextQty };
       })
@@ -423,7 +429,11 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
       setError("Enter a valid 6-digit Indian PIN code.");
       return;
     }
-    const unavailable = cart.find((item) => Number(item.stock ?? 99) < Number(item.qty || 1));
+    const unavailable = cart.find((item) => Number(item.stock ?? 99) <= 0 || Number(item.stock ?? 99) < Number(item.qty || 1));
+    if (cartSyncError) {
+      setError(cartSyncError);
+      return;
+    }
     if (unavailable) {
       setError(`${unavailable.name} has only ${Number(unavailable.stock ?? 0)} available. Update your bag before checkout.`);
       return;
