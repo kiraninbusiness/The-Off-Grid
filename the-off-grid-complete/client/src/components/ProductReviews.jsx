@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Star, CheckCircle2, ImagePlus, X } from "lucide-react";
 import { api, apiUpload } from "../api";
 
@@ -12,20 +12,23 @@ export default function ProductReviews({ productId, user }) {
   const [posting,setPosting]=useState(false);
   const [message,setMessage]=useState("");
   const [error,setError]=useState("");
+  const requestId=useRef(0);
   const previews=useMemo(()=>files.map(file=>({file,url:URL.createObjectURL(file)})),[files]);
   useEffect(()=>()=>previews.forEach(item=>URL.revokeObjectURL(item.url)),[previews]);
 
   const loadReviews=async()=>{
+    const request=++requestId.current;
     setLoading(true);
     try{
       const data=await api(`/reviews/${productId}`);
+      if(request!==requestId.current)return;
       setReviews(Array.isArray(data.reviews)?data.reviews:[]);
       setSummary(data.summary||{count:0,average:0});
       setError("");
-    }catch(err){setError(err.message||"Unable to load reviews");}
-    finally{setLoading(false);}
+    }catch(err){if(request===requestId.current)setError(err.message||"Unable to load reviews");}
+    finally{if(request===requestId.current)setLoading(false);}
   };
-  useEffect(()=>{loadReviews();},[productId]);
+  useEffect(()=>{loadReviews();return ()=>{requestId.current++;};},[productId]);
 
   const chooseFiles=(event)=>{
     const selected=Array.from(event.target.files||[]);
