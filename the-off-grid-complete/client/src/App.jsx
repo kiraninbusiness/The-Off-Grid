@@ -220,6 +220,7 @@ export default function App() {
   const cancelOrder = async (id) => { try { const response = await api(`/orders/${id}/cancel`, { method: "PATCH" }); setOrders((current) => current.map((order) => String(order.id) === String(id) ? { ...order, ...response.order, status: "cancelled" } : order)); } catch (error) { window.alert(error.message || "This order cannot be cancelled."); } };
   useEffect(() => { const handler = (event) => { if (event?.detail != null) cancelOrder(event.detail); }; window.addEventListener("offgrid-cancel-order", handler); return () => window.removeEventListener("offgrid-cancel-order", handler); }, []);
   const cartRef = useRef(cart);
+  const cartSyncQueueRef = useRef(Promise.resolve());
   cartRef.current = cart;
   const addCart = (product) => {
     const same = (item) => String(item.id) === String(product.id) && String(item.selectedSize || "") === String(product.selectedSize || "") && String(item.selectedColor || "") === String(product.selectedColor || "");
@@ -238,7 +239,19 @@ export default function App() {
     cartRef.current = nextCart;
     setCart(nextCart);
     if (user?.id) {
-      api("/cart/item", { method: "PUT", body: JSON.stringify({ product_id: product.id, quantity: nextQty, selected_size: product.selectedSize || null, selected_color: product.selectedColor || null }) })
+      // Serialize exact-quantity writes so rapid taps cannot let an older
+      // network response overwrite a newer cart quantity on the server.
+      cartSyncQueueRef.current = cartSyncQueueRef.current
+        .catch(() => {})
+        .then(() => api("/cart/item", {
+          method: "PUT",
+          body: JSON.stringify({
+            product_id: product.id,
+            quantity: nextQty,
+            selected_size: product.selectedSize || null,
+            selected_color: product.selectedColor || null,
+          }),
+        }))
         .then((row) => {
           if (!row?.id) return;
           const updated = cartRef.current.map((item) => same(item) ? { ...item, cartItemId: row.id } : item);
