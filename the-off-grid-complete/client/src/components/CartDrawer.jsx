@@ -125,7 +125,8 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
             <button
               className="orange-btn cart-drawer-checkout"
               type="button"
-              onClick={() => { onClose(); navigate("/checkout"); }}
+              disabled={unavailableItems.length > 0}
+              onClick={() => { if (unavailableItems.length) return; onClose(); navigate("/checkout"); }}
             >
               {unavailableItems.length ? "UPDATE UNAVAILABLE ITEMS" : "PROCEED TO CHECKOUT"} <ArrowRight size={16} />
             </button>
