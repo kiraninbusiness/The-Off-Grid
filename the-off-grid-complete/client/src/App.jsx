@@ -21,10 +21,12 @@ import Faq from "./pages/Faq";
 import Contact from "./pages/Contact";
 import Invoice from "./pages/Invoice";
 import CartDrawer from "./components/CartDrawer";
+import { Reveal, SplitHeading, ScrollShowcase, useRevealOnScroll, useSectionProgress } from "./components/Motion";
 import { api } from "./api";
 import PRODUCTS from "./data/products.js";
 import "./styles.css";
 import "./search-autocomplete.css";
+import "./vexo.css";
 import { productUrl } from "./utils/productUrl";
 
 export default function App() {
@@ -84,15 +86,9 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState("ALL");
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterStatus, setNewsletterStatus] = useState("idle");
-  useEffect(() => {
-    const targets = document.querySelectorAll(".manifesto,.category-editorial,.shop,.type-break,.journal,.newsletter,.offgrid-campaign,.offgrid-edit");
-    if (!("IntersectionObserver" in window)) { targets.forEach((el) => el.classList.add("vexo-visible")); return; }
-    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
-      if (entry.isIntersecting) { entry.target.classList.add("vexo-visible"); observer.unobserve(entry.target); }
-    }), { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
-    targets.forEach((el) => { el.classList.add("vexo-reveal"); observer.observe(el); });
-    return () => observer.disconnect();
-  }, [location.pathname]);
+  const ghostRef = useRef(null);
+  useSectionProgress(ghostRef, { watch: location.pathname });
+  useRevealOnScroll([location.pathname, products.length]);
 
 
   useEffect(() => { let cancelled = false; if (!user) { setOrders([]); return () => { cancelled = true; }; } setOrdersLoading(true); api("/orders/mine").then((data) => { if (!cancelled && Array.isArray(data)) setOrders(data); }).catch((error) => { console.error("Unable to load orders", error); if (!cancelled) setOrders([]); }).finally(() => { if (!cancelled) setOrdersLoading(false); }); return () => { cancelled = true; }; }, [user]);
@@ -303,42 +299,99 @@ export default function App() {
   if (location.pathname.startsWith("/product/")) { const rawId = location.pathname.split("/product/")[1]?.split("/")[0]; const product = products.find((item) => String(item.id) === String(rawId)); const localProduct = PRODUCTS.find((item) => String(item.id) === String(rawId)); const finalProduct = product || localProduct; if (!finalProduct) return <div className="product-not-found-page"><div className="product-not-found-inner"><span>THE OFF GRID</span><h1>PRODUCT NOT<br />FOUND</h1><p>We couldn't find the product you're looking for.</p><button type="button" onClick={() => navigate("/")}>BACK TO SHOP</button></div></div>; return <><ProductDetails product={finalProduct} products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} user={user} openCart={() => setCartOpen(true)} /><CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} cart={cart} setCart={setCart} user={user} /></>; }
 
   return <div className="app">
-    <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>NEW DROPS WEEKLY</span><span>SHIPPING ACROSS INDIA</span></div><header className="navbar"><button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button><nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav><button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF<em>GRID</em></strong></button><div className="nav-right"><button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button><button type="button" onClick={() => navigate("/account")} aria-label="Account"><User size={19} /></button>{user && <div className="notif-bell-wrap"><button type="button" onClick={openNotifications} aria-label="Notifications"><Bell size={19} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notifOpen && <div className="notif-panel"><div className="notif-panel-head"><span>NOTIFICATIONS</span>{notifications.some((n) => !n.read_at) && <button type="button" onClick={markAllRead}>MARK ALL READ</button>}</div>{notifications.length ? notifications.map((n) => <button type="button" key={n.id} className={`notif-item ${n.read_at ? "" : "unread"}`} onClick={() => readNotification(n)}><span>{n.title}</span><small>{new Date(n.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small></button>) : <p className="notif-empty">No notifications yet.</p>}</div>}</div>}{user?.role === "admin" && <button type="button" className="admin-nav-icon" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}<button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button><button type="button" onClick={() => cart.length ? setCartOpen(true) : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button></div></header>
+    <div className="topbar"><span>FREE SHIPPING ON ORDERS ABOVE ₹1,499</span><span>NEW DROPS WEEKLY</span><span>SHIPPING ACROSS INDIA</span></div><header className="navbar"><button className="mobile-menu-btn" type="button" onClick={() => setMenu(true)} aria-label="Open menu"><Menu size={23} /></button><nav className="nav-left"><button type="button" onClick={() => scroll("shop")}>SHOP</button><button type="button" onClick={() => scroll("categories")}>CATEGORIES</button><button type="button" onClick={() => scroll("story")}>STORY</button></nav><button type="button" className="logo" onClick={() => location.pathname !== "/" ? navigate("/") : scroll("home")}><small>THE</small><strong>OFF<em>GRID</em></strong></button><div className="nav-right"><button type="button" onClick={() => setSearchOpen(true)} aria-label="Search"><Search size={19} /><span>SEARCH</span></button><button type="button" className="vx-signin" onClick={() => navigate("/account")} aria-label="Account"><span>{user ? "ACCOUNT" : "SIGN IN / UP"}</span><User size={17} /></button>{user && <div className="notif-bell-wrap"><button type="button" onClick={openNotifications} aria-label="Notifications"><Bell size={19} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>{notifOpen && <div className="notif-panel"><div className="notif-panel-head"><span>NOTIFICATIONS</span>{notifications.some((n) => !n.read_at) && <button type="button" onClick={markAllRead}>MARK ALL READ</button>}</div>{notifications.length ? notifications.map((n) => <button type="button" key={n.id} className={`notif-item ${n.read_at ? "" : "unread"}`} onClick={() => readNotification(n)}><span>{n.title}</span><small>{new Date(n.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small></button>) : <p className="notif-empty">No notifications yet.</p>}</div>}</div>}{user?.role === "admin" && <button type="button" className="admin-nav-icon" onClick={() => navigate("/admin")} aria-label="Admin panel"><Settings size={19} /></button>}<button type="button" onClick={() => navigate("/wishlist")} aria-label="Wishlist"><Heart size={19} />{wishlist.length > 0 && <b>{wishlist.length}</b>}</button><button type="button" onClick={() => cart.length ? setCartOpen(true) : scroll("shop")} aria-label="Shopping bag"><ShoppingBag size={19} />{cart.length > 0 && <b>{cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</b>}</button></div></header>
     {menu && <div className="mobile-menu"><button type="button" className="mobile-close" onClick={() => setMenu(false)} aria-label="Close menu"><X size={28} /></button><div className="mobile-logo"><small>THE</small><strong>OFF<em>GRID</em></strong></div><div className="mobile-links"><button type="button" onClick={() => { setMenu(false); scroll("shop"); }}>SHOP</button><button type="button" onClick={() => { setMenu(false); scroll("categories"); }}>CATEGORIES</button><button type="button" onClick={() => { setMenu(false); scroll("story"); }}>OUR STORY</button><button type="button" onClick={() => { setMenu(false); navigate("/journal"); }}>JOURNAL</button>{user?.role === "admin" && <button type="button" onClick={() => { setMenu(false); navigate("/admin"); }}>ADMIN</button>}</div><p>NO RULES.<br />JUST STYLE.</p></div>}
     {searchOpen && <div className="search-overlay"><button type="button" className="search-close" onClick={() => { setSearchOpen(false); setSearchText(""); }} aria-label="Close search"><X size={28} /></button><div className="search-inner"><span>SEARCH THE OFF GRID</span><form className="big-search" onSubmit={(e) => { e.preventDefault(); submitSearch(); }}><Search size={25} /><input autoFocus type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search products..." aria-label="Search products" /><button type="submit" aria-label="Submit search"><ArrowRight size={20} /></button></form>{searchText.trim() ? <div className="search-suggestions">{searchSuggestions.length ? <><div className="search-suggestions-label">PRODUCTS</div>{searchSuggestions.map((p) => <button key={p.id} type="button" className="search-suggestion" onClick={() => { setSearchOpen(false); setSearchText(""); navigate(productUrl(p)); }}><img src={p.image} alt="" /><span><strong>{p.name}</strong><small>{p.category} · ₹{Number(p.price || 0).toLocaleString("en-IN")}</small></span><ArrowRight size={15} /></button>)}</> : <div className="search-no-results">NO PRODUCTS FOUND. TRY A DIFFERENT SEARCH.</div>}<button type="button" className="search-view-all" onClick={() => submitSearch()}>VIEW ALL SEARCH RESULTS<ArrowRight size={15} /></button></div> : <div className="search-trending"><span>TRY</span><button type="button" onClick={() => setSearchText("tee")}>TEE</button><button type="button" onClick={() => setSearchText("hoodie")}>HOODIE</button><button type="button" onClick={() => setSearchText("cargo")}>CARGO</button><button type="button" onClick={() => setSearchText("jacket")}>JACKET</button></div>}<p>TYPE TO SEE LIVE PRODUCT SUGGESTIONS</p></div></div>}
-    <section className="vexo-hero" id="home">
-      <div className="vexo-hero-top"><span>THE OFF GRID® — INDEPENDENT STREETWEAR</span><span>NEW SEASON / 2026</span></div>
-      <div className="vexo-hero-title"><span className="vexo-side-label">BUILT FOR YOUR EVERYDAY ROTATION</span><h1>GEAR UP.<br/><em>STAND OUT.</em></h1><p>Streetwear for every version of you.</p><div className="vexo-hero-actions"><button type="button" onClick={() => scroll("shop")}>SHOP THE DROP <ArrowUpRight size={16}/></button><button type="button" className="vexo-quiet-action" onClick={() => scroll("categories")}>EXPLORE COLLECTION <ArrowRight size={15}/></button></div></div>
-      <div className="vexo-model-stage">
-        <div className="vexo-orbit vexo-orbit-one"></div><div className="vexo-orbit vexo-orbit-two"></div>
-        <div className="vexo-model-image"><img src="https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=1100&q=90" alt="The Off Grid streetwear collection"/></div>
-        <div className="vexo-floating-card vexo-card-left"><span>01 / THE DAILY EDIT</span><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=480&q=85" alt="Streetwear look"/><strong>FIND YOUR<br/>OWN UNIFORM.</strong></div>
-        <div className="vexo-floating-card vexo-card-right"><span>JUST DROPPED ↗</span><img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=480&q=85" alt="New season apparel"/><strong>MADE TO<br/>MOVE DIFFERENT.</strong></div>
-        <div className="vexo-round-badge">OFF<br/>THE<br/>GRID<span>®</span></div>
+    <section className="vx-hero" id="home">
+      <div className="vx-hero-copy">
+        <SplitHeading as="h1" className="vx-hero-title" lines={["GEAR UP EVERY", { em: "SINGLE DAY!" }]} />
+        <Reveal className="vx-hero-actions" delay={450}>
+          <button type="button" className="vx-pill dark" onClick={() => scroll("shop")}>SHOP NOW</button>
+          <button type="button" className="vx-pill light" onClick={() => scroll("categories")}>EXPLORE ALL</button>
+        </Reveal>
       </div>
-      <div className="vexo-hero-bottom"><span>01 — 04 / NEW COLLECTION</span><span>DESIGNED INDEPENDENTLY · WORN YOUR WAY</span><button type="button" onClick={() => scroll("categories")}>SCROLL TO DISCOVER ↓</button></div>
+      <Reveal className="vx-hero-side left" delay={700}>
+        <div className="vx-avatars" aria-hidden="true">{[products[0], products[1], products[2]].map((p, i) => p && <img key={i} src={p.image} alt="" />)}</div>
+        <p>Stay sharp without compromising your range of motion. Streetwear built to move with you — from first light to last call.</p>
+      </Reveal>
+      <div className="vx-hero-model vx-stripe" data-reveal><img src="https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=1200&q=90" alt="The Off Grid streetwear collection" /></div>
+      <Reveal className="vx-hero-side right" delay={900}>
+        <button type="button" className="vx-video-card" onClick={() => scroll("showcase")} aria-label="See the latest drop">
+          <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=500&q=80" alt="" />
+          <span className="vx-play"><ArrowUpRight size={16} /></span>
+          <small>THE LATEST DROP</small>
+        </button>
+      </Reveal>
     </section>
-    <div className="marquee"><div>NOT MADE FOR EVERYONE <span>✦</span> MADE FOR YOU <span>✦</span> OFF THE GRID <span>✦</span> NEW DROP <span>✦</span> NOT MADE FOR EVERYONE <span>✦</span></div></div>
-    <section className="manifesto section" id="story"><div className="manifesto-top"><span>01 / OUR POINT OF VIEW</span><span>EST. FOR THE UNCONVENTIONAL</span></div><div className="manifesto-main"><h2>STYLE IS<br/>A <em>CHOICE.</em><br/>NOT A <em>RULE.</em></h2><div className="manifesto-aside"><span className="manifesto-mark">OG—01</span><p>The Off Grid is an independent clothing label for people who trust their own instinct. Less noise. Better essentials. A little rebellion in the details.</p><button type="button" className="manifesto-link" onClick={() => navigate("/lookbook")}>VIEW THE LOOKBOOK <ArrowUpRight size={16}/></button></div></div><div className="manifesto-footer"><span>01 / INDIVIDUALITY</span><span>02 / EVERYDAY QUALITY</span><span>03 / NO UNNECESSARY RULES</span></div></section>
-    <section className="category-editorial section" id="categories"><div className="editorial-heading"><div><span>02 / FIND YOUR FORM</span><h2>BUILT AROUND<br/><em>YOUR ROTATION.</em></h2></div><p>Pieces that work together.<br/>Made to move with you.</p></div><div className="editorial-categories"><Category title="TEES" number="01" image={products[0]?.image || PRODUCTS[0]?.image} click={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }} /><Category title="SHIRTS" number="02" image={products[1]?.image || PRODUCTS[1]?.image} click={() => { setActiveCategory("SHIRTS"); scroll("shop"); }} /><Category title="BOTTOMS" number="03" image={products[2]?.image || PRODUCTS[2]?.image} click={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }} /><Category title="HOODIES" number="04" image={products[3]?.image || PRODUCTS[3]?.image} click={() => { setActiveCategory("HOODIES"); scroll("shop"); }} /></div><div className="category-note"><span>FOUR STARTING POINTS.</span><span>INFINITE WAYS TO MAKE IT YOURS ↗</span></div></section>
-    <section className="offgrid-campaign" aria-label="The Off Grid campaign">
-      <div className="offgrid-campaign-copy"><span className="og-eyebrow">03 / THE EVERYDAY EXPERIMENT</span><h2>NOT HERE<br/>TO <i>BLEND IN.</i></h2><p>Distinct pieces. Uncomplicated fits. A wardrobe that moves on your terms.</p><button type="button" onClick={() => scroll("shop")}>EXPLORE THE COLLECTION <ArrowUpRight size={17}/></button><small>THE OFF GRID® — INDEPENDENT BY DESIGN</small></div>
-      <div className="offgrid-campaign-art"><div className="og-art-backdrop"></div><img className="og-art-main" src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1100&q=90" alt="Independent streetwear campaign"/><img className="og-art-detail" src="https://images.unsplash.com/photo-1523398002811-999ca8dec234?auto=format&fit=crop&w=600&q=85" alt="Streetwear details"/><span className="og-art-index">OG / 026</span><span className="og-art-caption">OWN YOUR<br/>OWN PACE.</span></div>
-      <div className="og-campaign-foot"><span>DESIGNED FOR THE UNCONVENTIONAL</span><span>01 — 04 / COLLECTION NOTES</span></div>
+
+    <section className="vx-ghost" id="story" ref={ghostRef}>
+      <div className="vx-ghost-word" aria-hidden="true">EVERYDAY</div>
+      <div className="vx-ghost-stage">
+        <figure className="vx-ghost-card small left vx-stripe" data-reveal><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=85" alt="Streetwear detail" loading="lazy" /></figure>
+        <figure className="vx-ghost-card big vx-stripe" data-reveal><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=900&q=90" alt="Off Grid campaign portrait" loading="lazy" /></figure>
+        <figure className="vx-ghost-card small right vx-stripe" data-reveal><img src="https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=600&q=85" alt="Outerwear detail" loading="lazy" /></figure>
+        <Reveal as="p" className="vx-ghost-note left" delay={200}>Performance-driven gear for men and women — built for summer heat and winter chill.</Reveal>
+        <Reveal as="div" className="vx-ghost-note right" delay={300}><p>Stay warm, stay fit. Our essentials blend comfort with flexibility to keep you going in the toughest conditions.</p><button type="button" className="vx-link" onClick={() => navigate("/lookbook")}>VIEW THE LOOKBOOK <ArrowUpRight size={14} /></button></Reveal>
+      </div>
     </section>
-    <section className="shop section" id="shop"><ProductDiscovery products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} initialCategory={activeCategory} searchText={searchText} setSearchText={setSearchText} /></section>
+
+    <section className="vx-picks" id="categories">
+      <div className="vx-sec-head">
+        <div><Reveal as="span" className="vx-eyebrow">OUR TOP PICKS</Reveal><SplitHeading className="vx-h2" lines={["BUILT AROUND", "YOUR ROTATION!"]} /></div>
+        <Reveal as="p" className="vx-sec-note" delay={250}>Discover the best of our collection — designed to power your wardrobe all year round.</Reveal>
+      </div>
+      <div className="vx-picks-grid">
+        {[["TEES", "T-SHIRTS", 0], ["SHIRTS", "SHIRTS", 1], ["BOTTOMS", "BOTTOMS", 2], ["HOODIES", "HOODIES", 3]].map(([title, cat, i]) => (
+          <Reveal as="button" type="button" className="vx-pick" delay={i * 90} key={title} onClick={() => { setActiveCategory(cat); scroll("shop"); }}>
+            <img src={products[i]?.image || PRODUCTS[i]?.image} alt={title} loading="lazy" decoding="async" />
+            <span className="vx-pick-index">0{i + 1} / CATEGORY</span>
+            <strong>{title}</strong>
+            <span className="vx-pick-btn">SHOP NOW <ArrowUpRight size={14} /></span>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+
+    <div id="showcase"><ScrollShowcase items={products.filter((p) => p.image).slice(0, 6)} onOpen={(p) => navigate(productUrl(p))} words="FRESH FITS FOR YOUR NEXT DROP" /></div>
+    <section className="vx-shop shop" id="shop">
+      <div className="vx-shop-head"><Reveal as="span" className="vx-eyebrow">NEW ARRIVAL</Reveal><SplitHeading className="vx-h2 center" lines={["FRESH FITS FOR YOUR", { em: "NEXT DROP!" }]} /><Reveal as="span" className="vx-eyebrow right">ALL PRODUCTS</Reveal></div>
+      <ProductDiscovery products={products} add={addCart} wishlist={wishlist} toggle={toggleWishlist} initialCategory={activeCategory} searchText={searchText} setSearchText={setSearchText} />
+    </section>
     {recentlyViewed.length > 0 && <section className="recently-viewed section"><div className="recently-viewed-head"><div><span>YOUR BROWSING HISTORY</span><h2>BACK IN YOUR <em>ROTATION.</em></h2></div><button type="button" onClick={() => setRecentlyViewed([])}>CLEAR HISTORY <X size={14}/></button></div><div className="recently-viewed-grid">{recentlyViewed.slice(0,4).map((p) => <div key={p.id} className="recently-viewed-card"><button type="button" className="recently-viewed-image" onClick={() => navigate(productUrl(p))}><img src={p.image} alt={p.name} loading="lazy"/><span>VIEW AGAIN <ArrowUpRight size={14}/></span></button><div><span>{p.category || "THE OFF GRID"}</span><strong>{p.name}</strong><b>₹{Number(p.price || 0).toLocaleString("en-IN")}</b></div></div>)}</div></section>}
-    <section className="offgrid-edit">
-      <div className="offgrid-edit-head"><div><span className="og-eyebrow">04 / THE ROTATION, REWORKED</span><h2>GOOD PIECES.<br/><i>NO RULES.</i></h2></div><p>Build a wardrobe that feels like<br/>you — one considered piece at a time.</p></div>
-      <div className="offgrid-edit-grid">
-        <button type="button" className="og-edit-card og-edit-large" onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1100&q=85" alt="Everyday essentials"/><span>01 / EVERYDAY ESSENTIALS</span><strong>THE<br/>FOUNDATION <ArrowUpRight/></strong></button>
-        <button type="button" className="og-edit-card" onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=700&q=85" alt="Streetwear styling" loading="lazy" decoding="async"/><span>02 / MAKE IT YOURS</span><strong>OWN<br/>THE LOOK <ArrowUpRight/></strong></button>
-        <div className="og-edit-note"><span>THE OFF GRID CODE</span><p>Less noise.<br/>More <i>you.</i></p><small>WEAR WHAT MOVES YOU.</small></div>
+    <section className="vx-duo">
+      <div className="vx-sec-head">
+        <div><Reveal as="span" className="vx-eyebrow">THE ROTATION, REWORKED</Reveal><SplitHeading className="vx-h2" lines={["GOOD PIECES.", { em: "NO RULES." }]} /></div>
+        <Reveal as="p" className="vx-sec-note" delay={250}>Build a wardrobe that feels like you — one considered piece at a time.</Reveal>
+      </div>
+      <div className="vx-duo-grid">
+        <Reveal as="button" type="button" className="vx-duo-card" onClick={() => { setActiveCategory("T-SHIRTS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1100&q=85" alt="Everyday essentials" loading="lazy" /><span className="vx-duo-tag">EVERYDAY ESSENTIALS</span><strong>THE<br />FOUNDATION</strong><span className="vx-pick-btn">SHOP TEES <ArrowUpRight size={14} /></span></Reveal>
+        <Reveal as="button" type="button" className="vx-duo-card" delay={140} onClick={() => { setActiveCategory("BOTTOMS"); scroll("shop"); }}><img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1100&q=85" alt="Streetwear styling" loading="lazy" /><span className="vx-duo-tag">MAKE IT YOURS</span><strong>OWN<br />THE LOOK</strong><span className="vx-pick-btn">SHOP BOTTOMS <ArrowUpRight size={14} /></span></Reveal>
       </div>
     </section>
-    <section className="type-break"><div className="type-break-top"><span>05 / THE OFF GRID CODE</span><span>NO UNIFORM RULEBOOK</span></div><h2>OWN YOUR<br/><em>ORDINARY.</em></h2><div className="type-break-bottom"><p>Good style isn't loud.<br/>It just knows what it is.</p><button type="button" onClick={() => scroll("shop")}>FIND YOUR NEXT EVERYDAY PIECE <ArrowUpRight size={17}/></button></div></section>
-    <section className="journal section" id="journal"><div className="journal-image"><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90" alt="The Off Grid journal" /></div><div className="journal-content"><span>06 / JOURNAL</span><h2>THE OFF GRID<br /><em>STATE OF MIND.</em></h2><p>Style is not about following a formula. It's about building a uniform that feels like you.</p><button type="button" className="under-btn" onClick={() => navigate("/journal")}>READ THE JOURNAL <ArrowUpRight size={15} /></button></div></section>
-    <section className="newsletter"><div><span>07 / STAY IN THE LOOP</span><h2>DON'T MISS<br /><em>THE DROP.</em></h2></div><form onSubmit={handleNewsletterSubmit}><label>EMAIL ADDRESS</label><div><input type="email" required placeholder="YOUR EMAIL" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} /><button type="submit" disabled={newsletterStatus === "loading"}><ArrowRight /></button></div>{newsletterStatus === "success" && <small>YOU'RE ON THE LIST.</small>}{newsletterStatus === "error" && <small>COULD NOT SUBSCRIBE. TRY AGAIN.</small>}</form></section>
+
+    <section className="vx-statement">
+      <div className="vx-statement-word" aria-hidden="true">OFF THE GRID</div>
+      <SplitHeading className="vx-statement-title" lines={["OWN YOUR", { em: "ORDINARY." }]} />
+      <Reveal as="p" delay={300}>Good style isn't loud. It just knows what it is.</Reveal>
+      <Reveal delay={400}><button type="button" className="vx-pill dark" onClick={() => scroll("shop")}>FIND YOUR NEXT EVERYDAY PIECE <ArrowUpRight size={15} /></button></Reveal>
+    </section>
+
+    <section className="vx-journal journal" id="journal">
+      <figure className="vx-journal-img vx-stripe" data-reveal><img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=90" alt="The Off Grid journal" loading="lazy" /></figure>
+      <div className="vx-journal-copy">
+        <Reveal as="span" className="vx-eyebrow">JOURNAL</Reveal>
+        <SplitHeading className="vx-h2" lines={["THE OFF GRID", { em: "STATE OF MIND." }]} />
+        <Reveal as="p" delay={250}>Style is not about following a formula. It's about building a uniform that feels like you.</Reveal>
+        <Reveal delay={350}><button type="button" className="vx-pill dark" onClick={() => navigate("/journal")}>READ THE JOURNAL <ArrowUpRight size={15} /></button></Reveal>
+      </div>
+    </section>
+
+    <section className="vx-news newsletter">
+      <div className="vx-news-card">
+        <div><Reveal as="span" className="vx-eyebrow">STAY IN THE LOOP</Reveal><SplitHeading className="vx-h2" lines={["DON'T MISS", { em: "THE DROP." }]} /></div>
+        <form onSubmit={handleNewsletterSubmit}><label htmlFor="vx-news-email">EMAIL ADDRESS</label><div><input id="vx-news-email" type="email" required placeholder="YOUR EMAIL" value={newsletterEmail} onChange={(e) => setNewsletterEmail(e.target.value)} /><button type="submit" disabled={newsletterStatus === "loading"} aria-label="Subscribe"><ArrowRight /></button></div>{newsletterStatus === "success" && <small>YOU'RE ON THE LIST.</small>}{newsletterStatus === "error" && <small>COULD NOT SUBSCRIBE. TRY AGAIN.</small>}</form>
+      </div>
+    </section>
     <footer><div className="footer-grid"><div className="footer-brand"><small>THE</small><strong>OFF<em>GRID</em></strong><p>Independent clothing for independent minds.</p></div><div><h4>SHOP</h4><button onClick={() => { setActiveCategory("ALL"); scroll("shop"); }}>ALL PRODUCTS</button>{[...new Set(products.map((p) => p.category).filter(Boolean))].map((cat) => <button key={cat} onClick={() => { setActiveCategory(cat); scroll("shop"); }}>{cat}</button>)}</div><div><h4>ACCOUNT</h4><button onClick={() => navigate("/account")}>MY ACCOUNT</button><button onClick={() => navigate("/orders")}>ORDERS</button><button onClick={() => navigate("/wishlist")}>WISHLIST</button><button onClick={() => navigate("/gift-cards")}>GIFT CARDS</button></div><div><h4>SUPPORT</h4><button onClick={() => navigate("/contact")}>CONTACT US</button><button onClick={() => navigate("/faq")}>FAQ</button><button onClick={() => navigate("/shipping-policy")}>SHIPPING POLICY</button><button onClick={() => navigate("/returns-policy")}>RETURN & REFUND POLICY</button><button onClick={() => navigate("/cancellation-policy")}>CANCELLATION POLICY</button></div><div><h4>LEGAL</h4><button onClick={() => navigate("/privacy-policy")}>PRIVACY POLICY</button><button onClick={() => navigate("/delete-account")}>DELETE ACCOUNT</button><button onClick={() => navigate("/cookie-policy")}>COOKIE POLICY</button><button onClick={() => navigate("/terms-of-service")}>TERMS & CONDITIONS</button><button onClick={() => navigate("/lookbook")}>LOOKBOOK</button><button onClick={() => navigate("/journal")}>JOURNAL</button><a href="https://instagram.com/theoffgrid.in" target="_blank" rel="noreferrer"><Instagram size={16}/> INSTAGRAM</a><a href="https://youtube.com" target="_blank" rel="noreferrer"><Youtube size={16}/> YOUTUBE</a></div></div><div className="footer-bottom"><span>© 2026 THE OFF GRID</span><span>MADE FOR YOU.</span></div></footer>
     {cart.length > 0 && <button className="floating-bag" type="button" onClick={() => setCartOpen(true)}><ShoppingBag size={17}/> BAG · {cart.reduce((t, i) => t + Number(i.qty || 1), 0)}</button>}
     <a className="floating-whatsapp" href={`https://wa.me/${(import.meta.env.VITE_WHATSAPP_NUMBER || "911234567890").replace(/\D/g, "")}?text=${encodeURIComponent("Hi, I have a question about my order")}`} target="_blank" rel="noreferrer" aria-label="Chat with us on WhatsApp"><svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><path d="M17.6 6.3A8.86 8.86 0 0 0 12.05 3.8a8.94 8.94 0 0 0-7.7 13.4L3 21l3.9-1.3a8.9 8.9 0 0 0 5.14 1.6h.01a8.94 8.94 0 0 0 8.94-8.94A8.86 8.86 0 0 0 17.6 6.3ZM12.05 19.5a7.4 7.4 0 0 1-3.78-1.03l-.27-.16-2.32.77.78-2.27-.17-.29a7.44 7.44 0 1 1 13.83-3.85 7.45 7.45 0 0 1-7.44 6.83Zm4.08-5.57c-.22-.11-1.32-.65-1.53-.73-.2-.08-.35-.11-.5.11-.15.22-.58.73-.71.87-.13.15-.26.16-.48.05-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.69-1.65-.18-.44-.37-.38-.5-.38-.13 0-.28-.02-.43-.02-.15 0-.39.06-.6.28-.2.22-.79.77-.79 1.87 0 1.1.81 2.17.92 2.32.11.15 1.6 2.44 3.88 3.42.54.23.97.37 1.3.48.55.17 1.04.15 1.44.09.44-.07 1.32-.54 1.5-1.06.19-.52.19-.96.13-1.06-.06-.09-.2-.15-.42-.26Z"/></svg></a>
