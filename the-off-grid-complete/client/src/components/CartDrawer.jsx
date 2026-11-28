@@ -26,41 +26,51 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
 
   React.useEffect(() => {
     const onSyncError = () => setSyncError("Your bag could not sync with your account. Please retry.");
+    const onSyncSuccess = () => setSyncError("");
     window.addEventListener("offgrid-cart-sync-error", onSyncError);
-    return () => window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+    window.addEventListener("offgrid-cart-sync-success", onSyncSuccess);
+    return () => {
+      window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+      window.removeEventListener("offgrid-cart-sync-success", onSyncSuccess);
+    };
   }, []);
 
   const change = (index, delta) => {
+    const item = cart[index];
+    if (!item) return;
     setSyncError("");
-    setCart((current) =>
-      current.map((item, i) => {
-        if (i !== index) return item;
-        const max = Math.max(1, Number(item.stock ?? 99));
-        const nextQty = Math.max(1, Math.min(max, Number(item.qty || 1) + delta));
-        if (user?.id) {
-          api("/cart/item", {
-            method: "PUT",
-            body: JSON.stringify({
-              product_id: item.id,
-              quantity: nextQty,
-              selected_size: item.selectedSize || null,
-              selected_color: item.selectedColor || null,
-            }),
-          }).catch(() => setSyncError("Could not sync quantity to your account. Please retry."));
-        }
-        return { ...item, qty: nextQty };
-      })
-    );
+    const max = Math.max(1, Number(item.stock ?? 99));
+    const nextQty = Math.max(1, Math.min(max, Number(item.qty || 1) + delta));
+    setCart(cart.map((entry, i) => i === index ? { ...entry, qty: nextQty } : entry));
+    if (user?.id) {
+      api("/cart/item", {
+        method: "PUT",
+        body: JSON.stringify({
+          product_id: item.id,
+          quantity: nextQty,
+          selected_size: item.selectedSize || null,
+          selected_color: item.selectedColor || null,
+        }),
+      }).then(() => window.dispatchEvent(new CustomEvent("offgrid-cart-sync-success")))
+        .catch(() => {
+          setSyncError("Could not sync quantity to your account. Please retry.");
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-error"));
+        });
+    }
   };
 
   const removeItem = (index) => {
-    setCart((current) => {
-      const item = current[index];
-      if (user?.id && item?.cartItemId) {
-        api(`/cart/item/${item.cartItemId}`, { method: "DELETE" }).catch(() => setSyncError("Could not sync item removal to your account. Please retry."));
-      }
-      return current.filter((_, i) => i !== index);
-    });
+    const item = cart[index];
+    if (!item) return;
+    setCart(cart.filter((_, i) => i !== index));
+    if (user?.id && item.cartItemId) {
+      api(`/cart/item/${item.cartItemId}`, { method: "DELETE" })
+        .then(() => window.dispatchEvent(new CustomEvent("offgrid-cart-sync-success")))
+        .catch(() => {
+          setSyncError("Could not sync item removal to your account. Please retry.");
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-error"));
+        });
+    }
   };
 
   if (!open) return null;
