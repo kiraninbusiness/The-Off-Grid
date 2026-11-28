@@ -70,13 +70,14 @@ export default function ProductDetails({product,products=PRODUCTS,add,wishlist=[
  const variants=Array.isArray(product.variants)?product.variants:[];
  const hasVariants=variants.length>0;
  const variantStock=(s,c)=>{const v=variants.find(v=>v.size===s&&(v.color||"")===(c||""));return v?Number(v.stock):null};
- const sizeSoldOut=(s)=>{if(!hasVariants)return false;const st=variantStock(s,color);return st!==null&&st<=0};
+ const sizeSoldOut=(s)=>{if(!hasVariants)return false;const st=variantStock(s,color);return st===null||st<=0};
  const selectedVariantStock=hasVariants&&size?(variantStock(size,color)??0):null;
  const maxQty=hasVariants&&size?Math.max(1,selectedVariantStock||0):Math.max(1,Number(product.stock||1));
+ useEffect(()=>{setQty(current=>Math.min(current,maxQty));},[maxQty]);
  const liked=wishlist.some(x=>String(x)===String(product.id));
  const discount=product.old_price?Math.round((Number(product.old_price)-Number(product.price))/Number(product.old_price)*100):0;
  const related=products.filter(p=>String(p.id)!==String(product.id)).sort((a,b)=>(a.category===product.category?0:1)-(b.category===product.category?0:1)).slice(0,3);
- const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,selectedSize:size||null,selectedColor:color||null});if(openCart)openCart();else nav("/checkout")};
+ const addNow=()=>{if(!product.stock)return;if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}if(hasVariants&&selectedVariantStock<=0){alert("THIS SIZE/COLOR IS OUT OF STOCK");return}for(let i=0;i<qty;i++)add({...product,stock:hasVariants?selectedVariantStock:product.stock,selectedSize:size||null,selectedColor:color||null});if(openCart)openCart();else nav("/checkout")};
  const shareProduct=async()=>{
   const url=`${window.location.origin}${productUrl(product)}`;
   try{
