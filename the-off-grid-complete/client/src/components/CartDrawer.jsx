@@ -24,6 +24,12 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
   const unavailableItems = cart.filter((item) => Number(item.stock ?? 99) < Number(item.qty || 1) || Number(item.stock ?? 99) <= 0);
   const [syncError, setSyncError] = React.useState("");
 
+  React.useEffect(() => {
+    const onSyncError = () => setSyncError("Your bag could not sync with your account. Please retry.");
+    window.addEventListener("offgrid-cart-sync-error", onSyncError);
+    return () => window.removeEventListener("offgrid-cart-sync-error", onSyncError);
+  }, []);
+
   const change = (index, delta) => {
     setSyncError("");
     setCart((current) =>
@@ -61,7 +67,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
 
   return (
     <div className="cart-drawer-overlay" onClick={onClose}>
-      <aside className="cart-drawer" onClick={(e) => e.stopPropagation()}>
+      <aside className="cart-drawer" role="dialog" aria-modal="true" aria-label="Your shopping bag" onClick={(e) => e.stopPropagation()}>
         <div className="cart-drawer-head">
           <div>
             <span>THE OFF GRID</span>
