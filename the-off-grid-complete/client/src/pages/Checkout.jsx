@@ -39,7 +39,8 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   });
   const [method, setMethod] = useState("COD");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");\n  const [cartSyncError, setCartSyncError] = useState("");
+  const [error, setError] = useState("");
+  const [cartSyncError, setCartSyncError] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [coupon, setCoupon] = useState(null);
   const [couponStatus, setCouponStatus] = useState("idle");
@@ -124,7 +125,8 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
   const discount = couponDiscount + pointsDiscount + giftCardDiscount;
   const grand = Math.max(0, total + shipping - discount);
 
-  const change = (index, delta) => {\n    setCartSyncError("");
+  const change = (index, delta) => {
+    setCartSyncError("");
     setCart((current) =>
       current.map((item, i) => {
         if (i !== index) return item;
@@ -546,14 +548,16 @@ export default function Checkout({ cart, setCart, user, onOrder }) {
             </div>
           ) : (
             <>
-              {cartSyncError && <p className="notify-me-error" role="alert">{cartSyncError}</p>}\n              <div className="checkout-sidebar-items">
+              {cartSyncError && <p className="notify-me-error" role="alert">{cartSyncError}</p>}
+              <div className="checkout-sidebar-items">
                 {cart.map((item, index) => (
                   <article className={`checkout-item ${Number(item.stock ?? 99) < Number(item.qty || 1) ? "checkout-item-unavailable" : ""}`} key={`${item.id}-${item.selectedSize || ""}-${item.selectedColor || ""}`}>
                     <img src={item.image} alt={item.name} />
                     <div>
                       <h3>{item.name}</h3>
                       {item.selectedSize && <p>SIZE: {item.selectedSize}</p>}{item.selectedColor && <p>COLOR: {item.selectedColor}</p>}
-                      <strong>{money(item.price)}</strong>\n                      {Number(item.stock ?? 99) <= 0 ? <p className="notify-me-error">OUT OF STOCK</p> : Number(item.qty || 1) > Number(item.stock ?? 99) ? <p className="notify-me-error">ONLY {item.stock} LEFT — UPDATE QUANTITY</p> : null}
+                      <strong>{money(item.price)}</strong>
+                      {Number(item.stock ?? 99) <= 0 ? <p className="notify-me-error">OUT OF STOCK</p> : Number(item.qty || 1) > Number(item.stock ?? 99) ? <p className="notify-me-error">ONLY {item.stock} LEFT — UPDATE QUANTITY</p> : null}
                       <div className="quantity-line">
                         <button type="button" onClick={() => change(index, -1)} disabled={Number(item.qty || 1) <= 1} aria-label={`Decrease quantity of ${item.name}`}><Minus /></button>
                         <span>{item.qty || 1}</span>
