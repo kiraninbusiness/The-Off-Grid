@@ -253,10 +253,12 @@ export default function App() {
           }),
         }))
         .then((row) => {
-          if (!row?.id) return;
-          const updated = cartRef.current.map((item) => same(item) ? { ...item, cartItemId: row.id } : item);
-          cartRef.current = updated;
-          setCart(updated);
+          if (row?.id) {
+            const updated = cartRef.current.map((item) => same(item) ? { ...item, cartItemId: row.id } : item);
+            cartRef.current = updated;
+            setCart(updated);
+          }
+          window.dispatchEvent(new CustomEvent("offgrid-cart-sync-success"));
         })
         .catch((error) => {
           console.error("Unable to sync cart item", error);
