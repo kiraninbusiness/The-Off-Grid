@@ -96,7 +96,7 @@ export default function CartDrawer({ open, onClose, cart, setCart, user }) {
                 <div>
                   <strong>{item.name}</strong>
                   {Number(item.stock ?? 99) <= 0 && <span className="cart-drawer-variant" role="alert">OUT OF STOCK</span>}
-                  {Number(item.stock ?? 99) > 0 && Number(item.qty || 1) > Number(item.stock ?? 99) && <span className="cart-drawer-variant" role="alert">ONLY {item.stock} LEFT — UPDATE QUANTITY</span>
+                  {Number(item.stock ?? 99) > 0 && Number(item.qty || 1) > Number(item.stock ?? 99) && <span className="cart-drawer-variant" role="alert">ONLY {item.stock} LEFT — UPDATE QUANTITY</span>}
                   {(item.selectedSize || item.selectedColor) && (
                     <span className="cart-drawer-variant">
                       {[item.selectedSize && `SIZE ${item.selectedSize}`, item.selectedColor].filter(Boolean).join(" · ")}
