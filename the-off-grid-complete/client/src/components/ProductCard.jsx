@@ -17,10 +17,12 @@ function QuickViewModal({product,onClose,isWishlisted,onAdd,onToggleWishlist}){
  const variants=Array.isArray(product.variants)?product.variants:[];
  const sizes=product.sizes?.length?product.sizes:variants.length?[...new Set(variants.map(v=>v.size).filter(Boolean))]:String(product.size||"").split("/").map(x=>x.trim()).filter(Boolean);
  const colors=product.colors?.length?product.colors:variants.length?[...new Set(variants.map(v=>v.color).filter(Boolean))]:[product.color].filter(Boolean);
- const [size,setSize]=useState("");\n React.useEffect(()=>{const handler=(e)=>{if(e.key==="Escape")onClose();};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[onClose]);
+ const [size,setSize]=useState("");
+ React.useEffect(()=>{const handler=(e)=>{if(e.key==="Escape")onClose();};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[onClose]);
  const [color,setColor]=useState(product.color||colors[0]||"");
  const discount=product.old_price?Math.round((product.old_price-product.price)/product.old_price*100):0;
- const selectedVariant=variants.length?variants.find(v=>(!size||String(v.size)===String(size))&&(!color||String(v.color||"")===String(color))):null;\n const sizeStock=(s)=>variants.length?Number(variants.find(v=>String(v.size)===String(s)&&(!color||String(v.color||"")===String(color)))?.stock||0):Number(product.stock||0);
+ const selectedVariant=variants.length?variants.find(v=>(!size||String(v.size)===String(size))&&(!color||String(v.color||"")===String(color))):null;
+ const sizeStock=(s)=>variants.length?Number(variants.find(v=>String(v.size)===String(s)&&(!color||String(v.color||"")===String(color)))?.stock||0):Number(product.stock||0);
  const variantSoldOut=Boolean(variants.length&&(size||!sizes.length)&&(!selectedVariant||Number(selectedVariant.stock)<=0));
  const go=()=>{
   if(sizes.length&&!size){alert("PLEASE SELECT A SIZE");return}
